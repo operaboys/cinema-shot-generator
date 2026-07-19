@@ -13,9 +13,10 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۰۶ — Asset & Continuity:** `domain/asset/` — مدل‌های Character/Location Asset، Hard Lock مطلق (identity/appearance/age)، انتخاب خودکار Outfit/Expression، اعتبارسنجی فایل تصویر مرجع.
 - **واحد ۰۷ — Validation & Consistency Engine:** `domain/validation/` — Validation Engine (Severity/ValidationIssue/ValidationReport سراسری)، Logic Conflict Checker، Dependency Resolver (تحلیل اثر، تشخیص وابستگی دایره‌ای).
 - **واحد ۰۳ — Visual Identity:** `domain/visualidentity/` — Style Matrix (ترکیب کیفی سبک‌ها، بررسی سازگاری)، Cinematic Language (صاحب اصلی `CinematicMode`، تعیین ریتم Hybrid، اعتبارسنجی مدت شات).
-- **واحد ۰۵ — Shot Engine:** `domain/shot/` — مدل‌های Shot/Beat/SoundProfile، صاحب اصلی `MotionLevel`، ارث‌بری از Scene (`inheritOrOverride`)، انتخاب Outfit (با `CharacterAsset` واقعی واحد ۰۶)، قوانین اعتبارسنجی Rule 1 تا Rule 5.
+- **واحد ۰۵ — Shot Engine:** `domain/shot/` — مدل‌های Shot/Beat/SoundProfile، صاحب اصلی `MotionLevel`، ارث‌بری از Scene (`inheritOrOverride`، نسخه‌ی محلی موقت)، انتخاب Outfit (با `CharacterAsset` واقعی واحد ۰۶)، قوانین اعتبارسنجی Rule 1 تا Rule 5.
+- **واحد ۰۴ — Scene Engine:** `domain/scene/` — مدل‌های Scene/SceneLocation/SceneConstraints، **صاحب اصلی `inheritOrOverride`**، حذف Scene، قوانین اعتبارسنجی Rule 1/4/5.
 
-بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال‌های باز فعلی:** (۱) آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (۲) آیا واحد ۰۷ باید پارامترهای `String` موقتش (`cinematicMode`، `motionLevel`) را به enum های واقعی واحدهای ۰۳/۰۵ Migrate کند؟ (۳) محل نهایی `inheritOrOverride`: واحد ۰۴ یا واحد ۰۵؟ (۴) تضاد حل‌نشده‌ی Rule «Shot بدون Subject» بین واحد ۰۵ (Blocking) و واحد ۰۷ (Warning). (جزئیات در `docs/adr/004-...md`، `005-...md`، `006-...md`)
+بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال‌های باز فعلی:** (۱) آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (۲) آیا واحد ۰۷ باید پارامترهای `String` موقتش (`cinematicMode`، `motionLevel`) را به enum های واقعی واحدهای ۰۳/۰۵ Migrate کند؟ (۳) **حل‌شده در این قدم:** `inheritOrOverride` اکنون صاحب اصلی‌اش (واحد ۰۴، `domain/scene/`) را دارد؛ سؤال باقی‌مانده این است که آیا نسخه‌ی تکراری در `domain/shot/ShotInheritance.kt` (واحد ۰۵) باید حذف و با import از واحد ۰۴ جایگزین شود. (۴) تضاد حل‌نشده‌ی Rule «Shot بدون Subject» بین واحد ۰۵ (Blocking) و واحد ۰۷ (Warning). (جزئیات در `docs/adr/004-...md` تا `007-...md`)
 
 ## Stack
 
@@ -36,7 +37,8 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 │   ├── validation/ → واحد ۰۷: Validation & Consistency Engine
 │   ├── visualidentity/ → واحد ۰۳: Visual Identity (Style Matrix + Cinematic Language)
-│   └── shot/   → واحد ۰۵: Shot Engine
+│   ├── shot/   → واحد ۰۵: Shot Engine
+│   └── scene/  → واحد ۰۴: Scene Engine (صاحب اصلی inheritOrOverride)
 ├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
 └── di/      → (خالی، برای بعد)
 
