@@ -12,8 +12,9 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۰۲ — DNA Manager:** `domain/dna/` — مدل‌های DNA پروژه، منطق Soft Lock، قوانین اعتبارسنجی Rule 1 تا Rule 5.
 - **واحد ۰۶ — Asset & Continuity:** `domain/asset/` — مدل‌های Character/Location Asset، Hard Lock مطلق (identity/appearance/age)، انتخاب خودکار Outfit/Expression، اعتبارسنجی فایل تصویر مرجع.
 - **واحد ۰۷ — Validation & Consistency Engine:** `domain/validation/` — Validation Engine (Severity/ValidationIssue/ValidationReport سراسری)، Logic Conflict Checker، Dependency Resolver (تحلیل اثر، تشخیص وابستگی دایره‌ای).
+- **واحد ۰۳ — Visual Identity:** `domain/visualidentity/` — Style Matrix (ترکیب کیفی سبک‌ها، بررسی سازگاری)، Cinematic Language (صاحب اصلی `CinematicMode`، تعیین ریتم Hybrid، اعتبارسنجی مدت شات).
 
-بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال باز:** آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (جزئیات در `docs/adr/004-unit07-validation-consistency-deviations.md`)
+بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال‌های باز فعلی:** (۱) آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (۲) حالا که واحد ۰۳ صاحب واقعی `CinematicMode` است، آیا واحد ۰۷ باید پارامترهای `String` موقتش را به این enum واقعی Migrate کند؟ (جزئیات در `docs/adr/004-...md` و `docs/adr/005-...md`)
 
 ## Stack
 
@@ -32,7 +33,8 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
 │   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
-│   └── validation/ → واحد ۰۷: Validation & Consistency Engine
+│   ├── validation/ → واحد ۰۷: Validation & Consistency Engine
+│   └── visualidentity/ → واحد ۰۳: Visual Identity (Style Matrix + Cinematic Language)
 ├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
 └── di/      → (خالی، برای بعد)
 
