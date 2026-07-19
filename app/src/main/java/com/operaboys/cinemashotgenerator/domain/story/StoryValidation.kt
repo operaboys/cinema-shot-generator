@@ -1,25 +1,16 @@
 package com.operaboys.cinemashotgenerator.domain.story
 
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+
 // واحد ۰۱ — قوانین اعتبارسنجی Story Wizard (Rule 1 تا Rule 4)
 // منبع حقیقت: docs/blueprints/01-story-and-override.md
-
-/** یک مورد اعتبارسنجی — Blocking (error) یا Warning. */
-data class ValidationIssue(
-    val field: String,
-    val reason: String,
-    val severity: RuleSeverity
-)
-
-/**
- * NOTE: این نوع فعلاً محلیِ واحد ۰۱ است؛ نسخه‌ی سراسری در واحد ۰۷
- * (Validation & Consistency) تعریف خواهد شد و این نوع به آن مهاجرت می‌کند.
- * (ثبت‌شده در docs/adr/001-unit01-story-override-deviations.md)
- */
-data class ValidationResult(
-    val valid: Boolean,
-    val errors: List<ValidationIssue>,
-    val warnings: List<ValidationIssue> = emptyList()
-)
+//
+// MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
+// یک ValidationIssue/ValidationResult محلی داشت (ثبت‌شده در ADR-001)؛ اکنون از
+// ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کند. RuleSeverity (تعریف‌شده
+// در HumanOverride.kt) دست‌نخورده ماند — آن enum برای مدل مجوز Override است، نه
+// برای گزارش نتیجه‌ی اعتبارسنجی، و خارج از Scope این Migration بود.
 
 /**
  * بررسی ترکیبات غیرمعمول Genre+Mood — نتیجه فقط Warning است، هرگز Blocking.
@@ -42,18 +33,22 @@ fun checkMoodGenreCompatibility(genre: Genre, mood: Mood): String? {
  *   {DOCUMENTARY, DRAMA} باشد. (تفسیر تأییدشده — StoryType مقدار Documentary ندارد؛ ADR-001)
  * - Rule 3 (Warning، غیرمسدودکننده): ترکیب غیرمعمول Genre + Mood اصلی.
  * - Rule 4 در validate بررسی نمی‌شود؛ مقدار درست از [deriveCompletionStatus] محاسبه می‌شود.
+ *
+ * لیست خالی معادل «Valid» است (طبق همان قرارداد validateDataCompleteness واحد ۰۷ که
+ * Blocking و Warning را در یک لیست ترکیب می‌کند، نه ValidationReport — هیچ‌کدام از
+ * توابع Rule-level موجود در پروژه از ValidationReport استفاده نمی‌کنند چون به
+ * targetId نیاز دارد که StoryContext فاقد آن است؛ جزئیات در ADR-010).
  */
-fun validateStoryContext(context: StoryContext): ValidationResult {
-    val errors = mutableListOf<ValidationIssue>()
-    val warnings = mutableListOf<ValidationIssue>()
+fun validateStoryContext(context: StoryContext): List<ValidationIssue> {
+    val issues = mutableListOf<ValidationIssue>()
 
     // Rule 1 (Blocking)
     if (context.genre.isEmpty()) {
-        errors.add(
+        issues.add(
             ValidationIssue(
+                severity = Severity.BLOCKING,
                 field = "genre",
-                reason = "ژانر انتخاب نشده است؛ انتخاب حداقل یک ژانر الزامی است",
-                severity = RuleSeverity.BLOCKING
+                message = "ژانر انتخاب نشده است؛ انتخاب حداقل یک ژانر الزامی است"
             )
         )
     }
@@ -61,11 +56,11 @@ fun validateStoryContext(context: StoryContext): ValidationResult {
     // Rule 2 (Blocking)
     val documentaryAllowed = setOf(Genre.DOCUMENTARY, Genre.DRAMA)
     if (Genre.DOCUMENTARY in context.genre && !documentaryAllowed.containsAll(context.genre)) {
-        errors.add(
+        issues.add(
             ValidationIssue(
+                severity = Severity.BLOCKING,
                 field = "genre",
-                reason = "پروژه‌ی Documentary فقط می‌تواند با ژانرهای Documentary/Drama ترکیب شود",
-                severity = RuleSeverity.BLOCKING
+                message = "پروژه‌ی Documentary فقط می‌تواند با ژانرهای Documentary/Drama ترکیب شود"
             )
         )
     }
@@ -73,21 +68,17 @@ fun validateStoryContext(context: StoryContext): ValidationResult {
     // Rule 3 (Warning)
     context.genre.forEach { genre ->
         checkMoodGenreCompatibility(genre, context.moodPrimary)?.let { message ->
-            warnings.add(
+            issues.add(
                 ValidationIssue(
+                    severity = Severity.WARNING,
                     field = "mood",
-                    reason = message,
-                    severity = RuleSeverity.WARNING
+                    message = message
                 )
             )
         }
     }
 
-    return ValidationResult(
-        valid = errors.isEmpty(),
-        errors = errors,
-        warnings = warnings
-    )
+    return issues
 }
 
 /**

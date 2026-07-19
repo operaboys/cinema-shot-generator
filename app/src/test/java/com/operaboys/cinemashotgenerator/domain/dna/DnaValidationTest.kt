@@ -1,7 +1,9 @@
 package com.operaboys.cinemashotgenerator.domain.dna
 
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -91,28 +93,28 @@ class DnaValidationTest {
     fun `validateShotAgainstDna blocks forbidden camera element`() {
         val result = validateShotAgainstDna("dutch_angle", "camera", sampleDna())
 
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
     fun `validateShotAgainstDna blocks forbidden lighting element`() {
         val result = validateShotAgainstDna("top_light", "lighting", sampleDna())
 
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
     fun `validateShotAgainstDna allows permitted element`() {
         val result = validateShotAgainstDna("tracking", "camera", sampleDna())
 
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     @Test
     fun `validateShotAgainstDna allows element in category with no forbidden list`() {
         val result = validateShotAgainstDna("rain", "weather", sampleDna())
 
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     // --- Rule 4 (Blocking): technical_constraints ---
@@ -121,28 +123,28 @@ class DnaValidationTest {
     fun `validateShotDuration within limit is valid`() {
         val result = validateShotDuration(8, sampleDna(maxShotDurationSeconds = 10))
 
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     @Test
     fun `validateShotDuration exceeding limit blocks`() {
         val result = validateShotDuration(15, sampleDna(maxShotDurationSeconds = 10))
 
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
     fun `validateShotAspectRatio matching is valid`() {
         val result = validateShotAspectRatio("2.39:1", sampleDna(aspectRatio = "2.39:1"))
 
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     @Test
     fun `validateShotAspectRatio mismatch blocks`() {
         val result = validateShotAspectRatio("16:9", sampleDna(aspectRatio = "2.39:1"))
 
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     // --- Rule 3 (Warning helper): mandatory_elements ---
@@ -154,7 +156,7 @@ class DnaValidationTest {
             dna = sampleDna()
         )
 
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     @Test
@@ -164,8 +166,8 @@ class DnaValidationTest {
             dna = sampleDna()
         )
 
-        assertTrue(result is ValidationResult.Warning)
-        assertTrue((result as ValidationResult.Warning).message.contains("color_grading"))
+        assertEquals(Severity.WARNING, result!!.severity)
+        assertTrue(result.message.contains("color_grading"))
     }
 
     // --- Rule 5 (helper): requiresApprovalForOverride ---

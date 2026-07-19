@@ -1,7 +1,9 @@
 package com.operaboys.cinemashotgenerator.domain.asset
 
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,13 +42,13 @@ class AssetValidationTest {
     @Test
     fun `rule1 duplicate asset id is blocking`() {
         val result = validateAssetIdUniqueness("char_001", existingIds = listOf("char_001", "loc_001"))
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
     fun `rule1 unique asset id is valid`() {
         val result = validateAssetIdUniqueness("char_002", existingIds = listOf("char_001", "loc_001"))
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     // --- Rule 3: Asset در حال استفاده قابل حذف نیست ---
@@ -54,13 +56,13 @@ class AssetValidationTest {
     @Test
     fun `rule3 asset in use cannot be deleted`() {
         val result = validateAssetDeletion("char_001", shotsUsingAsset = listOf("shot_001", "shot_002"))
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
     fun `rule3 unused asset can be deleted`() {
         val result = validateAssetDeletion("char_001", shotsUsingAsset = emptyList())
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     // --- Rule 5: حداقل یک Outfit پیش‌فرض ---
@@ -71,7 +73,7 @@ class AssetValidationTest {
             Outfit(id = "o1", name = "A", description = "d", isDefault = false)
         )
         val result = validateDefaultOutfitExists(outfits)
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
@@ -80,7 +82,7 @@ class AssetValidationTest {
             Outfit(id = "o1", name = "A", description = "d", isDefault = true)
         )
         val result = validateDefaultOutfitExists(outfits)
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     // --- Rule 6 + 6ب: وجود فایل + فرمت/سایز ---
@@ -93,7 +95,7 @@ class AssetValidationTest {
             mimeType = "image/jpeg",
             fileExists = { false }
         )
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
@@ -104,7 +106,7 @@ class AssetValidationTest {
             mimeType = "image/gif",
             fileExists = { true }
         )
-        assertTrue(result is ValidationResult.Blocking)
+        assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
     @Test
@@ -115,7 +117,7 @@ class AssetValidationTest {
             mimeType = "image/jpeg",
             fileExists = { true }
         )
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 
     // --- Rule 7: نام مشابه (Warning) ---
@@ -123,18 +125,18 @@ class AssetValidationTest {
     @Test
     fun `rule7 similar name warns`() {
         val result = checkSimilarAssetName("Detective Jon", existingNames = listOf("Detective John"))
-        assertTrue(result is ValidationResult.Warning)
+        assertEquals(Severity.WARNING, result!!.severity)
     }
 
     @Test
     fun `rule7 case and whitespace only difference warns`() {
         val result = checkSimilarAssetName("  detective john  ", existingNames = listOf("Detective John"))
-        assertTrue(result is ValidationResult.Warning)
+        assertEquals(Severity.WARNING, result!!.severity)
     }
 
     @Test
     fun `rule7 clearly different name is valid`() {
         val result = checkSimilarAssetName("Detective John", existingNames = listOf("Old Warehouse"))
-        assertEquals(ValidationResult.Valid, result)
+        assertNull(result)
     }
 }

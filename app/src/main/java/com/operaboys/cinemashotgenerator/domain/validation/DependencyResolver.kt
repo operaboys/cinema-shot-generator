@@ -38,9 +38,9 @@ fun analyzeImpact(changedNodeId: String, edges: List<DependencyEdge>): ImpactRep
  *
  * NOTE: این تابع مستقیماً از کد مفهومی بلوپرینت ۰۷ کپی شده و امضای متفاوتی از
  * validateAssetDeletion (واحد ۰۶، Rule 3) دارد — آنجا لیست شات‌های استفاده‌کننده
- * (List<String>) می‌گیرد و ValidationResult محلی برمی‌گرداند؛ اینجا شمارش (Int)
- * می‌گیرد و Result<Unit> برمی‌گرداند. یکی‌سازی این دو همراه با سؤال Migration
- * سراسری ValidationResult مطرح شده — در این قدم اجرا نشد.
+ * (List<String>) می‌گیرد و ValidationIssue? سراسری برمی‌گرداند (بعد از Migration ۱،
+ * docs/adr/010-cross-unit-migrations.md)؛ اینجا شمارش (Int) می‌گیرد و Result<Unit>
+ * برمی‌گرداند. یکی‌سازی این دو، پیشنهاد باز باقی‌مانده در ADR-010 است — در این قدم اجرا نشد.
  */
 fun canDeleteAsset(assetId: String, usageCount: Int): Result<Unit> {
     if (usageCount > 0) {

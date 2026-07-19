@@ -26,10 +26,10 @@ fun validateShotDescription(shotDescription: String): ValidationIssue? {
 /**
  * Rule 2 (Blocking): حداقل یک Subject (Character/Object/Location) متصل باشد.
  *
- * NOTE: این Rule با نمونه‌ی مشابه در بلوپرینت ۰۷ (validateDataCompleteness) که همین
- * مفهوم را Warning اعلام کرده بود (و locationIds را اصلاً بررسی نمی‌کرد) در تضاد است.
- * طبق تأیید صریح کاربر، Severity این‌جا از بلوپرینت ۰۵ (Blocking، هر سه دسته‌ی
- * Character/Object/Location) پیروی می‌کند. جزئیات در ADR-006.
+ * NOTE: این Rule قبلاً با نمونه‌ی مشابه در واحد ۰۷ (validateDataCompleteness) در تضاد
+ * بود (آنجا Warning بود و locationIds را بررسی نمی‌کرد؛ جزئیات در ADR-006). این تضاد
+ * در Migration ۴ (docs/adr/010-cross-unit-migrations.md) با هم‌ترازکردن واحد ۰۷ با
+ * همین‌جا رفع شد — منطق این تابع بدون تغییر ماند، فقط واحد ۰۷ به‌روزرسانی شد.
  */
 fun validateShotHasSubject(
     characterIds: List<String>,

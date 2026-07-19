@@ -1,19 +1,18 @@
 package com.operaboys.cinemashotgenerator.domain.asset
 
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlin.math.min
 
 // واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule 1، ۲، ۳، ۵، ۶، ۶ب، ۷)
 // منبع حقیقت: docs/blueprints/06-asset-and-continuity.md
 //
-// NOTE: این ValidationResult محلیِ واحد ۰۶ است (Valid/Warning/Blocking)، هم‌شکل با
-// نوع محلی واحد ۰۲ (DNA Manager) اما در پکیج مجزا — هر دو موقتی تا واحد ۰۷ نوع
-// سراسری را تعریف کند. Rule 4 (Hard Lock) از UpdateResult در AssetContinuity.kt
-// استفاده می‌کند، نه این نوع — چون آنجا حتی Warning هم نباید ممکن باشد.
-sealed class ValidationResult {
-    object Valid : ValidationResult()
-    data class Warning(val message: String) : ValidationResult()
-    data class Blocking(val message: String) : ValidationResult()
-}
+// MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
+// یک sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت (ثبت‌شده در
+// ADR-003)؛ اکنون از ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کند (معادل
+// Valid = null). Rule 4 (Hard Lock) همچنان از UpdateResult در AssetContinuity.kt
+// استفاده می‌کند — آن نوع عمداً از این Migration مستثنا شد تا تضمین سطح Type System
+// «Hard Lock هرگز فقط Warning نیست» از بین نرود (تصمیم تأییدشده، جزئیات در ADR-010).
 
 data class ImageValidationResult(val valid: Boolean, val reason: String? = null)
 
@@ -34,11 +33,11 @@ fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): 
 }
 
 /** Rule 1 (Blocking): یکتایی asset_id. */
-fun validateAssetIdUniqueness(assetId: String, existingIds: List<String>): ValidationResult {
+fun validateAssetIdUniqueness(assetId: String, existingIds: List<String>): ValidationIssue? {
     if (assetId in existingIds) {
-        return ValidationResult.Blocking("شناسه‌ی '$assetId' قبلاً برای یک Asset دیگر استفاده شده است")
+        return ValidationIssue(Severity.BLOCKING, message = "شناسه‌ی '$assetId' قبلاً برای یک Asset دیگر استفاده شده است")
     }
-    return ValidationResult.Valid
+    return null
 }
 
 /**
@@ -47,21 +46,22 @@ fun validateAssetIdUniqueness(assetId: String, existingIds: List<String>): Valid
  * مرتبط با همین assetId) — چون واحد ۰۵ (Shot Engine) هنوز وجود ندارد، لیست ساده‌ی
  * String دریافت می‌شود، نه یک نوع Shot واقعی.
  */
-fun validateAssetDeletion(assetId: String, shotsUsingAsset: List<String>): ValidationResult {
+fun validateAssetDeletion(assetId: String, shotsUsingAsset: List<String>): ValidationIssue? {
     if (shotsUsingAsset.isNotEmpty()) {
-        return ValidationResult.Blocking(
-            "Asset '$assetId' در ${shotsUsingAsset.size} شات استفاده می‌شود و قابل حذف نیست"
+        return ValidationIssue(
+            Severity.BLOCKING,
+            message = "Asset '$assetId' در ${shotsUsingAsset.size} شات استفاده می‌شود و قابل حذف نیست"
         )
     }
-    return ValidationResult.Valid
+    return null
 }
 
 /** Rule 5 (Blocking): حداقل یک Outfit باید is_default=true باشد. */
-fun validateDefaultOutfitExists(outfits: List<Outfit>): ValidationResult {
+fun validateDefaultOutfitExists(outfits: List<Outfit>): ValidationIssue? {
     if (outfits.none { it.isDefault }) {
-        return ValidationResult.Blocking("حداقل یک Outfit باید به‌عنوان Default مشخص شود")
+        return ValidationIssue(Severity.BLOCKING, message = "حداقل یک Outfit باید به‌عنوان Default مشخص شود")
     }
-    return ValidationResult.Valid
+    return null
 }
 
 /**
@@ -74,15 +74,15 @@ fun validateReferenceImageFile(
     fileSizeBytes: Long,
     mimeType: String,
     fileExists: (String) -> Boolean
-): ValidationResult {
+): ValidationIssue? {
     if (!fileExists(localFilePath)) {
-        return ValidationResult.Blocking("فایل مرجع تصویر پیدا نشد: $localFilePath")
+        return ValidationIssue(Severity.BLOCKING, message = "فایل مرجع تصویر پیدا نشد: $localFilePath")
     }
     val imageCheck = validateImageFile(localFilePath, fileSizeBytes, mimeType)
     return if (imageCheck.valid) {
-        ValidationResult.Valid
+        null
     } else {
-        ValidationResult.Blocking(imageCheck.reason ?: "فایل تصویر نامعتبر است")
+        ValidationIssue(Severity.BLOCKING, message = imageCheck.reason ?: "فایل تصویر نامعتبر است")
     }
 }
 
@@ -94,7 +94,7 @@ fun validateReferenceImageFile(
  * ویرایشی‌شان حداکثر ۲۰٪ طول بلندتر نام باشد (حداقل ۱) — یک آستانه‌ی ساده برای
  * گرفتن غلط‌های تایپی/شباهت نزدیک، بدون وابستگی به کتابخانه‌ی خارجی fuzzy-matching.
  */
-fun checkSimilarAssetName(name: String, existingNames: List<String>): ValidationResult {
+fun checkSimilarAssetName(name: String, existingNames: List<String>): ValidationIssue? {
     val normalized = name.trim().lowercase()
     val similarTo = existingNames.firstOrNull { existing ->
         val normalizedExisting = existing.trim().lowercase()
@@ -102,9 +102,9 @@ fun checkSimilarAssetName(name: String, existingNames: List<String>): Validation
         normalized == normalizedExisting || levenshteinDistance(normalized, normalizedExisting) <= threshold
     }
     if (similarTo != null) {
-        return ValidationResult.Warning("نام '$name' با Asset موجود '$similarTo' مشابه است")
+        return ValidationIssue(Severity.WARNING, message = "نام '$name' با Asset موجود '$similarTo' مشابه است")
     }
-    return ValidationResult.Valid
+    return null
 }
 
 private fun levenshteinDistance(a: String, b: String): Int {

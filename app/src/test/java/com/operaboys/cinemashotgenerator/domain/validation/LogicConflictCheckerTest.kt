@@ -1,5 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.validation
 
+import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -11,7 +13,7 @@ class LogicConflictCheckerTest {
 
     @Test
     fun `dynamic motion with long take warns`() {
-        val issue = checkFastMotionLongTake(motionLevel = "dynamic", cinematicMode = "long_take")
+        val issue = checkFastMotionLongTake(motionLevel = MotionLevel.DYNAMIC, cinematicMode = CinematicMode.LONG_TAKE)
 
         assertNotNull(issue)
         assertEquals(Severity.WARNING, issue!!.severity)
@@ -19,21 +21,21 @@ class LogicConflictCheckerTest {
 
     @Test
     fun `extreme motion with long take warns`() {
-        val issue = checkFastMotionLongTake(motionLevel = "extreme", cinematicMode = "long_take")
+        val issue = checkFastMotionLongTake(motionLevel = MotionLevel.EXTREME, cinematicMode = CinematicMode.LONG_TAKE)
 
         assertNotNull(issue)
     }
 
     @Test
     fun `static motion with long take has no conflict`() {
-        val issue = checkFastMotionLongTake(motionLevel = "static", cinematicMode = "long_take")
+        val issue = checkFastMotionLongTake(motionLevel = MotionLevel.STATIC, cinematicMode = CinematicMode.LONG_TAKE)
 
         assertNull(issue)
     }
 
     @Test
     fun `dynamic motion with fast cut has no conflict`() {
-        val issue = checkFastMotionLongTake(motionLevel = "dynamic", cinematicMode = "fast_cut")
+        val issue = checkFastMotionLongTake(motionLevel = MotionLevel.DYNAMIC, cinematicMode = CinematicMode.FAST_CUT)
 
         assertNull(issue)
     }

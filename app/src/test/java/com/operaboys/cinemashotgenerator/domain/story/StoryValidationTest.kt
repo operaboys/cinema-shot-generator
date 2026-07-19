@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.story
 
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -25,65 +25,60 @@ class StoryValidationTest {
 
     @Test
     fun `rule1 empty genre is blocking`() {
-        val result = validateStoryContext(context(genre = emptyList()))
+        val issues = validateStoryContext(context(genre = emptyList()))
 
-        assertFalse(result.valid)
-        assertTrue(result.errors.any { it.field == "genre" && it.severity == RuleSeverity.BLOCKING })
+        assertTrue(issues.any { it.field == "genre" && it.severity == Severity.BLOCKING })
     }
 
     @Test
     fun `rule1 filled context is valid`() {
-        val result = validateStoryContext(context())
+        val issues = validateStoryContext(context())
 
-        assertTrue(result.valid)
-        assertTrue(result.errors.isEmpty())
+        assertTrue(issues.none { it.severity == Severity.BLOCKING })
     }
 
     // --- Rule 2 (Blocking): محدودیت Documentary ---
 
     @Test
     fun `rule2 documentary with disallowed genre is blocking`() {
-        val result = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY, Genre.ACTION)))
+        val issues = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY, Genre.ACTION)))
 
-        assertFalse(result.valid)
-        assertTrue(result.errors.any { it.field == "genre" && it.severity == RuleSeverity.BLOCKING })
+        assertTrue(issues.any { it.field == "genre" && it.severity == Severity.BLOCKING })
     }
 
     @Test
     fun `rule2 documentary with drama is valid`() {
-        val result = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY, Genre.DRAMA)))
+        val issues = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY, Genre.DRAMA)))
 
-        assertTrue(result.valid)
+        assertTrue(issues.none { it.severity == Severity.BLOCKING })
     }
 
     @Test
     fun `rule2 documentary alone is valid`() {
-        val result = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY)))
+        val issues = validateStoryContext(context(genre = listOf(Genre.DOCUMENTARY)))
 
-        assertTrue(result.valid)
+        assertTrue(issues.none { it.severity == Severity.BLOCKING })
     }
 
     // --- Rule 3 (Warning): ترکیب غیرمعمول، هرگز Blocking ---
 
     @Test
     fun `rule3 horror plus hopeful warns but does not block`() {
-        val result = validateStoryContext(
+        val issues = validateStoryContext(
             context(genre = listOf(Genre.HORROR), moodPrimary = Mood.HOPEFUL)
         )
 
-        assertTrue(result.valid)
-        assertTrue(result.errors.isEmpty())
-        assertTrue(result.warnings.any { it.field == "mood" && it.severity == RuleSeverity.WARNING })
+        assertTrue(issues.none { it.severity == Severity.BLOCKING })
+        assertTrue(issues.any { it.field == "mood" && it.severity == Severity.WARNING })
     }
 
     @Test
     fun `rule3 normal combination has no warnings`() {
-        val result = validateStoryContext(
+        val issues = validateStoryContext(
             context(genre = listOf(Genre.HORROR), moodPrimary = Mood.DARK)
         )
 
-        assertTrue(result.valid)
-        assertTrue(result.warnings.isEmpty())
+        assertTrue(issues.isEmpty())
     }
 
     @Test

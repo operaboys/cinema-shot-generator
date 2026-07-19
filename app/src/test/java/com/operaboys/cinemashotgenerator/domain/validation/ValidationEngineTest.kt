@@ -13,7 +13,8 @@ class ValidationEngineTest {
         val issues = validateDataCompleteness(
             shotDescription = "short",
             characterIds = listOf("char_001"),
-            objectIds = emptyList()
+            objectIds = emptyList(),
+            locationIds = emptyList()
         )
 
         assertTrue(issues.any { it.severity == Severity.BLOCKING && it.field == "shot_description" })
@@ -24,22 +25,38 @@ class ValidationEngineTest {
         val issues = validateDataCompleteness(
             shotDescription = "A detective walks into a dimly lit office",
             characterIds = listOf("char_001"),
-            objectIds = emptyList()
+            objectIds = emptyList(),
+            locationIds = emptyList()
         )
 
         assertTrue(issues.isEmpty())
     }
 
     @Test
-    fun `shot without any subject warns but does not block`() {
+    fun `shot without any subject is blocking`() {
+        // Migration 4: قبلاً Warning بود؛ اکنون طبق Rule 2 واحد ۰۵ Blocking است.
         val issues = validateDataCompleteness(
             shotDescription = "A wide landscape shot of the mountains at dawn",
             characterIds = emptyList(),
-            objectIds = emptyList()
+            objectIds = emptyList(),
+            locationIds = emptyList()
         )
 
         assertEquals(1, issues.size)
-        assertEquals(Severity.WARNING, issues[0].severity)
+        assertEquals(Severity.BLOCKING, issues[0].severity)
+    }
+
+    @Test
+    fun `shot with only a location subject has no issues`() {
+        // Migration 4: locationIds اکنون هم مثل character/object بررسی می‌شود.
+        val issues = validateDataCompleteness(
+            shotDescription = "A wide landscape shot of the mountains at dawn",
+            characterIds = emptyList(),
+            objectIds = emptyList(),
+            locationIds = listOf("loc_002")
+        )
+
+        assertTrue(issues.isEmpty())
     }
 
     // --- validateLogicConsistency ---
