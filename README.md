@@ -16,8 +16,9 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۰۵ — Shot Engine:** `domain/shot/` — مدل‌های Shot/Beat/SoundProfile، صاحب اصلی `MotionLevel`، ارث‌بری از Scene (`inheritOrOverride`، نسخه‌ی محلی موقت)، انتخاب Outfit (با `CharacterAsset` واقعی واحد ۰۶)، قوانین اعتبارسنجی Rule 1 تا Rule 5.
 - **واحد ۰۴ — Scene Engine:** `domain/scene/` — مدل‌های Scene/SceneLocation/SceneConstraints، **صاحب اصلی `inheritOrOverride`**، حذف Scene، قوانین اعتبارسنجی Rule 1/4/5.
 - **واحد ۰۹ — Camera & Motion:** `domain/camera/` — Camera System (زاویه/فاصله/لنز/حرکت پایه و پیشرفته، ۵ قانون اعتبارسنجی)، Motion Intensity (سرعت/شدت سوژه، سرعت دوربین، Motion Blur).
+- **واحد ۰۸ — Scene Conditions:** `domain/sceneconditions/` — Lighting System (Mood-to-Lighting، ۵ قانون اعتبارسنجی)، Environment & Weather Engine (Environment-to-Sound، ۸ قانون اعتبارسنجی، یکی مشترک با واحد ۰۷).
 
-بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال‌های باز فعلی:** (۱) آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (۲) آیا واحد ۰۷ باید پارامترهای `String` موقتش (`cinematicMode`، `motionLevel`) را به enum های واقعی واحدهای ۰۳/۰۵ Migrate کند؟ (۳) آیا نسخه‌ی تکراری `inheritOrOverride` در `domain/shot/ShotInheritance.kt` (واحد ۰۵) باید حذف و با import از واحد ۰۴ جایگزین شود؟ (۴) تضاد حل‌نشده‌ی Rule «Shot بدون Subject» بین واحد ۰۵ (Blocking) و واحد ۰۷ (Warning). **یادداشت (نه سؤال باز):** هم‌پوشانی مفهومی SubjectSpeed (واحد ۰۹) و MotionLevel (واحد ۰۵) — عمداً بدون نگاشت رسمی باقی ماندند. (جزئیات در `docs/adr/004-...md` تا `008-...md`)
+بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند. **سؤال‌های باز فعلی:** (۱) آیا Migration واحدهای ۰۱/۰۲/۰۶ به‌سمت ValidationIssue/ValidationReport سراسری واحد ۰۷ باید یک قدم اجرایی جداگانه باشد؟ (۲) آیا واحد ۰۷ باید پارامترهای `String` موقتش (`cinematicMode`، `motionLevel`) را به enum های واقعی واحدهای ۰۳/۰۵ Migrate کند؟ (۳) آیا نسخه‌ی تکراری `inheritOrOverride` در `domain/shot/ShotInheritance.kt` (واحد ۰۵) باید حذف و با import از واحد ۰۴ جایگزین شود؟ (۴) تضاد حل‌نشده‌ی Rule «Shot بدون Subject» بین واحد ۰۵ (Blocking) و واحد ۰۷ (Warning). **یادداشت‌ها (نه سؤال باز جدی):** هم‌پوشانی مفهومی SubjectSpeed (واحد ۰۹) و MotionLevel (واحد ۰۵)؛ یکسانی کامل شکل داده‌ای `AmbientSoundSuggestion` (واحد ۰۸) و `AmbientSound` (واحد ۰۵). (جزئیات در `docs/adr/004-...md` تا `009-...md`)
 
 ## Stack
 
@@ -40,7 +41,8 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── visualidentity/ → واحد ۰۳: Visual Identity (Style Matrix + Cinematic Language)
 │   ├── shot/   → واحد ۰۵: Shot Engine
 │   ├── scene/  → واحد ۰۴: Scene Engine (صاحب اصلی inheritOrOverride)
-│   └── camera/ → واحد ۰۹: Camera & Motion
+│   ├── camera/ → واحد ۰۹: Camera & Motion
+│   └── sceneconditions/ → واحد ۰۸: Scene Conditions (Lighting + Environment)
 ├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
 └── di/      → (خالی، برای بعد)
 
