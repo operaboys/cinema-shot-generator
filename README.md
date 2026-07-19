@@ -4,9 +4,14 @@
 
 ## وضعیت فعلی
 
-**در حال راه‌اندازی اولیه — هنوز هیچ منطق کسب‌وکار پیاده‌سازی نشده.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — هنوز بدون Room/Persistence و بدون UI واقعی.**
 
-فعلاً فقط Scaffold پروژه (یک صفحه‌ی تست «Hello World») و ساختار پایه‌ی پوشه‌ها موجود است.
+Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار است. تاکنون لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room و بدون UI) این واحدها پیاده‌سازی شده:
+
+- **واحد ۰۱ — Story & Override:** `domain/story/` — مدل‌های Story Wizard، قوانین اعتبارسنجی، مدل‌های Human Override.
+- **واحد ۰۲ — DNA Manager:** `domain/dna/` — مدل‌های DNA پروژه، منطق Soft Lock، قوانین اعتبارسنجی Rule 1 تا Rule 5.
+
+بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند.
 
 ## Stack
 
@@ -21,11 +26,14 @@
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
 ├── data/    → Room entities, DAO, Database class (خالی)
-├── domain/  → مدل‌های دامنه (خالی)
+├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
+│   ├── story/  → واحد ۰۱: Story Wizard + Human Override
+│   └── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 ├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
 └── di/      → (خالی، برای بعد)
 
 docs/blueprints/  → بلوپرینت‌های معماری (منبع حقیقت) — قبل از پیاده‌سازی هر واحد بخوانید
+docs/adr/         → تصمیمات و انحرافات تأییدشده در هر قدم اجرایی
 ```
 
 ## Build
