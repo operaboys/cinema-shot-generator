@@ -10,6 +10,7 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 
 - **واحد ۰۱ — Story & Override:** `domain/story/` — مدل‌های Story Wizard، قوانین اعتبارسنجی، مدل‌های Human Override.
 - **واحد ۰۲ — DNA Manager:** `domain/dna/` — مدل‌های DNA پروژه، منطق Soft Lock، قوانین اعتبارسنجی Rule 1 تا Rule 5.
+- **واحد ۰۶ — Asset & Continuity:** `domain/asset/` — مدل‌های Character/Location Asset، Hard Lock مطلق (identity/appearance/age)، انتخاب خودکار Outfit/Expression، اعتبارسنجی فایل تصویر مرجع.
 
 بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند.
 
@@ -28,7 +29,8 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 ├── data/    → Room entities, DAO, Database class (خالی)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
-│   └── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
+│   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
+│   └── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 ├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
 └── di/      → (خالی، برای بعد)
 
