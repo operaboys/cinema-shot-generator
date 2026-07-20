@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "18bdc1f8d8ac0eaa7f52c1db136d5572",
+    "identityHash": "34ae5df55ec67523514fb2f22e96bf81",
     "entities": [
       {
         "tableName": "projects",
@@ -592,11 +592,65 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "audio_contexts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`audioContextId` TEXT NOT NULL, `shotId` TEXT NOT NULL, `audioContextDataJson` TEXT NOT NULL, PRIMARY KEY(`audioContextId`), FOREIGN KEY(`shotId`) REFERENCES `shots`(`shotId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "audioContextId",
+            "columnName": "audioContextId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shotId",
+            "columnName": "shotId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "audioContextDataJson",
+            "columnName": "audioContextDataJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "audioContextId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_audio_contexts_shotId",
+            "unique": false,
+            "columnNames": [
+              "shotId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_contexts_shotId` ON `${TABLE_NAME}` (`shotId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "shots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "shotId"
+            ],
+            "referencedColumns": [
+              "shotId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '18bdc1f8d8ac0eaa7f52c1db136d5572')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '34ae5df55ec67523514fb2f22e96bf81')"
     ]
   }
 }

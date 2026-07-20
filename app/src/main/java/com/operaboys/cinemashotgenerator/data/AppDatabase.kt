@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.operaboys.cinemashotgenerator.data.dao.AssetDao
+import com.operaboys.cinemashotgenerator.data.dao.AudioContextDao
 import com.operaboys.cinemashotgenerator.data.dao.DependencyEdgeDao
 import com.operaboys.cinemashotgenerator.data.dao.EventLogDao
 import com.operaboys.cinemashotgenerator.data.dao.OverrideDao
@@ -17,6 +18,7 @@ import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.dao.ShotDao
 import com.operaboys.cinemashotgenerator.data.dao.VersionDao
 import com.operaboys.cinemashotgenerator.data.entity.AssetEntity
+import com.operaboys.cinemashotgenerator.data.entity.AudioContextEntity
 import com.operaboys.cinemashotgenerator.data.entity.DependencyEdgeEntity
 import com.operaboys.cinemashotgenerator.data.entity.EventLogEntity
 import com.operaboys.cinemashotgenerator.data.entity.OverrideEntity
@@ -41,6 +43,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 // docs/adr/018-unit15-step2-repository-deviations.md.
 // ProjectDnaEntity (قدم ۳، زیرقدم ۱): بلوپرینت ۱۵ اصلاً Entity ای برای ProjectDna
 // فهرست نکرده بود — جزئیات در docs/adr/019-unit15-step3a-dna-asset-deviations.md.
+// AudioContextEntity (قدم ۳، زیرقدم ۲): همان دلیل، برای AudioContext — جزئیات در
+// docs/adr/020-unit15-step3b-audio-collectdata-deviations.md.
 
 @Database(
     entities = [
@@ -54,7 +58,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         VersionEntity::class,
         DependencyEdgeEntity::class,
         EventLogEntity::class,
-        ProjectDnaEntity::class
+        ProjectDnaEntity::class,
+        AudioContextEntity::class
     ],
     version = 1,
     exportSchema = true
@@ -71,6 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dependencyEdgeDao(): DependencyEdgeDao
     abstract fun eventLogDao(): EventLogDao
     abstract fun projectDnaDao(): ProjectDnaDao
+    abstract fun audioContextDao(): AudioContextDao
     abstract fun projectTransactionDao(): ProjectTransactionDao
 
     companion object {

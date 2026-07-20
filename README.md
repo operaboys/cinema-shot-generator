@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — هنوز بدون Room/Persistence و بدون UI واقعی.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence اکنون کامل و به‌طور واقعی به دامنه وصل است؛ هنوز بدون UI واقعی.**
 
 Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار است. تاکنون لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room و بدون UI) این واحدها پیاده‌سازی شده:
 
@@ -22,10 +22,8 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۱۲ — State & Versioning:** `domain/stateversioning/` — State Machine (۵ حالت: DRAFT→REVIEW→LOCKED→FINAL→ARCHIVED، `canTransition` + ۳ Rule اعتبارسنجی)؛ Lock Mechanism ساده‌ی تک‌کاربره (`EntityLock`, `setLock`, `unlockWithOverride`، بدون هیچ فیلد چندکاربره‌ای طبق تصریح بلوپرینت)؛ Versioning (`VersionType` SAFE/RISKY — **مستقل از** سطح‌بندی Low/Medium/High Risk در `change-management.md`؛ `determineVersionType`، `rollbackToVersion` تزریق‌پذیر)؛ Impact Analysis (`analyzeVersionImpact` با `findDependents` تزریق‌پذیر). تمام I/O واقعی (Room، واحد ۱۵) با پارامتر تزریق‌پذیر جایگزین شد.
 - **واحد ۱۴ — Output Delivery System (دومین واحد کلیدی معماری):** `domain/outputdelivery/` — Model Profile Library (`ModelProfile`, `universalDefaultProfile`, `selectProfile` با Fallback خودکار)؛ Renderer (`renderBlueprintToText`, `optimizeForProfile`, `render` — مصرف‌کننده‌ی واقعیِ `PromptBlueprint`/`StructuredParts` واحد ۱۱، بدون بازتعریف)؛ Output Composer (`composeOutput` — فقط بسته‌بندی، `renderedOutputs`/`bilingualPrompts` همیشه از بیرون تزریق می‌شوند، هرگز خودش Render نمی‌کند تا جای واحد ۱۳ در Pipeline باز بماند)؛ Bilingual System (`Language`, `t()` با Fallback به EN، `validateTranslationCoverage` — فقط ساختار داده و منطق ترجمه، بدون UI/Compose واقعی و بدون `translateToFarsi`).
 - **واحد ۱۳ — Prompt Finalization Pipeline:** `domain/promptfinalization/` — Prompt Cleaner (`cleanPrompt` با ۵ فاز **واقعاً پیاده‌شده**، نه کامنت جای‌گذار: Conflict Detection، Redundancy Removal، Stop Words Filtering، Token Optimization، Final Polish — فقط برای متن انگلیسی، طبق تصریح بلوپرینت)؛ Token Cost Calculator (`estimateTokensFromWords`, `checkTokenLimit` با `ModelProfile` واقعی واحد ۱۴)؛ **`finalizePrompt`** — تابع پل‌زننده‌ای که `RenderedOutput` واحد ۱۴ را می‌گیرد، متنش را Clean می‌کند، و یک `RenderedOutput` جدید تمیزشده برمی‌گرداند که مستقیماً قابل تزریق به `composeOutput` است.
-- **واحد ۱۵ — Project Storage/Room (⚠️ قدم ۳ — زیرقدم ۱ از ۲ تمام شد؛ `collectData` هنوز باقی مانده):** `data/entity/`, `data/dao/`, `data/AppDatabase.kt`, `data/repository/` — Room 2.8.4 + KSP + kotlinx.serialization واقعاً وصل شده‌اند. تمام ۹ Entity بلوپرینت + `EventLogEntity` (قدم ۲) + `ProjectDnaEntity` (قدم ۳، زیرقدم ۱) + DAO متناظر (suspend/Flow) + `ProjectTransactionDao` (اثبات Atomicity با `@Transaction`) پیاده شدند. **`data/` هیچ وابستگی‌ای به `domain/` ندارد** (تأیید با grep) — `DependencyEdgeEntity` مستقل بازتعریف شد. `domain/storage/`: `validateReferentialIntegrity` + ۴ Rule جدول با `ValidationIssue` سراسری.
-  **قدم ۲:** `SettingsResolutionRepository` (`resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` واحد ۰۵)؛ `VersioningRepository` (`rollbackToVersion` واحد ۱۲ با `createSnapshot`/`logEvent` واقعی + `StateVersioningEventLogger` پشت `EventLogDao`)؛ `ImpactAnalysisRepository` (`analyzeVersionImpact` واحد ۱۲ با `findDependents` واقعی از `DependencyEdgeDao`).
-  **قدم ۳، زیرقدم ۱ (همین قدم):** `ProjectDnaRepository` (`saveProjectDna`/`loadProjectDna` واحد ۰۲، پشت `ProjectDnaEntity` جدید) و `AssetRepository` (`saveCharacterAsset`/`saveLocationAsset`/`loadCharacterAssets`/`loadAssets` واحد ۰۶، پشت `AssetEntity` موجود) — هر دو با DTO محلی در `data/repository/` (بدون تغییر در `domain/`) و تست Round-Trip کامل.
-  **قدم ۳، زیرقدم ۲ (باقی‌مانده):** `AudioContext` (واحد ۱۰) + اتصال نهایی `PromptGenerationRepository.collectData` به `PromptGenerationInput` کامل.
+- **واحد ۱۵ — Project Storage/Room (✅ تکمیل‌شده):** `data/entity/`, `data/dao/`, `data/AppDatabase.kt`, `data/repository/` — Room 2.8.4 + KSP + kotlinx.serialization واقعاً وصل شده‌اند. تمام ۹ Entity بلوپرینت + سه Entity اضافه (`EventLogEntity`, `ProjectDnaEntity`, `AudioContextEntity` — بلوپرینت ۱۵ اصلاً فهرستشان نکرده بود؛ طبق الگوی «هر Aggregate یک جدول مستقل») + DAO متناظر (suspend/Flow) + `ProjectTransactionDao` (اثبات Atomicity با `@Transaction`). **`data/` هیچ وابستگی‌ای به `domain/` ندارد** (تأیید با grep) — `DependencyEdgeEntity` مستقل بازتعریف شد. `domain/storage/`: `validateReferentialIntegrity` + ۴ Rule جدول با `ValidationIssue` سراسری.
+  **همه‌ی Repository ها:** `SettingsResolutionRepository`، `VersioningRepository` (با `StateVersioningEventLogger` واقعی)، `ImpactAnalysisRepository`، `ProjectDnaRepository`، `AssetRepository`، `SceneRepository`، `AudioContextRepository`، و در نهایت **`PromptGenerationRepository.collectData`** که همه‌ی آن‌ها را در یک `PromptGenerationInput` واقعی (واحد ۱۱) تجمیع می‌کند.
 
 ### 🎯 نقطه‌ی عطف: Pipeline اصلی کامل شد (واحد ۱۱ → ۱۴ → ۱۳ → ۱۴)
 
@@ -40,6 +38,20 @@ PromptBlueprint (واحد ۱۱)
 ```
 
 هر چهار واحد این زنجیره (۱۱، ۱۳، ۱۴) اکنون منطق دامنه‌ی واقعی و کامپایل‌شونده دارند — بدون Placeholder در مسیر اصلی.
+
+### 🎯 نقطه‌ی عطف: واحد ۱۵ (Project Storage/Room) کامل شد
+
+پس از سه قدم اجرایی (Entity/DAO/Database → Settings/Versioning/Impact Repository ها → ProjectDna/Asset → Scene/AudioContext/`collectData`)، **تمام توابع تزریق‌پذیر کل پروژه اکنون به پیاده‌سازی واقعی Room وصل شده‌اند** — نه فقط طراحی‌شده روی کاغذ:
+
+| تابع تزریق‌پذیر | واحد دامنه | Repository متصل |
+|---|---|---|
+| `resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` | ۰۵ | `SettingsResolutionRepository` |
+| `collectData` (کل `PromptGenerationInput`) | ۱۱ | `PromptGenerationRepository` |
+| `createSnapshot`/`logEvent` (در `rollbackToVersion`) | ۱۲ | `VersioningRepository` |
+| `StateVersioningEventLogger` | ۱۲ | `VersioningRepository` (پشت `EventLogDao`) |
+| `findDependents` (در `analyzeVersionImpact`) | ۱۲ | `ImpactAnalysisRepository` |
+
+سه باگ واقعی در طول این سه قدم با تست کشف و رفع شدند (ترتیب `saveShotWithSceneUpdate` در برابر Cascade Delete؛ تداخل نام فیلد `type` با Discriminator چندریختی kotlinx.serialization) — جزئیات کامل در `docs/adr/017` تا `docs/adr/020`.
 
 بلوپرینت هر واحد در `docs/blueprints/` منبع حقیقت است؛ تصمیمات و انحرافات تأییدشده در `docs/adr/` ثبت شده‌اند.
 
@@ -90,14 +102,18 @@ PromptBlueprint (واحد ۱۱)
 
 طبق همان تصمیم قدم ۲ (Scope بزرگ بود)، قدم ۳ هم به دو زیرقدم تقسیم شد. این زیرقدم `ProjectDna` (واحد ۰۲) و `CharacterAsset`/`LocationAsset` (واحد ۰۶) را به Room وصل کرد — با یک `ProjectDnaEntity` جدید (بلوپرینت ۱۵ اصلاً چنین Entity ای فهرست نکرده بود؛ هم‌جنس تصمیمات قبلاً تأییدشده‌ی «افزودن Entity وقتی Schema هنوز version=1 و منتشرنشده است»، پس این‌بار پرسیده نشد). تأیید شد `CharacterAsset` واقعاً فاقد `outfitOverride` است (طبق پیش‌بینی، هم‌راستا با ADR-012). هر دو تست Round-Trip کامل (نه نمونه‌ی مینیمال) در همان اجرای اول موفق شدند — بدون باگ جدید. جزئیات کامل در `docs/adr/019-unit15-step3a-dna-asset-deviations.md`.
 
-**باقی‌مانده (زیرقدم ۲ همین قدم):** `AudioContext` (واحد ۱۰) + اتصال نهایی `collectData` به `PromptGenerationInput` کامل.
+### پس از واحد ۱۵ — قدم ۳، زیرقدم ۲ (تکمیل‌شده — آخرین زیرقدم واحد ۱۵)
+
+`AudioContext` (واحد ۱۰) به Room وصل شد (`AudioContextEntity` جدید، هم‌جنس `ProjectDnaEntity`) و `SceneRepository` هم اضافه شد (طبق پیش‌بینی صریح دستور کار — `SceneEntity`/`SceneDao` قدم ۱ به‌تنهایی کافی نبودند). یافته‌ی مهم: `Scene` دامنه هیچ فیلد `projectId` ندارد (تأیید با grep) — این فیلد فقط در `SceneEntity` وجود دارد، پس `collectData` برای بارگذاری `ProjectDna` از `sceneEntity.projectId` استفاده می‌کند، نه از خودِ `Scene`. `PromptGenerationRepository.collectData` سرانجام نوشته شد: `Shot` → `Scene` → `ProjectDna` → `characters`/`objects`/`locations` → `camera`/`lighting`/`environment` (Resolve شده) → `audioContext` (nullable) را به ترتیب می‌خواند و یک `PromptGenerationInput` واقعی می‌سازد. هر سه تست (Scene، AudioContext، collectData) در همان اجرای اول موفق شدند — بدون باگ جدید. جزئیات کامل در `docs/adr/020-unit15-step3b-audio-collectdata-deviations.md`.
+
+**باقی‌مانده (خارج از Scope واحد ۱۵، طبق ADR-017):** `AutoSaveManager`/`BackupManager`/Export-Import — فقط امضای پیشنهادی، هنوز کد واقعی ندارند.
 
 ## Stack
 
 - **زبان:** Kotlin
 - **UI:** Jetpack Compose (Material 3)
 - **معماری:** MVVM ساده (ViewModel + StateFlow) — بدون فریمورک DI در فاز اول
-- **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) + kotlinx.serialization (برای فیلدهای `*DataJson`) — پشتیبانی از چند پروژه‌ی همزمان؛ Entity/DAO/Database و سه Repository اصلی (Settings/Versioning/ImpactAnalysis) وصل شده‌اند (واحد ۱۵، قدم ۱ و ۲)؛ `collectData` هنوز باقی مانده (قدم ۳)
+- **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) + kotlinx.serialization (برای فیلدهای `*DataJson`) — پشتیبانی از چند پروژه‌ی همزمان؛ کاملاً پیاده‌سازی و به دامنه وصل شده (واحد ۱۵ تکمیل‌شده)
 - **اتصال AI (اختیاری):** Ktor Client — فقط وقتی کاربر کلید API شخصی وارد کند
 
 ## ساختار
@@ -105,9 +121,9 @@ PromptBlueprint (واحد ۱۱)
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
 ├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵)
-│   ├── entity/ → ۱۱ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna)
+│   ├── entity/ → ۱۲ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext)
 │   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)
-│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset Repository + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
+│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
