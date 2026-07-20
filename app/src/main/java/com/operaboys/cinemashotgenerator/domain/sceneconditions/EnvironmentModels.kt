@@ -23,3 +23,12 @@ enum class TemperatureFeel { HOT, MILD, COLD }
  * در docs/adr/009-unit08-scene-conditions-deviations.md.
  */
 data class AmbientSoundSuggestion(val type: String, val intensity: String, val description: String)
+
+/**
+ * تجمیع محلیِ فقط weatherType — همان فیلدی که واحد ۱۱ (Prompt Engineering Core) واقعاً
+ * می‌خواند. ابتدا در domain.promptengine تعریف شده بود؛ به اینجا منتقل شد
+ * (docs/adr/013-...) با همان دلیل LightingSettings.
+ */
+data class EnvironmentSettings(
+    val weatherType: WeatherType
+)

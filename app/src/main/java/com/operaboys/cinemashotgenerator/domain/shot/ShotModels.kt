@@ -1,5 +1,9 @@
 package com.operaboys.cinemashotgenerator.domain.shot
 
+import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
+
 // واحد ۰۵ — Shot Engine (ساختار داده)
 // منبع حقیقت: docs/blueprints/05-shot-engine.md
 //
@@ -48,13 +52,16 @@ data class SoundProfile(
 )
 
 /**
- * نمایندگی ساده‌ی فیلدهای camera/lighting/environment طبق ساختار JSON بلوپرینت
- * (نه نوع کامل واحدهای ۰۸/۰۹ که هنوز پیاده نشده‌اند): source مشخص می‌کند تنظیمات
- * از Scene ارث رسیده ("scene") یا در همین Shot Override شده ("override").
+ * نمایندگی فیلدهای camera/lighting/environment طبق بخش «ارث‌بری و Override» بلوپرینت:
+ * source مشخص می‌کند تنظیمات از Scene ارث رسیده ("scene") یا در همین Shot Override
+ * شده ("override"). قبلاً `settings: Map<String, String>` بود (docs/adr/006-...)، چون
+ * واحدهای ۰۸/۰۹ هنوز پیاده نشده بودند و آن Map هیچ schema/Parser واقعی به enum های
+ * آن واحدها نداشت. حالا که هر دو واحد واقعی‌اند، generic شد تا `overrideValue` مقدار
+ * Type-safe واقعی (نه رشته‌ی بدون‌ساختار) نگه دارد — docs/adr/013-....
  */
-data class SourcedSettings(
+data class SourcedSettings<T>(
     val source: String = "scene",
-    val settings: Map<String, String> = emptyMap()
+    val overrideValue: T? = null
 )
 
 /**
@@ -75,9 +82,9 @@ data class Shot(
     val motionLevel: MotionLevel,
     val beats: List<Beat> = emptyList(),
     val imageReferences: List<ImageReference> = emptyList(),
-    val camera: SourcedSettings = SourcedSettings(),
-    val lighting: SourcedSettings = SourcedSettings(),
-    val environment: SourcedSettings = SourcedSettings(),
+    val camera: SourcedSettings<CameraSettings> = SourcedSettings(),
+    val lighting: SourcedSettings<LightingSettings> = SourcedSettings(),
+    val environment: SourcedSettings<EnvironmentSettings> = SourcedSettings(),
     val soundProfile: SoundProfile,
     val characterIds: List<String> = emptyList(),
     val objectIds: List<String> = emptyList(),

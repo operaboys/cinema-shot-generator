@@ -43,7 +43,9 @@ import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound

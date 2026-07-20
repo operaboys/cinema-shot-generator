@@ -6,10 +6,8 @@ import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
 import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 import com.operaboys.cinemashotgenerator.domain.shot.ImageReference
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
@@ -18,25 +16,12 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 // منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
 //
 // همه‌ی انواع این فایل از پکیج‌های واقعی واحدهای از قبل پیاده‌شده import شده‌اند —
-// جزئیات نگاشت‌های غیربدیهی (objects/locations، LightingSettings/EnvironmentSettings)
-// در docs/adr/012-unit11-prompt-engineering-core-deviations.md مستند شده‌اند.
-
-/**
- * تجمیع محلیِ فقط همان فیلدهایی از Lighting که کد مفهومی بلوپرینت واقعاً می‌خواند
- * (style، keyLightPosition، contrastRatio). هیچ نوع «LightingSettings» تجمیعی در
- * واحد ۰۸ وجود ندارد (فقط enum های مجزا)؛ این نوع فقط ترکیبی از همان enum های واقعی
- * import‌شده است، نه یک Placeholder با فیلد حدسی.
- */
-data class LightingSettings(
-    val style: LightingStyle,
-    val keyLightPosition: KeyLightPosition,
-    val contrastRatio: ContrastRatio
-)
-
-/** مشابه LightingSettings — فقط weatherType که کد مفهومی بلوپرینت واقعاً می‌خواند. */
-data class EnvironmentSettings(
-    val weatherType: WeatherType
-)
+// جزئیات نگاشت‌های غیربدیهی (objects/locations) در
+// docs/adr/012-unit11-prompt-engineering-core-deviations.md مستند شده‌اند.
+// LightingSettings/EnvironmentSettings ابتدا اینجا تعریف شده بودند؛ به domain.sceneconditions
+// منتقل شدند (docs/adr/013-...) چون واحد ۰۵ (Shot.lighting/.environment) هم به همین
+// نوع واقعی نیاز پیدا کرد و domain.shot نباید به domain.promptengine (بالادست‌ترین واحد)
+// وابسته شود.
 
 /**
  * ورودی جمع‌آوری‌شده برای تولید یک PromptBlueprint.
@@ -45,10 +30,11 @@ data class EnvironmentSettings(
  *   پروژه وجود ندارد) — طبق تصمیم ADR-003 (واحد ۰۶)، LocationAsset از قبل هر دو
  *   AssetType.LOCATION و AssetType.OBJECT را پوشش می‌دهد؛ تمایز فقط با فیلد assetType
  *   نمونه‌ها مشخص می‌شود، نه با دو نوع Kotlin جدا.
- * - camera: CameraSettings واقعی (واحد ۰۹) است؛ توجه: Shot.camera فعلاً از نوع
- *   SourcedSettings (Placeholder ساده‌ی واحد ۰۵) است، نه CameraSettings — تبدیل واقعی
- *   بین این دو، وظیفه‌ی لایه‌ای است که collectData را در آینده پیاده می‌کند (خارج از
- *   Scope این قدم؛ همین‌طور برای lighting/environment).
+ * - camera/lighting/environment: انواع واقعی (واحدهای ۰۹/۰۸) هستند. اتصال واقعی این‌ها
+ *   از Shot.camera/.lighting/.environment (که پس از ADR-013 خودشان typed هستند) به‌عهده‌ی
+ *   لایه‌ای است که collectData را در آینده پیاده می‌کند (خارج از Scope این قدم) — با
+ *   resolveCameraSettings/resolveLightingSettings/resolveEnvironmentSettings (واحد ۰۵)
+ *   که در ADR-013 اضافه شدند.
  */
 data class PromptGenerationInput(
     val dna: ProjectDna,

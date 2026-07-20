@@ -35,3 +35,16 @@ data class LightingPreset(
     val shadowQuality: String,
     val colorTemperature: String
 )
+
+/**
+ * تجمیع محلیِ فقط همان فیلدهایی از Lighting که واحد ۱۱ (Prompt Engineering Core) واقعاً
+ * می‌خواند (style، keyLightPosition، contrastRatio) — نه یک نوع کامل جدید. ابتدا در
+ * domain.promptengine تعریف شده بود؛ به اینجا منتقل شد (docs/adr/013-...) چون واحد ۰۵
+ * (Shot.lighting) هم اکنون به نوع واقعیِ نتیجه‌ی resolve نیاز دارد و domain.shot نباید
+ * به domain.promptengine (بالادست‌ترین واحد) وابسته شود.
+ */
+data class LightingSettings(
+    val style: LightingStyle,
+    val keyLightPosition: KeyLightPosition,
+    val contrastRatio: ContrastRatio
+)
