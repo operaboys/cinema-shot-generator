@@ -9,6 +9,7 @@ import com.operaboys.cinemashotgenerator.data.dao.DependencyEdgeDao
 import com.operaboys.cinemashotgenerator.data.dao.EventLogDao
 import com.operaboys.cinemashotgenerator.data.dao.OverrideDao
 import com.operaboys.cinemashotgenerator.data.dao.ProjectDao
+import com.operaboys.cinemashotgenerator.data.dao.ProjectDnaDao
 import com.operaboys.cinemashotgenerator.data.dao.ProjectTransactionDao
 import com.operaboys.cinemashotgenerator.data.dao.PromptBlueprintDao
 import com.operaboys.cinemashotgenerator.data.dao.RenderedOutputDao
@@ -19,6 +20,7 @@ import com.operaboys.cinemashotgenerator.data.entity.AssetEntity
 import com.operaboys.cinemashotgenerator.data.entity.DependencyEdgeEntity
 import com.operaboys.cinemashotgenerator.data.entity.EventLogEntity
 import com.operaboys.cinemashotgenerator.data.entity.OverrideEntity
+import com.operaboys.cinemashotgenerator.data.entity.ProjectDnaEntity
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
 import com.operaboys.cinemashotgenerator.data.entity.PromptBlueprintEntity
 import com.operaboys.cinemashotgenerator.data.entity.RenderedOutputEntity
@@ -37,6 +39,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 //
 // EventLogEntity (قدم ۲): برای StateVersioningEventLogger واقعی واحد ۱۲ — جزئیات در
 // docs/adr/018-unit15-step2-repository-deviations.md.
+// ProjectDnaEntity (قدم ۳، زیرقدم ۱): بلوپرینت ۱۵ اصلاً Entity ای برای ProjectDna
+// فهرست نکرده بود — جزئیات در docs/adr/019-unit15-step3a-dna-asset-deviations.md.
 
 @Database(
     entities = [
@@ -49,7 +53,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         OverrideEntity::class,
         VersionEntity::class,
         DependencyEdgeEntity::class,
-        EventLogEntity::class
+        EventLogEntity::class,
+        ProjectDnaEntity::class
     ],
     version = 1,
     exportSchema = true
@@ -65,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun versionDao(): VersionDao
     abstract fun dependencyEdgeDao(): DependencyEdgeDao
     abstract fun eventLogDao(): EventLogDao
+    abstract fun projectDnaDao(): ProjectDnaDao
     abstract fun projectTransactionDao(): ProjectTransactionDao
 
     companion object {

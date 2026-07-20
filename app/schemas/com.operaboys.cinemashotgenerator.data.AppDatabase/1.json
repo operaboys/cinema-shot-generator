@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "22e583271127dd110bb7748954cee870",
+    "identityHash": "18bdc1f8d8ac0eaa7f52c1db136d5572",
     "entities": [
       {
         "tableName": "projects",
@@ -538,11 +538,65 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_event_log_entityId` ON `${TABLE_NAME}` (`entityId`)"
           }
         ]
+      },
+      {
+        "tableName": "project_dna",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`dnaId` TEXT NOT NULL, `projectId` TEXT NOT NULL, `dnaDataJson` TEXT NOT NULL, PRIMARY KEY(`dnaId`), FOREIGN KEY(`projectId`) REFERENCES `projects`(`projectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "dnaId",
+            "columnName": "dnaId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dnaDataJson",
+            "columnName": "dnaDataJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "dnaId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_project_dna_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_dna_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "projects",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "projectId"
+            ],
+            "referencedColumns": [
+              "projectId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '22e583271127dd110bb7748954cee870')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '18bdc1f8d8ac0eaa7f52c1db136d5572')"
     ]
   }
 }
