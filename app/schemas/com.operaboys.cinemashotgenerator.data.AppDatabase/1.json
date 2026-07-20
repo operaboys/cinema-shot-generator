@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "1ba181c53f92117e20cb22da2f7bac02",
+    "identityHash": "22e583271127dd110bb7748954cee870",
     "entities": [
       {
         "tableName": "projects",
@@ -368,7 +368,7 @@
       },
       {
         "tableName": "versions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`versionId` TEXT NOT NULL, `entityId` TEXT NOT NULL, `versionType` TEXT NOT NULL, `snapshotJson` TEXT NOT NULL, `createdAt` TEXT NOT NULL, PRIMARY KEY(`versionId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`versionId` TEXT NOT NULL, `entityId` TEXT NOT NULL, `versionType` TEXT NOT NULL, `snapshotJson` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `changeSummary` TEXT NOT NULL, `modifiedFieldsJson` TEXT NOT NULL, `parentVersionId` TEXT, PRIMARY KEY(`versionId`))",
         "fields": [
           {
             "fieldPath": "versionId",
@@ -399,6 +399,23 @@
             "columnName": "createdAt",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "changeSummary",
+            "columnName": "changeSummary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modifiedFieldsJson",
+            "columnName": "modifiedFieldsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentVersionId",
+            "columnName": "parentVersionId",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -474,11 +491,58 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_dependency_edges_targetId` ON `${TABLE_NAME}` (`targetId`)"
           }
         ]
+      },
+      {
+        "tableName": "event_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `eventType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `timestamp` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventType",
+            "columnName": "eventType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_event_log_entityId",
+            "unique": false,
+            "columnNames": [
+              "entityId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_event_log_entityId` ON `${TABLE_NAME}` (`entityId`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1ba181c53f92117e20cb22da2f7bac02')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '22e583271127dd110bb7748954cee870')"
     ]
   }
 }

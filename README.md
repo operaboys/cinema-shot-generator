@@ -22,7 +22,9 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۱۲ — State & Versioning:** `domain/stateversioning/` — State Machine (۵ حالت: DRAFT→REVIEW→LOCKED→FINAL→ARCHIVED، `canTransition` + ۳ Rule اعتبارسنجی)؛ Lock Mechanism ساده‌ی تک‌کاربره (`EntityLock`, `setLock`, `unlockWithOverride`، بدون هیچ فیلد چندکاربره‌ای طبق تصریح بلوپرینت)؛ Versioning (`VersionType` SAFE/RISKY — **مستقل از** سطح‌بندی Low/Medium/High Risk در `change-management.md`؛ `determineVersionType`، `rollbackToVersion` تزریق‌پذیر)؛ Impact Analysis (`analyzeVersionImpact` با `findDependents` تزریق‌پذیر). تمام I/O واقعی (Room، واحد ۱۵) با پارامتر تزریق‌پذیر جایگزین شد.
 - **واحد ۱۴ — Output Delivery System (دومین واحد کلیدی معماری):** `domain/outputdelivery/` — Model Profile Library (`ModelProfile`, `universalDefaultProfile`, `selectProfile` با Fallback خودکار)؛ Renderer (`renderBlueprintToText`, `optimizeForProfile`, `render` — مصرف‌کننده‌ی واقعیِ `PromptBlueprint`/`StructuredParts` واحد ۱۱، بدون بازتعریف)؛ Output Composer (`composeOutput` — فقط بسته‌بندی، `renderedOutputs`/`bilingualPrompts` همیشه از بیرون تزریق می‌شوند، هرگز خودش Render نمی‌کند تا جای واحد ۱۳ در Pipeline باز بماند)؛ Bilingual System (`Language`, `t()` با Fallback به EN، `validateTranslationCoverage` — فقط ساختار داده و منطق ترجمه، بدون UI/Compose واقعی و بدون `translateToFarsi`).
 - **واحد ۱۳ — Prompt Finalization Pipeline:** `domain/promptfinalization/` — Prompt Cleaner (`cleanPrompt` با ۵ فاز **واقعاً پیاده‌شده**، نه کامنت جای‌گذار: Conflict Detection، Redundancy Removal، Stop Words Filtering، Token Optimization، Final Polish — فقط برای متن انگلیسی، طبق تصریح بلوپرینت)؛ Token Cost Calculator (`estimateTokensFromWords`, `checkTokenLimit` با `ModelProfile` واقعی واحد ۱۴)؛ **`finalizePrompt`** — تابع پل‌زننده‌ای که `RenderedOutput` واحد ۱۴ را می‌گیرد، متنش را Clean می‌کند، و یک `RenderedOutput` جدید تمیزشده برمی‌گرداند که مستقیماً قابل تزریق به `composeOutput` است.
-- **واحد ۱۵ — Project Storage/Room (⚠️ فقط قدم ۱ از ۲):** `data/entity/`, `data/dao/`, `data/AppDatabase.kt` — Room 2.8.4 + KSP اکنون واقعاً وصل شده‌اند (نه فقط اعلام‌شده در کاتالوگ نسخه‌ها). تمام ۹ Entity بلوپرینت (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge) + DAO متناظر (suspend/Flow، طبق الزام Room جدید) + `ProjectTransactionDao` (اثبات Atomicity با `@Transaction`) پیاده شدند. **`data/` هیچ وابستگی‌ای به `domain/` ندارد** (تأیید با grep) — `DependencyEdgeEntity` عمداً مستقل از `domain.validation.DependencyEdge` بازتعریف شد. `domain/storage/` هم اضافه شد: `validateReferentialIntegrity` (منطق خالص، بدون Room) + ۴ Rule جدول با `ValidationIssue` سراسری. **قدم ۲ (اتصال واقعی resolve\*/collectData/createSnapshot/logEvent/findDependents واحدهای ۰۵/۱۱/۱۲ به این DAO ها) هنوز انجام نشده — یک قدم اجرایی جداگانه‌ی بعدی است.**
+- **واحد ۱۵ — Project Storage/Room (⚠️ قدم ۱ و ۲ از ۳ — `collectData` هنوز باقی مانده):** `data/entity/`, `data/dao/`, `data/AppDatabase.kt`, `data/repository/` — Room 2.8.4 + KSP + kotlinx.serialization واقعاً وصل شده‌اند. تمام ۹ Entity بلوپرینت + `EventLogEntity` جدید (قدم ۲) + DAO متناظر (suspend/Flow) + `ProjectTransactionDao` (اثبات Atomicity با `@Transaction`) پیاده شدند. **`data/` هیچ وابستگی‌ای به `domain/` ندارد** (تأیید با grep) — `DependencyEdgeEntity` مستقل بازتعریف شد. `domain/storage/`: `validateReferentialIntegrity` + ۴ Rule جدول با `ValidationIssue` سراسری.
+  **قدم ۲ (همین قدم) این توابع تزریق‌پذیر را واقعاً به DAO ها وصل کرد:** `SettingsResolutionRepository` (`resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` واحد ۰۵، با DTO محلی در `data/repository/` برای سریالایز `Shot`/`CameraSettings`/`LightingSettings`/`EnvironmentSettings` — بدون هیچ تغییری در `domain/`)؛ `VersioningRepository` (`rollbackToVersion` واحد ۱۲ با `createSnapshot`/`logEvent` واقعی، و `StateVersioningEventLogger` واقعی پشت `EventLogDao` جدید)؛ `ImpactAnalysisRepository` (`analyzeVersionImpact` واحد ۱۲ با `findDependents` واقعی از `DependencyEdgeDao`).
+  **قدم ۳ (باقی‌مانده، تأییدشده توسط معمار که جداگانه انجام شود):** `PromptGenerationRepository.collectData` — سریالایز کامل `PromptGenerationInput` (شامل `ProjectDna`/`CharacterAsset`/`LocationAsset`/`AudioContext`) به تقریباً ۶۰-۸۰ نوع دامنه در ۸ پکیج نیاز دارد، فراتر از محدوده‌ی این قدم.
 
 ### 🎯 نقطه‌ی عطف: Pipeline اصلی کامل شد (واحد ۱۱ → ۱۴ → ۱۳ → ۱۴)
 
@@ -73,27 +75,32 @@ PromptBlueprint (واحد ۱۱)
 
 اتصال واقعی به واحد ۱۴ اکنون برقرار است (`finalizePrompt` بین `render()` و `composeOutput()` جا گرفت — نقطه‌ی عطف بالا). معادل فارسی Prompt Cleaner پیاده نشد (طبق تصریح خودِ بلوپرینت، این منطق فقط برای متن انگلیسی طراحی شده، چون `render()` واحد ۱۴ فعلاً فقط انگلیسی تولید می‌کند)؛ Budget Tracking/Cost Estimation طبق بلوپرینت پیاده نشد (فیچر اختیاری) — جزئیات در `docs/adr/016-unit13-prompt-finalization-deviations.md`.
 
-### پس از واحد ۱۵ — قدم ۱ (⚠️ نیمه‌ی اول، نه واحد کامل)
+### پس از واحد ۱۵ — قدم ۱
 
 **فقط Room (Entity/DAO/Database) پیاده شد؛ صفر اتصال به دامنه.** یک باگ واقعی حین تست کشف و رفع شد: ترتیب فراخوانی در `ProjectTransactionDao.saveShotWithSceneUpdate` (که در کد مفهومی بلوپرینت `saveShot` را قبل از `saveScene` می‌آورد) باعث می‌شد `OnConflictStrategy.REPLACE` روی `SceneEntity` — که SQLite آن را با حذف+درج پیاده می‌کند — به‌خاطر `ForeignKey(onDelete=CASCADE)` از `ShotEntity`، شات تازه‌درج‌شده را در همان تراکنش پاک کند؛ ترتیب به `saveScene` سپس `saveShot` تغییر کرد (جزئیات کامل در `docs/adr/017-unit15-project-storage-deviations.md`). این یک هشدار عمومی برای هر `@Transaction` آینده‌ی مشابه است.
 
-`AutoSaveManager`/`BackupManager`/Export-Import پیاده نشدند (فقط امضای پیشنهادی در ADR-017 یادداشت شد) — به DAO های این قدم وابسته‌اند اما منطق سطح بالاتری‌اند. **قدم ۲ این واحد (اتصال واقعی به واحدهای ۰۵/۱۱/۱۲) هنوز باقی مانده.**
+### پس از واحد ۱۵ — قدم ۲ (تکمیل‌شده — به‌جز `collectData`)
+
+`data/repository/` سه Repository واقعی اضافه کرد (بالا). یک باگ واقعی دیگر حین تست کشف و رفع شد: `CameraMovementDto.Basic` یک فیلد به نام `type` داشت که با ستون Discriminator پیش‌فرض kotlinx.serialization برای Sealed Class ها (که هم `"type"` نام دارد) تداخل می‌کرد — به `movementType` تغییر نام یافت. `VersionEntity` سه فیلد (`changeSummary`, `modifiedFieldsJson`, `parentVersionId`) گرفت که در قدم ۱ نبودند (نمونه‌ی ناقص خودِ بلوپرینت) تا داده‌ی `EntityVersion` واحد ۱۲ حین ذخیره گم نشود. جزئیات کامل در `docs/adr/018-unit15-step2-repository-deviations.md`.
+
+`AutoSaveManager`/`BackupManager`/Export-Import همچنان پیاده نشدند (فقط امضای پیشنهادی، طبق ADR-017). **`PromptGenerationRepository.collectData` به یک قدم سوم جداگانه موکول شد** (تأییدشده توسط معمار) — سریالایز کامل `PromptGenerationInput` عملاً کل لایه‌ی دامنه را پوشش می‌دهد.
 
 ## Stack
 
 - **زبان:** Kotlin
 - **UI:** Jetpack Compose (Material 3)
 - **معماری:** MVVM ساده (ViewModel + StateFlow) — بدون فریمورک DI در فاز اول
-- **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) — پشتیبانی از چند پروژه‌ی همزمان؛ Entity/DAO/Database وصل شده‌اند (واحد ۱۵، قدم ۱)، اتصال به دامنه هنوز باقی مانده (قدم ۲)
+- **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) + kotlinx.serialization (برای فیلدهای `*DataJson`) — پشتیبانی از چند پروژه‌ی همزمان؛ Entity/DAO/Database و سه Repository اصلی (Settings/Versioning/ImpactAnalysis) وصل شده‌اند (واحد ۱۵، قدم ۱ و ۲)؛ `collectData` هنوز باقی مانده (قدم ۳)
 - **اتصال AI (اختیاری):** Ktor Client — فقط وقتی کاربر کلید API شخصی وارد کند
 
 ## ساختار
 
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
-├── data/    → Room entities, DAO, Database class (واحد ۱۵، قدم ۱ — بدون وابستگی به domain/)
-│   ├── entity/ → ۹ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge)
+├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵)
+│   ├── entity/ → ۱۰ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog)
 │   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)
+│   ├── repository/ → SettingsResolutionRepository/VersioningRepository/ImpactAnalysisRepository + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override

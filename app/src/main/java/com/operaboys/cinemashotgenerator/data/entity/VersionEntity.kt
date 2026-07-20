@@ -9,6 +9,14 @@ import androidx.room.PrimaryKey
 //
 // NOTE: بدون ForeignKey عمداً — entityId اینجا هم Polymorphic است (مشابه OverrideEntity).
 // Index("entityId") برای کارایی کوئری «تاریخچه‌ی نسخه‌های یک Entity» اضافه شد.
+//
+// NOTE (قدم ۲): changeSummary/modifiedFieldsJson/parentVersionId در قدم ۱ نبودند —
+// نمونه‌ی Entity خودِ بلوپرینت هم این سه فیلد را نداشت، با این‌که domain.stateversioning.
+// EntityVersion (واحد ۱۲) هر سه را دارد. برای این‌که هیچ داده‌ای حین نگاشت
+// EntityVersion↔VersionEntity گم نشود، این سه فیلد اضافه شدند (با مقدار پیش‌فرض، پس
+// Backward-Compatible) — دقیقاً هم‌جنس با تصمیم افزودن EventLogEntity (تأییدشده)، چون
+// Schema هنوز version=1 و منتشرنشده است. جزئیات کامل در
+// docs/adr/018-unit15-step2-repository-deviations.md.
 
 @Entity(tableName = "versions", indices = [Index("entityId")])
 data class VersionEntity(
@@ -16,5 +24,8 @@ data class VersionEntity(
     val entityId: String,
     val versionType: String, // "safe" | "risky"
     val snapshotJson: String,
-    val createdAt: String
+    val createdAt: String,
+    val changeSummary: String = "",
+    val modifiedFieldsJson: String = "[]",
+    val parentVersionId: String? = null
 )

@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.operaboys.cinemashotgenerator.data.dao.AssetDao
 import com.operaboys.cinemashotgenerator.data.dao.DependencyEdgeDao
+import com.operaboys.cinemashotgenerator.data.dao.EventLogDao
 import com.operaboys.cinemashotgenerator.data.dao.OverrideDao
 import com.operaboys.cinemashotgenerator.data.dao.ProjectDao
 import com.operaboys.cinemashotgenerator.data.dao.ProjectTransactionDao
@@ -16,6 +17,7 @@ import com.operaboys.cinemashotgenerator.data.dao.ShotDao
 import com.operaboys.cinemashotgenerator.data.dao.VersionDao
 import com.operaboys.cinemashotgenerator.data.entity.AssetEntity
 import com.operaboys.cinemashotgenerator.data.entity.DependencyEdgeEntity
+import com.operaboys.cinemashotgenerator.data.entity.EventLogEntity
 import com.operaboys.cinemashotgenerator.data.entity.OverrideEntity
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
 import com.operaboys.cinemashotgenerator.data.entity.PromptBlueprintEntity
@@ -28,9 +30,13 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 // منبع حقیقت: docs/blueprints/15-project-storage.md
 //
 // یک دیتابیس واحد با تمام Entity ها (نه فایل جدا per پروژه) — دقیقاً طبق تصمیم معماری
-// «یک دیتابیس، چند پروژه» بلوپرینت. version=1 چون هنوز هیچ Migration واقعی لازم
-// نیست (خارج از Scope این قدم). بدون فریمورک DI — طبق تصمیم قبلی پروژه — یک
-// Singleton Provider ساده با Room.databaseBuilder.
+// «یک دیتابیس، چند پروژه» بلوپرینت. version=1 چون هنوز هیچ نسخه‌ای منتشر نشده (نه در
+// قدم ۱، نه در قدم ۲ که EventLogEntity را اضافه کرد — تأییدشده توسط معمار). بدون
+// فریمورک DI — طبق تصمیم قبلی پروژه — یک Singleton Provider ساده با
+// Room.databaseBuilder.
+//
+// EventLogEntity (قدم ۲): برای StateVersioningEventLogger واقعی واحد ۱۲ — جزئیات در
+// docs/adr/018-unit15-step2-repository-deviations.md.
 
 @Database(
     entities = [
@@ -42,7 +48,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         RenderedOutputEntity::class,
         OverrideEntity::class,
         VersionEntity::class,
-        DependencyEdgeEntity::class
+        DependencyEdgeEntity::class,
+        EventLogEntity::class
     ],
     version = 1,
     exportSchema = true
@@ -57,6 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun overrideDao(): OverrideDao
     abstract fun versionDao(): VersionDao
     abstract fun dependencyEdgeDao(): DependencyEdgeDao
+    abstract fun eventLogDao(): EventLogDao
     abstract fun projectTransactionDao(): ProjectTransactionDao
 
     companion object {
