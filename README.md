@@ -99,7 +99,16 @@ PromptBlueprint (واحد ۱۱)
 1. **رندر JSON واقعی:** `render()` اکنون برای `format.type == "json"` (۹ از ۱۳ پروفایل مدل) یک `JsonObject` واقعی و Parse‌پذیر می‌سازد (با `kotlinx.serialization.json`، نه String concatenation دستی) — مستقیماً از `structuredParts` (subject/scene/shot/camera/lighting/environment/style/timeline/audio)، نه از متن مسطح‌شده. `weightedEmphasis` (وقتی پروفایل `supportsWeightedTags` دارد) به‌عنوان یک Object جدا در همان JSON اضافه می‌شود — نه با دستکاری متنی. در حال حاضر هیچ پروفایلی هم‌زمان json+weightedTags ندارد؛ این مسیر برای پروفایل‌های آینده مستند و آماده است.
 2. **وزن‌دهی واقعی Stable Diffusion:** `applyWeightSyntax` اکنون `platform == "stable_diffusion"` را هم ویژه می‌کند — نحو معروف `(tag:weight)` (مثل `(cinematic lighting:1.2)`)، دقیقاً مثل نحو `tag::weight` میجرنی که از قبل موجود بود.
 
-جزئیات کامل تصمیمات (ساختار JSON پیشنهادی، چرا از `structuredParts` خام نه متن مسطح، بدهی مستند Truncation فیلد-به-فیلد) در `docs/adr/025-unit14-renderer-json-and-weighting-deviations.md`.
+جزئیات کامل تصمیمات (ساختار JSON پیشنهادی، چرا از `structuredParts` خام نه متن مسطح) در `docs/adr/025-unit14-renderer-json-and-weighting-deviations.md`.
+
+### 🎯 نقطه‌ی عطف: مرز Renderer↔Prompt Finalization برای JSON ایمن شد
+
+دو مشکل مرتبط که بعد از رندر JSON واقعی (بالا) کشف شدند، رفع شدند:
+
+1. **Truncation JSON (بدهی ADR-025):** بررسی نشان داد `render()` از قبل خروجی JSON را کوتاه نمی‌کرد (فقط مستند نبود) — این رفتار اکنون صریحاً مستند و با تست قفل شده: JSON طولانی هرگز بریده نمی‌شود، `validatePromptLength` موجود (بدون تغییر) همچنان به‌درستی Warning می‌دهد.
+2. **`finalizePrompt` کور نسبت به JSON:** `cleanPrompt` (واحد ۱۳) فرض متن آزاد دارد — روی یک رشته‌ی JSON واقعی می‌توانست ساختار را خراب کند (بدترینش: `applyFinalPolish` بعد از `}` پایانی نقطه اضافه می‌کرد → JSON نامعتبر). `finalizePrompt` اکنون برای `format.type=="json"` به‌جای Clean کردن کل رشته، JSON را Parse می‌کند (`kotlinx.serialization.json`)، فقط مقدار هر فیلد رشته‌ای را Clean می‌کند (با `CleaningOptions.applyFinalPolish=false` تازه‌افزوده — Phase 5 برای یک مقدار تکی فیلد بی‌معناست)، و دوباره Serialize می‌کند؛ Object تودرتوی `weightedEmphasis` دست‌نخورده می‌ماند. اگر Parse شکست بخورد (یعنی واقعاً JSON نبوده)، به مسیر متن آزاد قبلی Fallback می‌کند، نه Crash.
+
+**محدودیت پذیرفته‌شده:** چون هر فیلد جدا Clean می‌شود، تشخیص تضاد بین‌فیلدی (نه درون یک فیلد) دیگر ممکن نیست — رفعش خارج از Scope این قدم بود. جزئیات کامل و نظر تخصصی درباره‌ی انتخاب این رویکرد (به‌جای غیرفعال‌کردن کامل Cleaning برای JSON) در `docs/adr/026-unit13-json-aware-finalization-deviations.md`.
 
 ### پس از واحد ۱۳
 

@@ -26,7 +26,13 @@ data class CleaningOptions(
     val removeRedundancy: Boolean = true,
     val filterStopWords: Boolean = true,
     val optimizeTokens: Boolean = true,
-    val aggressiveMode: Boolean = false
+    val aggressiveMode: Boolean = false,
+    // واحد ۱۴/۱۳ (ADR-026): وقتی cleanPrompt روی یک مقدار تکی از فیلد JSON اجرا
+    // می‌شود (نه یک جمله‌ی کامل رندرشده)، فاز ۵ (بزرگ‌کردن حرف اول + الزام نقطه‌ی
+    // پایانی) بی‌معناست — مثلاً فیلد camera="eye level, medium shot" نباید به
+    // "Eye level, medium shot." تبدیل شود. پیش‌فرض true تمام رفتار/تست‌های موجود را
+    // دست‌نخورده نگه می‌دارد (هیچ فراخوانی موجودی این فیلد را صریح نمی‌دهد).
+    val applyFinalPolish: Boolean = true
 )
 
 val SYNONYM_GROUPS = listOf(
@@ -117,7 +123,7 @@ fun cleanPrompt(renderedText: String, options: CleaningOptions = CleaningOptions
 
     if (options.optimizeTokens) cleaned = optimizeTokens(cleaned)
 
-    cleaned = applyFinalPolish(cleaned)
+    if (options.applyFinalPolish) cleaned = applyFinalPolish(cleaned)
 
     val report = CleaningReport(
         conflictsDetected = conflicts.size,

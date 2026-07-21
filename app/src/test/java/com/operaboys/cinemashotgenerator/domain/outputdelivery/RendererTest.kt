@@ -228,4 +228,32 @@ class RendererTest {
         val expectedText = optimizeForProfile(bp, commandProfile)
         assertEquals("/imagine prompt: $expectedText", rendered.formattedPrompt)
     }
+
+    // --- تصمیم Truncation برای JSON (ADR-026): بدون کوتاه‌سازی مخرب، فقط هشدار ---
+
+    @Test
+    fun `render with a json profile never truncates the output even for very long structured parts`() {
+        val longSubject = "a detective ".repeat(200)
+        val bp = blueprint(structuredParts(environmentSpecs = longSubject))
+        val tightProfile = videoCapableProfile.copy(constraints = ModelConstraints(maxPromptLength = 10, maxTokens = 500))
+
+        val rendered = render(bp, tightProfile)
+
+        // با وجود maxPromptLength=10، JSON باید کامل و معتبر بماند — نه بریده‌شده
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertEquals(longSubject, parsed.getValue("environment").jsonPrimitive.content)
+        assertTrue(rendered.formattedPrompt.length > tightProfile.constraints.maxPromptLength)
+    }
+
+    @Test
+    fun `validatePromptLength still warns correctly for a long json-rendered output`() {
+        val longSubject = "a detective ".repeat(200)
+        val bp = blueprint(structuredParts(environmentSpecs = longSubject))
+        val tightProfile = videoCapableProfile.copy(constraints = ModelConstraints(maxPromptLength = 10, maxTokens = 500))
+
+        val rendered = render(bp, tightProfile)
+        val issue = validatePromptLength(rendered.formattedPrompt, tightProfile)
+
+        assertEquals(Severity.WARNING, issue!!.severity)
+    }
 }

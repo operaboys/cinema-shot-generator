@@ -82,6 +82,14 @@ data class RenderedOutput(val modelProfileId: String, val formattedPrompt: Strin
  * هم با روح API های واقعی JSON سازگارتر است. فعلاً هیچ پروفایل موجودی هم‌زمان
  * json+supportsWeightedTags=true ندارد (تأیید با grep) — این مسیر برای پروفایل‌های
  * آینده‌ی این ترکیب مستند و آماده است، نه یک باگ فعلی.
+ *
+ * **تصمیم Truncation (ADR-026):** برخلاف مسیر `optimizeForProfile` (که رشته‌ی متن
+ * مسطح را در صورت عبور از `maxPromptLength` با `.take(n) + "..."` کوتاه می‌کند)، این
+ * تابع خروجی JSON را هرگز کوتاه نمی‌کند — کوتاه‌سازی رشته‌ای روی یک JSON معتبر تقریباً
+ * همیشه آن را نامعتبر می‌کند. `validatePromptLength` موجود (بدون تغییر، چون فقط طول
+ * کاراکتری رشته را می‌سنجد و به شکل داخلی متن کاری ندارد) همچنان به‌درستی روی طول
+ * خروجی JSON هم کار می‌کند و Warning می‌دهد — این عمداً تنها مکانیزم هشدار برای طول
+ * پروفایل‌های JSON است، بدون هیچ کوتاه‌سازی خودکار مخرب.
  */
 private fun buildJsonPrompt(blueprint: PromptBlueprint, profile: ModelProfile): String {
     val parts = blueprint.structuredParts

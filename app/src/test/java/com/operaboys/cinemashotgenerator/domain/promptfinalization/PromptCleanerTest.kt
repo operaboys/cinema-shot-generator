@@ -100,4 +100,18 @@ class PromptCleanerTest {
         val issue = validateCompressionRatio(report)
         assertEquals(Severity.WARNING, issue!!.severity)
     }
+
+    // --- CleaningOptions.applyFinalPolish (ADR-026: برای Clean کردن مقادیر تکی فیلد JSON) ---
+
+    @Test
+    fun `cleanPrompt skips capitalization and terminal punctuation when applyFinalPolish is false`() {
+        val (cleaned, _) = cleanPrompt("eye level, medium shot", CleaningOptions(applyFinalPolish = false))
+        assertEquals("eye level, medium shot", cleaned)
+    }
+
+    @Test
+    fun `cleanPrompt still applies final polish by default, unchanged`() {
+        val (cleaned, _) = cleanPrompt("eye level, medium shot")
+        assertEquals("Eye level, medium shot.", cleaned)
+    }
 }
