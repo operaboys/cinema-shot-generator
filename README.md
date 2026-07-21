@@ -116,6 +116,12 @@ PromptBlueprint (واحد ۱۱)
 
 **باقی‌مانده (خارج از Scope واحد ۱۵، طبق ADR-017):** `AutoSaveManager`/`BackupManager`/Export-Import — فقط امضای پیشنهادی، هنوز کد واقعی ندارند.
 
+### پس از واحد ۱۵ — تکمیل `AutoSaveManager`
+
+`data/repository/AutoSaveManager.kt` بدنه‌ی واقعی گرفت (تا اینجا فقط امضا داشت، طبق ADR-017): `suspend fun saveIfDirty(project: ProjectEntity, isDirty: Boolean): Result<Boolean>` با `ProjectDao` واقعی — `isDirty=true` ذخیره می‌کند و `lastModified` را به‌روز می‌کند، `isDirty=false` هیچ نوشتنی انجام نمی‌دهد. **تصمیم طراحی:** منطق Timer/Debounce واقعی («هر ۳۰ ثانیه») در این لایه پیاده نشد — به Lifecycle واقعی اپ (ViewModel/UI، واحد ۱۶، هنوز ساخته نشده) موکول شد؛ `intervalSeconds` به‌عنوان مقدار پیکربندی `public` نگه داشته شد تا آن لایه بتواند بخواندش. جزئیات کامل در `docs/adr/022-unit15-autosave-manager-deviations.md`.
+
+`BackupManager`/Export-Import همچنان فقط امضای پیشنهادی دارند — قدم بعدی جداگانه.
+
 ## Stack
 
 - **زبان:** Kotlin
