@@ -130,7 +130,15 @@ PromptBlueprint (واحد ۱۱)
 
 **تصمیم معماری کلیدی:** چون I/O فایل واقعی (نه Room) لازم بود، این عملیات پشت `BackupFileStorage` (interface) انتزاع شد — `DeviceBackupFileStorage` با `Context.filesDir` پیاده‌سازی واقعی است؛ تست‌ها از یک Fake درون‌حافظه استفاده می‌کنند، بدون I/O واقعی دستگاه. مثل `AutoSaveManager`، هیچ Timer واقعی («هر ۵ دقیقه») ساخته نشد — به لایه‌ی UI آینده (واحد ۱۶) موکول شد؛ `backupIntervalMinutes` عمومی نگه داشته شد. جزئیات کامل در `docs/adr/023-unit15-backup-manager-deviations.md`.
 
-**باقی‌مانده (واقعاً خارج از Scope واحد ۱۵ اکنون):** فقط Export/Import — آخرین مورد فهرست ADR-017.
+**باقی‌مانده (در آن زمان):** فقط Export/Import — آخرین مورد فهرست ADR-017 (تکمیل شد — پایین را ببینید).
+
+### 🎯 نقطه‌ی عطف: واحد ۱۵ کاملاً تکمیل شد — Export/Import (آخرین مورد فهرست ADR-017)
+
+`data/repository/ExportImportRepository.kt` بدنه‌ی واقعی `exportProject`/`importProject` را اضافه کرد — با بازاستفاده‌ی کامل از زیرساخت `BackupManager` (`serializeFullProject`/`deserializeFullProject`/`restoreProjectFromSnapshot`/`BackupFileStorage`)، نه بازسازی از صفر. `exportProject` فایلی با نام معنادار (`${projectId}_export_<timestamp>.json`، نه نام محدود-به-تعداد مثل Backup) می‌نویسد؛ `importProject` قبل از هر نوشتنی در DAO ها، یکپارچگی ارجاعی واقعی (`validateReferentialIntegrity` تازه‌افزوده در `domain/storage/StorageValidation.kt`: Shot→Scene، Shot→Character/Object/Location) را بررسی می‌کند و در صورت شکست، `Result.failure` با جزئیات کامل برمی‌گرداند بدون این‌که هیچ داده‌ای نوشته شود.
+
+**تصمیم کلیدی:** `IntegrityIssue(source, brokenReferenceTo, message)` مستقل از `ValidationIssue` سراسری تعریف شد (بدون `severity` — «ارجاع شکسته» طبق بلوپرینت همیشه Blocking است)؛ `validateReferentialIntegrity` نوع ساده‌ی `ShotReferences` می‌گیرد (نه `ShotEntity`/`Shot` کامل) تا بدون وابستگی به Room قابل‌تست بماند. جزئیات کامل و محدودیت شناخته‌شده‌ی Atomicity (عدم Wrap شدن `restoreProjectFromSnapshot` در یک `@Transaction` واحد — پذیرفته‌شده از ADR-023) در `docs/adr/024-unit15-export-import-deviations.md`.
+
+**با این قدم، تمام موارد «فقط امضا»ی فهرست ADR-017 (`AutoSaveManager`، `BackupManager`، `Export/Import`) اکنون پیاده‌سازی واقعی و تست‌شده دارند — واحد ۱۵ (Project Storage) کاملاً تکمیل است.**
 
 ## Stack
 
