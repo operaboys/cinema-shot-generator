@@ -114,13 +114,23 @@ PromptBlueprint (واحد ۱۱)
 
 `AudioContext` (واحد ۱۰) به Room وصل شد (`AudioContextEntity` جدید، هم‌جنس `ProjectDnaEntity`) و `SceneRepository` هم اضافه شد (طبق پیش‌بینی صریح دستور کار — `SceneEntity`/`SceneDao` قدم ۱ به‌تنهایی کافی نبودند). یافته‌ی مهم: `Scene` دامنه هیچ فیلد `projectId` ندارد (تأیید با grep) — این فیلد فقط در `SceneEntity` وجود دارد، پس `collectData` برای بارگذاری `ProjectDna` از `sceneEntity.projectId` استفاده می‌کند، نه از خودِ `Scene`. `PromptGenerationRepository.collectData` سرانجام نوشته شد: `Shot` → `Scene` → `ProjectDna` → `characters`/`objects`/`locations` → `camera`/`lighting`/`environment` (Resolve شده) → `audioContext` (nullable) را به ترتیب می‌خواند و یک `PromptGenerationInput` واقعی می‌سازد. هر سه تست (Scene، AudioContext، collectData) در همان اجرای اول موفق شدند — بدون باگ جدید. جزئیات کامل در `docs/adr/020-unit15-step3b-audio-collectdata-deviations.md`.
 
-**باقی‌مانده (خارج از Scope واحد ۱۵، طبق ADR-017):** `AutoSaveManager`/`BackupManager`/Export-Import — فقط امضای پیشنهادی، هنوز کد واقعی ندارند.
+**باقی‌مانده (در آن زمان، طبق ADR-017):** `AutoSaveManager`/`BackupManager`/Export-Import — فقط امضای پیشنهادی، هنوز کد واقعی نداشتند (هر دوی `AutoSaveManager`/`BackupManager` در دو قدم بعدی تکمیل شدند — پایین را ببینید).
 
 ### پس از واحد ۱۵ — تکمیل `AutoSaveManager`
 
 `data/repository/AutoSaveManager.kt` بدنه‌ی واقعی گرفت (تا اینجا فقط امضا داشت، طبق ADR-017): `suspend fun saveIfDirty(project: ProjectEntity, isDirty: Boolean): Result<Boolean>` با `ProjectDao` واقعی — `isDirty=true` ذخیره می‌کند و `lastModified` را به‌روز می‌کند، `isDirty=false` هیچ نوشتنی انجام نمی‌دهد. **تصمیم طراحی:** منطق Timer/Debounce واقعی («هر ۳۰ ثانیه») در این لایه پیاده نشد — به Lifecycle واقعی اپ (ViewModel/UI، واحد ۱۶، هنوز ساخته نشده) موکول شد؛ `intervalSeconds` به‌عنوان مقدار پیکربندی `public` نگه داشته شد تا آن لایه بتواند بخواندش. جزئیات کامل در `docs/adr/022-unit15-autosave-manager-deviations.md`.
 
 `BackupManager`/Export-Import همچنان فقط امضای پیشنهادی دارند — قدم بعدی جداگانه.
+
+### پس از واحد ۱۵ — تکمیل `BackupManager` (دومین و آخرین کلاس «فقط امضا»)
+
+`data/repository/BackupManager.kt` بدنه‌ی واقعی گرفت: `createBackup()` یک Snapshot کامل پروژه (`Project` + تمام `Scene`/`Shot`/`Asset`/`ProjectDna`/`AudioContext` مرتبط، طبق grep در همه‌ی DAO ها) را به JSON سریالایز می‌کند و در فایل می‌نویسد؛ `restoreFromBackup(backupId)` همان Snapshot را بازمی‌خواند و با ترتیب «والد قبل از فرزند» (Project→Scene→Shot→AudioContext→Asset→ProjectDna — طبق هشدار REPLACE+CASCADE در ADR-017) در DAO ها می‌نویسد؛ `cleanOldBackups` فقط جدیدترین `maxBackupsToKeep` بک‌آپ را نگه می‌دارد.
+
+`PromptBlueprint`/`RenderedOutput` (خروجی تولیدشده، از داده‌ی بالا دوباره قابل‌ساخت) و `Override`/`Version`/`EventLog` (entityId Polymorphic، بدون کوئری «همه‌ی X یک پروژه» در DAO فعلی) و `DependencyEdge` (بدون فیلد `projectId`، گراف سراسری) عمداً از Snapshot خارج ماندند.
+
+**تصمیم معماری کلیدی:** چون I/O فایل واقعی (نه Room) لازم بود، این عملیات پشت `BackupFileStorage` (interface) انتزاع شد — `DeviceBackupFileStorage` با `Context.filesDir` پیاده‌سازی واقعی است؛ تست‌ها از یک Fake درون‌حافظه استفاده می‌کنند، بدون I/O واقعی دستگاه. مثل `AutoSaveManager`، هیچ Timer واقعی («هر ۵ دقیقه») ساخته نشد — به لایه‌ی UI آینده (واحد ۱۶) موکول شد؛ `backupIntervalMinutes` عمومی نگه داشته شد. جزئیات کامل در `docs/adr/023-unit15-backup-manager-deviations.md`.
+
+**باقی‌مانده (واقعاً خارج از Scope واحد ۱۵ اکنون):** فقط Export/Import — آخرین مورد فهرست ADR-017.
 
 ## Stack
 
