@@ -128,9 +128,11 @@ class ModelProfilesTest {
     }
 
     // --- رندر بدون کرش روی دو فرمت متفاوت (Veo=json در برابر Midjourney=command_string) ---
-    // محدودیت شناخته‌شده (مستند در ADR-021): Renderer.render فقط "command_string" را
-    // ویژه می‌کند؛ "json" از همان مسیر plain متن عبور می‌کند. این تست فقط عدم کرش و
-    // اعمال واقعی commandPrefix میجرنی را بررسی می‌کند، نه یک تفاوت ساختاری JSON واقعی.
+    // به‌روزرسانی (ADR-025): محدودیت «json از همان مسیر plain متن عبور می‌کند» که در
+    // ADR-021 مستند شده بود، در این قدم رفع شد — Renderer.render اکنون برای
+    // "json" واقعاً یک JSON معتبر می‌سازد (نه فقط متن ساده با برچسب json). این تست
+    // همچنان عدم کرش + commandPrefix میجرنی را بررسی می‌کند؛ تست‌های اختصاصی صحت
+    // ساختاری JSON در RendererTest.kt اضافه شدند.
 
     @Test
     fun `renderBlueprintToText and render run without crashing across json and command_string formats`() {

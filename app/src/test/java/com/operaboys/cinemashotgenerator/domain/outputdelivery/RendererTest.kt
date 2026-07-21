@@ -3,6 +3,9 @@ package com.operaboys.cinemashotgenerator.domain.outputdelivery
 import com.operaboys.cinemashotgenerator.domain.promptengine.PromptBlueprint
 import com.operaboys.cinemashotgenerator.domain.promptengine.StructuredParts
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -120,5 +123,109 @@ class RendererTest {
     fun `validateUnsupportedFeatureUsage is null when the profile supports video`() {
         val bp = blueprint(structuredParts(timelineBeats = "walks at 1.5s"))
         assertNull(validateUnsupportedFeatureUsage(bp, videoCapableProfile))
+    }
+
+    // --- render() با format.type == "json" — رفع محدودیت شناخته‌شده‌ی ADR-021 (ADR-025) ---
+
+    @Test
+    fun `render with a json profile produces real, parseable JSON with the key structured fields`() {
+        val bp = blueprint(structuredParts(timelineBeats = "walks at 1.5s", audioDescription = "rain sound"))
+        val rendered = render(bp, videoCapableProfile)
+
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertEquals("a detective", parsed.getValue("subject").jsonPrimitive.content)
+        assertEquals("tense atmosphere", parsed.getValue("scene").jsonPrimitive.content)
+        assertEquals("walks into the office", parsed.getValue("shot").jsonPrimitive.content)
+        assertEquals("eye level, medium shot", parsed.getValue("camera").jsonPrimitive.content)
+        assertEquals("dramatic lighting", parsed.getValue("lighting").jsonPrimitive.content)
+        assertEquals("rainy street", parsed.getValue("environment").jsonPrimitive.content)
+        assertEquals("cinematic style", parsed.getValue("style").jsonPrimitive.content)
+        assertEquals("walks at 1.5s", parsed.getValue("timeline").jsonPrimitive.content)
+        assertEquals("rain sound", parsed.getValue("audio").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `render with a json profile omits timeline and audio when the profile does not support video`() {
+        val bp = blueprint(structuredParts(timelineBeats = "walks at 1.5s", audioDescription = "rain sound"))
+        val rendered = render(bp, noVideoProfile)
+
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertFalse(parsed.containsKey("timeline"))
+        assertFalse(parsed.containsKey("audio"))
+    }
+
+    @Test
+    fun `render with a json profile that does not support weighted tags never includes a weightedEmphasis object`() {
+        val bp = blueprint(weightedEmphasis = mapOf("cinematic lighting" to 1.2f))
+        val rendered = render(bp, videoCapableProfile) // videoCapableProfile.supportsWeightedTags == false
+
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertFalse(parsed.containsKey("weightedEmphasis"))
+    }
+
+    @Test
+    fun `render with a json profile that supports weighted tags includes weightedEmphasis as a separate JSON object`() {
+        // در حال حاضر هیچ پروفایل واقعی این ترکیب (json + supportsWeightedTags) را
+        // ندارد (تأیید در ADR-025) — این یک پروفایل فرضی برای پوشش این مسیر آینده است.
+        val jsonWeightedProfile = videoCapableProfile.copy(
+            capabilities = videoCapableProfile.capabilities.copy(supportsWeightedTags = true)
+        )
+        val bp = blueprint(weightedEmphasis = mapOf("cinematic lighting" to 1.2f))
+        val rendered = render(bp, jsonWeightedProfile)
+
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertTrue(parsed.containsKey("weightedEmphasis"))
+        val weights = parsed.getValue("weightedEmphasis").jsonObject
+        assertEquals(1.2f, weights.getValue("cinematic lighting").jsonPrimitive.content.toFloat())
+
+        // فیلدهای متنی اصلی نباید با نحو دستکاری‌شده‌ی رشته‌ای آلوده شده باشند
+        assertEquals("cinematic style", parsed.getValue("style").jsonPrimitive.content)
+    }
+
+    // --- applyWeightSyntax با platform="stable_diffusion" ---
+
+    @Test
+    fun `applyWeightSyntax applies the (tag weight) syntax for stable_diffusion`() {
+        val sdProfile = videoCapableProfile.copy(platform = "stable_diffusion")
+        val result = applyWeightSyntax("a scene with cinematic lighting", "cinematic lighting", 1.2f, sdProfile)
+        assertEquals("a scene with (cinematic lighting:1.2)", result)
+    }
+
+    @Test
+    fun `applyWeightSyntax still applies the midjourney syntax unchanged`() {
+        val mjProfile = videoCapableProfile.copy(platform = "midjourney")
+        val result = applyWeightSyntax("a scene with cinematic lighting", "cinematic lighting", 1.2f, mjProfile)
+        assertEquals("a scene with cinematic lighting::1.2", result)
+    }
+
+    @Test
+    fun `applyWeightSyntax leaves text untouched for a platform with no known weight syntax`() {
+        val otherProfile = videoCapableProfile.copy(platform = "some_other_platform")
+        val result = applyWeightSyntax("a scene with cinematic lighting", "cinematic lighting", 1.2f, otherProfile)
+        assertEquals("a scene with cinematic lighting", result)
+    }
+
+    // --- رگرسیون: universal_default و پروفایل‌های غیر-JSON/غیر-SD بدون تغییر رفتار ---
+
+    @Test
+    fun `render with universal_default plain_text profile is unaffected by the json and stable_diffusion changes`() {
+        val bp = blueprint(structuredParts(timelineBeats = "walks at 1.5s", audioDescription = "rain sound"))
+        val rendered = render(bp, universalDefaultProfile)
+
+        val expectedText = optimizeForProfile(bp, universalDefaultProfile)
+        assertEquals(expectedText, rendered.formattedPrompt)
+        // نباید JSON معتبر باشد — همچنان متن ساده است
+        assertFalse(rendered.formattedPrompt.trim().startsWith("{"))
+    }
+
+    @Test
+    fun `render with a command_string profile is unaffected by the json and stable_diffusion changes`() {
+        val bp = blueprint()
+        val commandProfile = videoCapableProfile.copy(
+            format = ModelFormat(type = "command_string", commandPrefix = "/imagine prompt:")
+        )
+        val rendered = render(bp, commandProfile)
+        val expectedText = optimizeForProfile(bp, commandProfile)
+        assertEquals("/imagine prompt: $expectedText", rendered.formattedPrompt)
     }
 }

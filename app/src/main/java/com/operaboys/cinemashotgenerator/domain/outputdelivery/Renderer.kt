@@ -3,6 +3,9 @@ package com.operaboys.cinemashotgenerator.domain.outputdelivery
 import com.operaboys.cinemashotgenerator.domain.promptengine.PromptBlueprint
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 // واحد ۱۴ — Output Delivery System (بخش الف: Renderer)
 // منبع حقیقت: docs/blueprints/14-output-delivery.md
@@ -12,6 +15,11 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 // (subjectDescription, sceneContext, shotDescription, cameraSpecs, lightingSpecs,
 // environmentSpecs, styleModifiers, timelineBeats, audioDescription) دقیقاً با کد
 // مفهومی بلوپرینت ۱۴ یکی هستند (تأیید شده با grep، بدون هیچ نگاشت اسم لازم).
+//
+// رفع دو محدودیت شناخته‌شده‌ی ADR-021 (رندر JSON واقعی + وزن‌دهی واقعی SD)؛ جزئیات
+// کامل تصمیمات در docs/adr/025-unit14-renderer-json-and-weighting-deviations.md.
+// import مستقیم kotlinx.serialization.json در لایه‌ی domain/ طبق تصمیم صریح معمار
+// همین قدم است (نه یک الگوی عمومی جدید برای این پروژه).
 
 /** قلب Renderer: تبدیل structured_parts به یک متن پایه بر اساس ترجیح ساختاری پروفایل. */
 fun renderBlueprintToText(blueprint: PromptBlueprint, profile: ModelProfile): String {
@@ -34,8 +42,19 @@ fun renderBlueprintToText(blueprint: PromptBlueprint, profile: ModelProfile): St
     return text
 }
 
+/**
+ * نحو وزن‌دهی مخصوص هر پلتفرم. فقط دو پلتفرم فعلی نحو واقعی دارند — میجرنی
+ * (`tag::weight`) و Stable Diffusion (`(tag:weight)`، نحو معروف A1111/ComfyUI)؛
+ * بقیه‌ی پلتفرم‌ها (حتی اگر supportsWeightedTags=true باشند) متن را بدون تغییر
+ * برمی‌گردانند. یک `when` صریح با `else` — نه یک Map/Registry عمومی — چون فقط دو
+ * مورد واقعی وجود دارد؛ افزودن پلتفرم سوم در آینده فقط یک `case` جدید می‌خواهد.
+ */
 fun applyWeightSyntax(text: String, tag: String, weight: Float, profile: ModelProfile): String {
-    return if (profile.platform == "midjourney") text.replace(tag, "$tag::$weight") else text
+    return when (profile.platform) {
+        "midjourney" -> text.replace(tag, "$tag::$weight")
+        "stable_diffusion" -> text.replace(tag, "($tag:$weight)")
+        else -> text
+    }
 }
 
 /** بهینه‌سازی نهایی: Rendering + کوتاه‌سازی خودکار در صورت عبور از max_prompt_length. */
@@ -49,12 +68,50 @@ fun optimizeForProfile(blueprint: PromptBlueprint, profile: ModelProfile): Strin
 
 data class RenderedOutput(val modelProfileId: String, val formattedPrompt: String, val language: String)
 
+/**
+ * برای پروفایل‌های `format.type == "json"`، یک JSON واقعی و معتبر می‌سازد — مستقیماً
+ * از فیلدهای ساختاریافته‌ی `blueprint.structuredParts` (نه از متن مسطح‌شده‌ی
+ * `renderBlueprintToText`)، چون بلوپرینت مفهومی خودِ واحد ۱۴ هم هیچ نمونه‌ی واقعی
+ * JSON خروجی نداد (فقط JSON بودن *تعریف پروفایل* را مثال زده بود، نه پرامپت نهایی) —
+ * این ساختار یک طراحی معقول و مستقل است، نه استخراج از سند.
+ *
+ * weightedEmphasis فقط وقتی `profile.capabilities.supportsWeightedTags` باشد، به‌عنوان
+ * یک object جدا (نه Inline در متن) اضافه می‌شود. تصمیم: applyWeightSyntax (که یک
+ * جایگزینی رشته‌ای درون متن است) اصلاً روی این فیلدهای JSON اجرا نمی‌شود — برای یک
+ * پروفایل JSON، «وزن» باید یک پارامتر ساختاریافته‌ی جدا باشد، نه متن دستکاری‌شده؛ این
+ * هم با روح API های واقعی JSON سازگارتر است. فعلاً هیچ پروفایل موجودی هم‌زمان
+ * json+supportsWeightedTags=true ندارد (تأیید با grep) — این مسیر برای پروفایل‌های
+ * آینده‌ی این ترکیب مستند و آماده است، نه یک باگ فعلی.
+ */
+private fun buildJsonPrompt(blueprint: PromptBlueprint, profile: ModelProfile): String {
+    val parts = blueprint.structuredParts
+    return buildJsonObject {
+        put("subject", parts.subjectDescription)
+        put("scene", parts.sceneContext)
+        put("shot", parts.shotDescription)
+        put("camera", parts.cameraSpecs)
+        put("lighting", parts.lightingSpecs)
+        parts.environmentSpecs?.let { put("environment", it) }
+        put("style", parts.styleModifiers)
+        if (profile.capabilities.supportsVideo) {
+            parts.timelineBeats?.let { put("timeline", it) }
+            parts.audioDescription?.let { put("audio", it) }
+        }
+        if (profile.capabilities.supportsWeightedTags && blueprint.weightedEmphasis.isNotEmpty()) {
+            putJsonObject("weightedEmphasis") {
+                blueprint.weightedEmphasis.forEach { (tag, weight) -> put(tag, weight) }
+            }
+        }
+    }.toString()
+}
+
 /** خروجی نهایی برای یک پروفایل خاص. */
 fun render(blueprint: PromptBlueprint, profile: ModelProfile): RenderedOutput {
     val optimizedText = optimizeForProfile(blueprint, profile)
     val formatted = when (profile.format.type) {
         "command_string" -> "${profile.format.commandPrefix} $optimizedText"
         "plain_text" -> optimizedText // Universal — بدون فرمت‌دهی اضافه
+        "json" -> buildJsonPrompt(blueprint, profile)
         else -> optimizedText
     }
     return RenderedOutput(profile.profileId, formatted, language = "en")

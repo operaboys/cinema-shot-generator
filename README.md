@@ -90,7 +90,16 @@ PromptBlueprint (واحد ۱۱)
 
 **پروفایل‌های پشتیبانی‌شده (`ALL_MODEL_PROFILES`):** `universal_default`، Veo 3.1 (`veo`)، Kling 3.0/Turbo (`kling`)، Seedance 2.5 (`seedance`)، HappyHorse-1.0 (`happyhorse`)، Runway Gen-4.5 (`runway`)، Luma Ray3.14 (`luma`)، Hailuo/MiniMax 2.3 (`hailuo`)، Midjourney v7 (`midjourney`)، Wan 2.2 (`wan`)، HunyuanVideo 1.5 (`hunyuan`)، LTX-2.3 (`ltx`)، Vidu Q3 (`vidu`)، Stable Diffusion SD3 (`stable_diffusion`). Sora (OpenAI) عمداً از این فهرست حذف شد (تصمیم صریح معمار).
 
-بلوپرینت ۱۴ دست‌نخورده ماند (خودش تصریح کرده جدول مدل‌هایش نقطه‌ی شروع است، نه نهایی — این قدم فقط داده اضافه کرد). فقط `veo.maxPromptLength=2000` عدد واقعی (از نمونه‌ی بلوپرینت) است؛ بقیه‌ی اعداد فنی (`maxTokens` همه، `maxPromptLength` بقیه) **تخمین محافظه‌کارانه‌ی مستندشده‌اند**، نه رسمی API. دو محدودیت شناخته‌شده‌ی از قبل موجود در `Renderer.kt` (بدون تغییر، طبق دستور کار) مستند شدند: `render()` هیچ ساختار JSON واقعی تولید نمی‌کند (فرمت `"json"` از همان مسیر متن ساده عبور می‌کند)؛ `applyWeightSyntax` فقط برای `platform=="midjourney"` واقعاً نحو وزن‌دهی اعمال می‌کند (نحو وزن‌دهی واقعی Stable Diffusion فعلاً غیرفعال/inert است). جزئیات کامل در `docs/adr/021-unit14-model-profiles-deviations.md`.
+بلوپرینت ۱۴ دست‌نخورده ماند (خودش تصریح کرده جدول مدل‌هایش نقطه‌ی شروع است، نه نهایی — این قدم فقط داده اضافه کرد). فقط `veo.maxPromptLength=2000` عدد واقعی (از نمونه‌ی بلوپرینت) است؛ بقیه‌ی اعداد فنی (`maxTokens` همه، `maxPromptLength` بقیه) **تخمین محافظه‌کارانه‌ی مستندشده‌اند**، نه رسمی API. آن قدم دو محدودیت شناخته‌شده در `Renderer.kt` مستند کرد (بدون رفع، چون آن قدم فقط داده اضافه می‌کرد) — **هر دو در قدم بعدی رفع شدند** (پایین را ببینید). جزئیات کامل در `docs/adr/021-unit14-model-profiles-deviations.md`.
+
+### 🎯 نقطه‌ی عطف: واحد ۱۴ — دو محدودیت شناخته‌شده‌ی Renderer رفع شدند (رندر JSON واقعی + وزن‌دهی واقعی SD)
+
+هر دو محدودیت مستندشده در ADR-021 رفع شدند — **بدون تغییر رفتار پروفایل‌های غیر-JSON/غیر-SD موجود** (راستی‌آزمایی رگرسیون صریح در تست‌ها):
+
+1. **رندر JSON واقعی:** `render()` اکنون برای `format.type == "json"` (۹ از ۱۳ پروفایل مدل) یک `JsonObject` واقعی و Parse‌پذیر می‌سازد (با `kotlinx.serialization.json`، نه String concatenation دستی) — مستقیماً از `structuredParts` (subject/scene/shot/camera/lighting/environment/style/timeline/audio)، نه از متن مسطح‌شده. `weightedEmphasis` (وقتی پروفایل `supportsWeightedTags` دارد) به‌عنوان یک Object جدا در همان JSON اضافه می‌شود — نه با دستکاری متنی. در حال حاضر هیچ پروفایلی هم‌زمان json+weightedTags ندارد؛ این مسیر برای پروفایل‌های آینده مستند و آماده است.
+2. **وزن‌دهی واقعی Stable Diffusion:** `applyWeightSyntax` اکنون `platform == "stable_diffusion"` را هم ویژه می‌کند — نحو معروف `(tag:weight)` (مثل `(cinematic lighting:1.2)`)، دقیقاً مثل نحو `tag::weight` میجرنی که از قبل موجود بود.
+
+جزئیات کامل تصمیمات (ساختار JSON پیشنهادی، چرا از `structuredParts` خام نه متن مسطح، بدهی مستند Truncation فیلد-به-فیلد) در `docs/adr/025-unit14-renderer-json-and-weighting-deviations.md`.
 
 ### پس از واحد ۱۳
 
