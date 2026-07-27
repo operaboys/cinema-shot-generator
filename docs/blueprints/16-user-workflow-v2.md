@@ -1,0 +1,361 @@
+# واحد ۱۶: گردش کار کاربر (User Workflow)
+
+**نقش:** Blueprint — نقشه‌راه کامل تعامل کاربر با سیستم (نه یک ماژول اجرایی مستقل)
+**وضعیت:** فعال
+**وابستگی:** تمام واحدهای دیگر (این سند نحوه‌ی به‌کارگیری آن‌ها را در توالی درست نشان می‌دهد)
+
+**نسخه:** ۶ — بازنویسی برای رفع نقص اساسی‌تر: نسخه‌های قبلی این بلوپرینت (علی‌رغم تکمیل جزئیات فرم) هنوز **۶ واحد کامل از معماری** (۰۳ Visual Identity، ۰۸ Scene Conditions، ۰۹ Camera & Motion، ۱۰ Audio Context، ۱۲ State & Versioning، ۱۵ Project Storage) را در هیچ نقطه‌ای از گردش کار به‌کار نمی‌گرفتند — یعنی طبق فلسفه‌ی خودِ این بلوپرینت («نقشه‌راه استفاده از تمام واحدها»)، این نسخه‌ها ناقص بودند. این نسخه Shot Composer را به یک ساختار Tab-based گسترش می‌دهد تا فیلدهای واقعی ۰۳/۰۸/۰۹/۱۰ را در بر بگیرد، و یک بخش جدید برای رفتارهای سراسری ۱۲/۱۵ اضافه می‌کند. **تغییرات با «🆕v6» علامت‌گذاری شده‌اند (و «🆕v5» از دور اصلاح قبلی نگه داشته شده‌اند).**
+
+---
+
+## توالی ۹ مرحله‌ای
+
+```
+شروع
+  ↓
+۱. Story Wizard (واحد ۰۱)              → StoryContext (چارچوب مفهومی اولیه)
+  ↓
+🆕v3 ۱ب. AI Story Breakdown (واحد ۰۱ب)  → داستان کامل + AI بیرونی + JSON Doctor
+  ↓
+۲. DNA Configuration (واحد ۰۲)         → قوانین سراسری پروژه
+  ↓
+۳. Asset Library (واحد ۰۶)             → کاراکترها، مکان‌ها، اشیا (اکثراً خودکار از ۱ب، قابل ویرایش دستی)
+  ↓
+۴. Scene Creation (واحد ۰۴)            → ساختار صحنه (اکثراً خودکار از ۱ب)
+  ↓
+۵. Shot Creation (واحد ۰۵)             → جزئیات اجرایی (اکثراً خودکار از ۱ب، قابل دقیق‌سازی دستی)
+  ↓
+۶. Validation (واحد ۰۷)                → کنترل کیفیت
+  ↓
+۷. Prompt Generation (واحد ۱۱)         → تولید PromptBlueprint خنثی
+  ↓
+۸. Output Delivery (واحد ۱۴)           → انتخاب مدل، Render، تحویل نهایی
+  ↓
+پایان (ذخیره و Export)
+```
+
+🆕v3 **نکته‌ی مهم درباره‌ی مراحل ۳، ۴، ۵ بعد از ورود واحد ۰۱ب:** برخلاف نسخه‌ی قبلی این سند (که فرض می‌کرد کاربر Asset/Scene/Shot را از صفر و کاملاً دستی می‌سازد)، اکنون مسیر غالب این است که واحد ۰۱ب کتابخانه‌ی Asset و تمام Scene/Shot را **خودکار از روی JSON تجزیه‌شده** می‌سازد؛ مراحل ۳-۵ در این مسیر عمدتاً به معنای **بازبینی و دقیق‌سازی** خروجی خودکار هستند (مثلاً تنظیم دقیق `character_tier`، افزودن Reference Image، دقیق‌کردن پارامترهای دوربین)، نه ساخت کاملاً از صفر. مسیر «ساخت کاملاً دستی از صفر» (بدون عبور از ۰۱ب) همچنان به‌عنوان یک مسیر جایگزین معتبر باقی می‌ماند — مثلاً برای کاربری که فقط یک Scene/Shot تکی می‌خواهد بسازد، بدون یک داستان کامل.
+
+## 🆕v5 مکانیزم Navigation کلی بین مراحل
+
+نسخه‌های قبلی این بلوپرینت مشخص نمی‌کردند کاربر از نظر بصری چطور بین ۹ مرحله جابه‌جا می‌شود. تصمیم: یک **Bottom Navigation Bar ثابت با ۵ آیکون اصلی** (نه ۹ آیکون، چون این‌قدر آیکون در یک نوار پایین برای موبایل شلوغ و غیرقابل‌استفاده است):
+
+| آیکون | پوشش می‌دهد |
+|---|---|
+| داستان | مراحل ۱ و ۱ب (Story Wizard + AI Story Breakdown) |
+| DNA | مرحله ۲ |
+| دارایی‌ها | مرحله ۳ |
+| صحنه‌ها | مراحل ۴ و ۵ (Scene Creation و Shot Creation با هم — چون Shot همیشه داخل یک Scene نمایش داده می‌شود، نه صفحه‌ی جدا) |
+| خروجی | مراحل ۶، ۷، ۸ (Validation، Prompt Generation، Output Delivery — این سه در عمل یک جریان پیوسته‌ی «بررسی و دریافت خروجی» هستند، نه سه صفحه‌ی جدا؛ جزئیات در مشخصات مرحله‌ی ۶-۸ پایین‌تر) |
+
+کاربر می‌تواند آزادانه بین این ۵ آیکون جابه‌جا شود (طبق «Iterative Workflow»)؛ ترتیب پیشنهادی (۱→۱ب→۲→۳→۴/۵→۶/۷/۸) فقط یک مسیر راهنما برای کاربر تازه‌کار است، نه یک قفل ترتیبی.
+
+## 🆕v5 رفتارهای سراسری (State/Versioning و Storage) — پشت‌صحنه، در همه‌ی مراحل فعال
+
+بر خلاف مراحل ۱ تا ۸ (که هرکدام یک صفحه/فرم مشخص دارند)، دو واحد **همیشه و در پس‌زمینه‌ی همه‌ی مراحل** فعال هستند، بدون این‌که خودشان یک «مرحله» مجزا در توالی باشند:
+
+- **State & Versioning (واحد ۱۲):** هر Entity (Project/Scene/Shot/Asset) یک وضعیت (`EntityState`: Draft/Review/Locked/Final) دارد. این وضعیت با یک آیکون کوچک قفل/دایره‌ی رنگی در گوشه‌ی هر کارت (Scene Card، Shot Card، Asset Card) نمایش داده می‌شود — کلیک روی این آیکون منوی تغییر وضعیت را باز می‌کند. نسخه‌بندی (`EntityVersion`) در پس‌زمینه‌ی کامل اتفاق می‌افتد؛ دسترسی کاربر به تاریخچه‌ی نسخه‌ها از طریق یک آیتم «تاریخچه» در منوی سه‌نقطه‌ی هر Entity است (نه یک صفحه‌ی مستقل در Navigation اصلی).
+- **Project Storage (واحد ۱۵):** Auto-Save کاملاً خودکار و بی‌صداست — تنها نمود بصری‌اش یک آیکون کوچک وضعیت ذخیره (مثل ✓ سبز محو‌شونده) در نوار بالای صفحه، بعد از هر ذخیره‌ی موفق است؛ کاربر هرگز مجبور به کلیک دستی «ذخیره» در جریان عادی کار نیست. Export/Import و Backup به‌عنوان آیتم‌های یک منوی «مدیریت پروژه» (قابل‌دسترسی از نوار بالای صفحه، مستقل از ۵ آیکون Navigation اصلی) در دسترس‌اند، چون این‌ها عملیات نادر و سطح-پروژه هستند، نه بخشی از گردش کار روزمره‌ی ساخت Shot.
+
+---
+
+## جزئیات هر مرحله
+
+### مرحله ۱: Story Wizard
+**ورودی:** هیچ (شروع پروژه‌ی جدید) | **خروجی:** `StoryContext` معتبر
+**اقدام کاربر:** پاسخ به ۵ سؤال (Story Type، Genre، Mood، Narrative Intensity، Visual Intent)
+**مسیر جایگزین:** Quick Mode (فرم تک‌صفحه‌ای برای کاربر باتجربه)
+
+🆕v3 **این خروجی مستقیماً به DNA Manager نمی‌رود** — طبق `01-story-and-override-v2.md`، مسیر واقعی بعدی مرحله‌ی ۱ب است.
+
+🆕v4 **مشخصات دقیق فرم (Modal تک‌صفحه‌ای، عنوان «Story Wizard»):**
+- سه فیلد اصلی به‌ترتیب:
+  1. **Story Type** — Dropdown با مقادیر enum `StoryType` (بلوپرینت ۰۱: Narrative/Conceptual/Visual-only/Experimental)
+  2. **Genre** — Dropdown چندانتخابی با مقادیر enum `Genre` (بلوپرینت ۰۱)
+  3. **Mood** — Dropdown با مقادیر enum کامل `Mood` جدید (بلوپرینت ۰۲ نسخه ۳؛ ۲۵+ گزینه در ۵ دسته)
+- دو فیلد تکمیلی: **Narrative Intensity** (Slider یا Dropdown سه‌سطحی)، **Visual Intent** (Textarea کوتاه، رشته‌ی آزاد)
+- دکمه‌ی اصلی پایین فرم: «شروع» یا معادل، که `StoryContext` را می‌سازد و به مرحله‌ی ۱ب می‌رود.
+
+### 🆕v3 مرحله ۱ب: AI Story Breakdown
+**ورودی:** `StoryContext` | **خروجی:** کتابخانه‌ی Asset کامل + تمام Scene/Shot پروژه
+**اقدام کاربر:** نوشتن یک داستان کامل و آزاد؛ تعیین `targetShotCount` و `defaultShotDurationSeconds`؛ کپی‌کردن پرامپت تولیدشده و بردن آن به یک AI بیرونی (یا استفاده از یک AI Connector Profile متصل مستقیم)؛ Paste کردن پاسخ JSON؛ در صورت خرابی JSON، استفاده از JSON Doctor (خودکار یا دستی)؛ بازبینی و تأیید نهایی خروجی قبل از اعمال قطعی.
+**مسیر جایگزین:** رد کردن کامل این مرحله و رفتن مستقیم به ساخت دستی Asset/Scene/Shot (مسیر «Iterative Workflow»، برای کاربری که فقط یک Scene/Shot تکی می‌خواهد، نه یک داستان کامل).
+**جزئیات کامل منطق (Prompt Builder، JSON Doctor، Mapper) در `01b-ai-story-breakdown.md` تعریف شده است.**
+
+🆕v4 **مشخصات دقیق فرم این مرحله (دو صفحه‌ی متوالی):**
+- **صفحه‌ی اول («نوشتن داستان»):** یک `Textarea` بزرگ و تمام‌صفحه («داستانت رو تعریف کن...»)؛ زیر آن دو فیلد عددی کوچک: **تعداد شات مدنظر** (Number Input) و **مدت هر شات به ثانیه** (Number Input، پیش‌فرض ۴)؛ دکمه‌ی «تولید پرامپت» که متن آماده (طبق بخش الف بلوپرینت ۰۱ب) را می‌سازد و یک دکمه‌ی «Copy» کنارش نمایش می‌دهد.
+- **صفحه‌ی دوم («دریافت پاسخ»):** یک `Textarea` برای Paste کردن پاسخ AI؛ یک بخش «Chunk جدید» با دکمه‌ی «افزودن بخش بعدی» برای پاسخ‌های چندبخشی (طبق Chunk Combiner)؛ دکمه‌ی اصلی «Parse و ساخت پروژه».
+- **در صورت خطای JSON:** یک Modal مجزا (طبق مشخصات JSON Doctor بلوپرینت ۰۱ب) با: نمایش متن JSON با هایلایت موقعیت خطا، یک خط توضیح ساده‌ی نوع خطا، دکمه‌ی «تلاش خودکار برای تعمیر»، و یک `Textarea` قابل‌ویرایش دستی برای اصلاح نهایی.
+- **صفحه‌ی سوم («بازبینی نهایی»):** فهرست خلاصه‌ی Asset/Scene/Shot ساخته‌شده (فقط نمایش، نه ویرایش کامل — ویرایش دقیق در مراحل ۳-۵)؛ دکمه‌ی «تأیید و ادامه».
+
+### مرحله ۲: DNA Configuration
+**ورودی:** `StoryContext` (و در صورت عبور از مرحله‌ی ۱ب، همچنین کتابخانه‌ی خودکارساخته‌شده به‌عنوان زمینه) | **خروجی:** `ProjectDna` با Core Identity در حالت Soft Lock
+**اقدام کاربر:** بررسی/اصلاح DNA پیشنهادی سیستم
+**نکته:** فعال‌سازی «قفل» یعنی Soft Lock (هشدار در تغییر بعدی)، نه بلاک کامل
+
+🆕v4 **مشخصات دقیق فرم (Modal، عنوان «Project DNA»):**
+- ردیف اول (دو ستون): **Visual Style** (Dropdown، مقادیر `VisualStyle` کامل بلوپرینت ۰۲ نسخه ۳، ۳۵+ گزینه در ۶ دسته) | **Mood** (Dropdown، مقادیر `Mood`، همان فهرست مرحله‌ی ۱)
+- ردیف دوم (دو ستون): **Lighting** (Dropdown، مقادیر `LightingStyle`، ۲۵+ گزینه در ۴ دسته) | **Aspect Ratio** (Dropdown، مقادیر `AspectRatio`، ۱۱ گزینه ثابت سینمایی/اجتماعی)
+- **Color Palette:** ۵ مربع رنگ قابل‌کلیک (Color Picker استاندارد Compose) برای تعیین `colorPalette`
+- **Default Quality Tags:** `TextField` تک‌خطی (پیش‌فرض: "8K, cinematic, highly detailed, masterpiece")
+- **Default Negative Prompt:** `TextField` تک‌خطی با یک آیکون هشدار/ممنوعیت (پیش‌فرض: "blurry, low quality, distorted, watermark, text")
+- دکمه‌ی اصلی پایین فرم: «ذخیره تنظیمات»
+
+### مرحله ۳: Asset Library
+**ورودی:** `ProjectDna` + (در صورت عبور از مرحله‌ی ۱ب) کتابخانه‌ی خودکارساخته‌شده | **خروجی:** کاراکترها/مکان‌ها/اشیا با Continuity Rules
+**اقدام کاربر:** 🆕v3 اگر از مرحله‌ی ۱ب عبور شده: بازبینی و دقیق‌سازی Asset های خودکارساخته‌شده (تنظیم دقیق `character_tier`، افزودن Reference Image واقعی، تکمیل فیلدهای پیش‌فرض ناقص مثل `material_and_color`). در غیر این صورت: تعریف کاراکترهای اصلی (ظاهر، Outfit، `character_tier` و سطح Continuity Lock متناظر، `default_mood`، `base_prompt`)، مکان‌ها (`LocationAsset`)، اشیا (`ObjectAsset` مستقل، طبق نسخه‌ی ۴ بلوپرینت ۰۶) از صفر.
+
+🆕v4 **مشخصات دقیق فرم (Modal، عنوان «Add New Asset»):**
+- **Asset Type** (Dropdown اول، تعیین‌کننده‌ی بقیه‌ی فیلدها): Main Character / Secondary Character / Background Character / Location / Personal Prop / General Prop / Costume — طبق `CharacterTier` و `ObjectSubtype` (بلوپرینت ۰۶ نسخه ۴)
+- **Name** (فیلد مشترک همه‌ی انواع، `TextField` تک‌خطی، الزامی)
+- **اگر نوع = کاراکتر (هر سه Tier):**
+  - Age (`TextField` کوتاه، رشته‌ی آزاد مثل «25 years old»)
+  - Gender (Dropdown سه‌مقداری: Female/Male/Other — طبق `enum Gender` بلوپرینت ۰۶ نسخه ۴)
+  - Physical Features (`Textarea` کوتاه)
+  - Default Outfit (`TextField`)
+  - Default Expression/Mood (`TextField` — نگاشت به `default_mood`)
+- **اگر نوع = Location:**
+  - Time of Day (Dropdown: Day/Night/Sunset/Sunrise)
+  - Weather (`TextField` یا Dropdown آزاد)
+  - Environment Details (`Textarea`)
+- **اگر نوع = هر یک از سه زیرگروه Object (Personal/General Prop، Costume):**
+  - Size (`TextField` کوتاه یا Dropdown: small/medium/large)
+  - Color & Material (`TextField`)
+  - Special Features (`TextField`)
+- **Base Prompt** (فیلد مشترک، `Textarea`، اختیاری — برچسب: «جزئیات اضافی برای پرامپت»)
+- **Reference Images** (فیلد مشترک، اختیاری): دکمه‌ی «+ افزودن عکس» که Picker انتخاب فایل محلی را باز می‌کند (طبق `ReferenceImage`، بلوپرینت ۰۶ — فقط فایل محلی، بدون آپلود)
+- **Prompt Preview** (فقط-نمایش، پایین فرم): نمایش زنده‌ی توصیف متنی ساخته‌شده از فیلدهای بالا (به‌روزرسانی خودکار یا با دکمه‌ی «بازخوانی»)
+- دکمه‌ی اصلی پایین فرم: «ذخیره دارایی»
+
+🆕 **الگوی بازخورد تعامل (برای این مرحله و تمام مراحل مشابه با عملیات CRUD):** هر عملیات مهم روی یک Asset — ایجاد، ویرایش، **حذف** (به‌خصوص، چون غیرقابل‌بازگشت است)، و **کپی کردن** یک مقدار (مثل کپی `base_prompt` یا شناسه) — باید بازخورد فوری و واضح داشته باشد:
+- عملیات **غیرقابل‌بازگشت** (مثل حذف یک Asset) باید قبل از اجرا یک **Dialog تأیید** (`AlertDialog` در Compose) نشان دهد؛ بدون این تأیید، عملیات انجام نمی‌شود.
+- عملیات **موفق و قابل‌بازگشت** (مثل ذخیره‌ی موفق یا کپی‌شدن متن) باید یک بازخورد گذرا و غیرمزاحم (`Snackbar` در Compose، معادل Toast در نمونه‌ی مادر) نشان دهد که خودش بعد از چند ثانیه محو می‌شود، بدون نیاز به کلیک کاربر برای بستنش.
+این الگو مخصوص مرحله‌ی Asset Library نیست — باید در تمام مراحلی که کاربر عملیات مشابه انجام می‌دهد (Scene Creation، Shot Creation، Output Delivery) به‌طور یکسان اعمال شود.
+
+### مرحله ۴: Scene Creation
+**ورودی:** Asset Library | **خروجی:** Scene با تنظیمات سراسری (Location، Time، Atmosphere)
+
+🆕v4 **مشخصات دقیق:** بر خلاف مراحل دیگر، نمونه‌ی مادر برای Scene هیچ فرم/Modal مجزایی نداشت — یک Scene خالی با یک نام پیش‌فرض («Scene N») بلافاصله ساخته می‌شود و کاربر بعداً نامش را ویرایش می‌کند؛ فیلدهای دقیق‌تر (طبق بلوپرینت ۰۴) در این پروژه — بر خلاف نمونه‌ی مادر ساده‌تر — باید در یک بخش «تنظیمات Scene» (قابل‌دسترسی با ضربه روی سربرگ Scene) قرار گیرند، نه یک Modal اجباری در لحظه‌ی ساخت.
+
+🆕v5 **مشخصات دقیق فیلدهای «تنظیمات Scene»:**
+- **Scene Title** (`TextField` تک‌خطی، اختیاری — اگر خالی بماند، «Scene N» پیش‌فرض باقی می‌ماند)
+- **Narrative Role** (Dropdown، مقادیر `NarrativeRole` بلوپرینت ۰۴: Introduction/Development/Climax/Resolution/Transition)
+- **Location** (Dropdown، فهرست `LocationAsset` های موجود در کتابخانه — نه متن آزاد؛ اگر مکان موردنظر هنوز در Asset Library ساخته نشده، دکمه‌ی «+ ساخت مکان جدید» کاربر را به مرحله‌ی ۳ هدایت می‌کند)
+- **Time of Day** (Dropdown: Dawn/Morning/Noon/Afternoon/Sunset/Night، طبق `TimeOfDay` بلوپرینت ۰۴)
+- **Atmosphere Primary** (Dropdown، مقادیر `Atmosphere` بلوپرینت ۰۴: Calm/Tense/Dark/Bright/Mysterious/Emotional)؛ **Atmosphere Secondary** (همان Dropdown، اختیاری)
+- دکمه‌ی پایین: «ذخیره تنظیمات صحنه»
+
+### مرحله ۵: Shot Creation
+**ورودی:** Scene | **خروجی:** Shot با تمام جزئیات (Camera، Lighting، Beat Sheet، Sound Profile، `negativePromptOverride` طبق نسخه‌ی ۲ بلوپرینت ۰۵)
+
+🆕v5 **مشخصات دقیق فرم (Panel ثابت در کنار فهرست شات‌ها، عنوان «Shot Composer»، نه Modal):**
+
+⚠️ **رفع نقص مهم:** نسخه‌های قبلی این مشخصات، فیلدهای واقعی چهار واحد اصلی معماری (۰۳ Visual Identity، ۰۸ Scene Conditions، ۰۹ Camera & Motion، ۱۰ Audio Context) را در Shot Composer نداشتند — فقط اسم دسته‌بندی («Camera، Lighting») ذکر شده بود بدون فیلد واقعی. این نسخه این نقص را رفع می‌کند با تقسیم Shot Composer به یک ساختار **Tab-based** (چون تعداد فیلد واقعی این چهار واحد با هم بسیار زیاد است برای یک صفحه‌ی واحد):
+
+- سربرگ ثابت (بالای همه‌ی Tab ها): شماره‌ی شات + نام Scene والد + **Shot Type** (Dropdown، `ShotType` بلوپرینت ۰۵)
+- ردیف Tab: **اصلی | دوربین | نور و محیط | صدا**
+
+**Tab «اصلی»:**
+- Duration (`TextField` عددی، ثانیه)
+- Transition (Dropdown: Cut/Fade/Dissolve)
+- Attached References (فهرست Chip + BottomSheet، طبق مشخصات پایین‌تر)
+- Action / Notes (`Textarea` — نگاشت به `shot_description`)
+- Negative Prompt Override (`TextField` اختیاری — طبق `negativePromptOverride` بلوپرینت ۰۵؛ اگر خالی بماند، مقدار پیش‌فرض DNA اعمال می‌شود؛ یک لینک کوچک «نمایش مقدار پیش‌فرض DNA» زیر فیلد)
+
+**Tab «دوربین» (طبق بلوپرینت ۰۹):**
+- Angle (Dropdown: Eye-level/Low/High/Overhead/Dutch/POV)
+- Distance (Dropdown: Extreme Wide/Wide/Medium/Close-up/Extreme Close-up — پیش‌فرض هماهنگ با Shot Type بالا)
+- Lens Type (Dropdown: Ultra-wide/Wide/Standard/Portrait/Telephoto)
+- Movement (Dropdown دو-سطحی: ابتدا `BasicMovementType` ساده — Static/Pan/Tilt/Dolly/Tracking/Crane/Handheld؛ یک لینک «حرکت پیشرفته» برای گزینه‌های `AdvancedMovementType` — Orbit/Drone Path/Dolly Zoom/Handheld Shake/Compound — که فیلدهای فرعی خاص خودشان را باز می‌کند، مثلاً Orbit Degrees برای Orbit)
+- Depth of Field (Dropdown: Shallow/Medium/Deep)
+- ردیف پیشرفته (قابل جمع/باز، پیش‌فرض بسته): Focus Mode، Stabilization، Framing
+
+**Tab «نور و محیط» (طبق بلوپرینت ۰۸ و بخش نورپردازی بلوپرینت ۰۲):**
+- Lighting Style (Dropdown، `LightingStyle` کامل — ۲۵+ گزینه در ۴ دسته، همان فهرست مرحله‌ی ۲؛ پیش‌فرض از Mood-to-Lighting Mapping خودکار پر می‌شود، طبق `mapMoodToLighting`)
+- ردیف نور پیشرفته (قابل جمع/باز): Key Light Position، Fill Light، Contrast Ratio، Color Temperature
+- Weather (Dropdown: Clear/Rain/Storm/Snow/Fog) + Weather Intensity (Dropdown: Light/Medium/Heavy، فقط اگر Weather≠Clear)
+- Ground State (Dropdown: Dry/Wet/Muddy/Snow-covered/Sandy/Icy)
+- Cinematic Mode (Dropdown، `CinematicMode` بلوپرینت ۰۳: Long-take/Fast-cut/Balanced؛ پیش‌فرض از `getPacingFromEmotion` خودکار پر می‌شود)
+
+**Tab «صدا» (طبق بلوپرینت ۱۰):**
+- **Ambient Sounds** (فقط‌نمایش، خودکار تولید‌شده از Weather بالا؛ یک دکمه‌ی کوچک «ویرایش دستی» برای Override)
+- **Action Sounds** (فهرست قابل‌افزودن: هر ردیف = Timestamp + Type + توضیح کوتاه؛ دکمه‌ی «+ افزودن صدای اکشن»)
+- **Character Sounds** (فهرست قابل‌افزودن دستی؛ هر ردیف = انتخاب کاراکتر از Dropdown + Type + توضیح؛ **هرگز خودکار پر نمی‌شود**، طبق تصمیم قطعی بلوپرینت ۱۰ — این تفاوت با دو بخش بالا باید در UI با یک برچسب «فقط دستی» مشخص شود)
+
+**پایین همه‌ی Tab ها (ثابت، مستقل از Tab فعال):**
+- **Full Video Prompt** (فقط‌نمایش، `Textarea` غیرقابل‌ویرایش، به‌روزرسانی زنده با تغییر فیلدهای هر Tab): متن پرامپت نهایی این شات
+- ردیف انتخاب مدل هدف (Chip های Runway/Pika/Kling و غیره) + دکمه‌ی «Copy» کنار هرکدام
+- دکمه‌ی سراسری: «Copy All Shot Prompts»
+
+🆕 **تصمیم تعامل: اتصال Asset به Shot — انتخاب از لیست/BottomSheet، نه Drag & Drop**
+
+نمونه‌ی مادر (وب) از Drag & Drop واقعی برای اتصال یک Asset از کتابخانه به یک کارت Shot استفاده می‌کرد. برای این پروژه (اپ اندروید بومی)، تصمیم گرفته شد این الگو **تکرار نشود**؛ به‌جایش:
+- کاربر روی دکمه‌ای در کارت Shot (مثلاً «افزودن دارایی») ضربه می‌زند.
+- یک `BottomSheet` (یا Dialog مشابه) باز می‌شود که فهرست Asset های موجود را با قابلیت جستجو و تیک‌زدن چندگانه نشان می‌دهد.
+- کاربر مورد(های) موردنظر را انتخاب کرده و تأیید می‌کند.
+
+🆕v5 **رفع تناقض فیلتر نوع Asset در BottomSheet:** نسخه‌ی قبلی گفته بود فیلتر بر اساس «Character/Location/Object» است — اما طبق `ObjectSubtype` (بلوپرینت ۰۶ نسخه ۴)، Object خودش سه زیرگروه دارد (Personal Prop/General Prop/Costume). فیلتر BottomSheet باید **دو سطحی** باشد: یک ردیف Tab بالای BottomSheet با سه دسته‌ی اصلی (Characters/Locations/Objects)؛ وقتی کاربر Tab «Objects» را انتخاب می‌کند، یک ردیف Chip فیلتر ثانویه (All/Personal Prop/General Prop/Costume) زیر آن ظاهر می‌شود. این سطح دوم فقط برای Objects است — Characters/Locations نیازی به فیلتر ثانویه ندارند.
+
+⚠️ **دلیل دقیق این تصمیم (مهم، نباید نادرست نقل شود):** برخلاف یک باور رایج نادرست، Jetpack Compose از نظر فنی **واقعاً** از Drag & Drop رسمی پشتیبانی می‌کند (`Modifier.dragAndDropSource`/`dragAndDropTarget`، مستند در Android Developers). دلیل واقعی این تصمیم، محدودیت فنی نیست، بلکه **تجربه‌ی کاربری**: این مکانیزم رسمی عمدتاً برای اشتراک داده بین اپ‌ها یا بین Composable های دوردست طراحی شده، نه برای تعامل روان و سریع «کشیدن یک آیتم کوچک و رها کردنش روی یک کارت» با انگشت روی یک صفحه‌ی کوچک موبایل — که تجربه‌اش معمولاً به‌مراتب ضعیف‌تر از همین تعامل با ماوس روی دسکتاپ است. انتخاب از لیست/BottomSheet یک الگوی لمسی جاافتاده و قابل‌اعتمادتر برای این نوع اتصال در اپ‌های حرفه‌ای اندروید است.
+
+🆕 **تصمیم تعامل: نمایش شات‌ها — Grid و Timeline، هر دو**
+
+نمونه‌ی مادر دو حالت نمایش برای فهرست شات‌های یک Scene داشت: **Grid** (شبکه‌ای، کارت‌های مربعی کنار هم — مناسب مرور سریع و دیدن همه‌چیز هم‌زمان) و **Timeline** (خطی، به‌ترتیب زمانی/شماره‌ی شات — مناسب دیدن روایت پشت‌سرهم). تصمیم: هر دو حالت باید در این مرحله وجود داشته باشند، با یک دکمه‌ی Toggle ساده (مثل یک آیکون سوییچ در بالای فهرست) برای جابه‌جایی بین آن‌ها؛ انتخاب کاربر باید در طول یک نشست حفظ شود (نه هر بار بازنشانی به پیش‌فرض).
+
+### مراحل ۶-۷-۸: جریان یکپارچه‌ی «بررسی و خروجی» (Validation → Prompt Generation → Output Delivery)
+
+🆕v5 **تصمیم معماری UI:** این سه مرحله، بر خلاف مراحل ۱ تا ۵ (که هرکدام Modal/Panel مستقل خودشان را دارند)، **یک جریان پیوسته و بدون توقف کاربر** هستند، نه سه صفحه‌ی جدا که کاربر باید بین آن‌ها دکمه بزند. دلیل: خروجی این سه مرحله (گزارش خطا، PromptBlueprint خنثی، متن نهایی رندرشده) همگی برای یک هدف واحد‌اند — نمایش «آیا این Shot آماده است و نتیجه‌اش چیست» — و تفکیک آن‌ها به سه صفحه‌ی جدا فقط کاربر را مجبور به کلیک‌های اضافی می‌کند بدون فایده‌ی واقعی.
+
+**مشخصات دقیق:** این جریان همان پنل Shot Composer (مرحله‌ی ۵) را ادامه می‌دهد؛ بخش «Full Video Prompt» که در مشخصات مرحله‌ی ۵ توضیح داده شد، خودش نتیجه‌ی نهایی این جریان است. جزئیات هر گام:
+
+- **مرحله ۶ (Validation) — نمایش نامحسوس، نه یک صفحه‌ی جدا:** بالای بخش «Full Video Prompt»، اگر خطا/هشداری وجود دارد، یک نوار کوچک رنگی نمایش داده می‌شود: قرمز با آیکون ⛔ برای هر `Blocking Error` (فهرست کوتاه، هرکدام با متن پیام)، زرد با آیکون ⚠️ برای هر `Warning`. اگر حداقل یک Blocking Error وجود دارد، بخش «Full Video Prompt» به‌جای متن پرامپت، پیام «رفع خطاهای بالا لازم است» را نشان می‌دهد (خودِ تولید Prompt، طبق مرحله‌ی ۷، مسدود می‌ماند).
+- **مرحله ۷ (Prompt Generation) — کاملاً پشت‌صحنه، بدون UI مستقل:** وقتی هیچ Blocking Error باقی نمانده، `PromptBlueprint` خودکار و بی‌صدا (بدون Loading Spinner قابل‌توجه، چون این عملیات باید فوری/محلی باشد) ساخته می‌شود؛ این مرحله هیچ نمایش بصری مستقل خودش را ندارد — نتیجه‌اش مستقیم وارد مرحله‌ی ۸ می‌شود.
+- **مرحله ۸ (Output Delivery) — ادامه‌ی همان پنل:** طبق مشخصات مرحله‌ی ۵، ردیف Chip های انتخاب مدل (Runway/Pika/Kling و غیره) و متن «Full Video Prompt» نهایی همین‌جا نمایش داده می‌شوند.
+
+🆕v5 **تصمیم قطعی درباره‌ی نمایش ۱۳ مدل (که در نسخه‌ی قبلی باز مانده بود):** به‌جای یک صفحه‌ی مجزا و بزرگ‌تر، همان الگوی فشرده‌ی Chip با اسکرول افقی حفظ می‌شود — طبق همان اصل بالا (این سه مرحله باید یک جریان بدون توقف باشند، نه مجموعه‌ای از صفحات جدا). دلیل انتخاب این گزینه به‌جای صفحه‌ی مجزا: کاربر معمولاً فقط با ۱ تا ۳ مدل ثابت کار می‌کند (نه هر ۱۳ تا هم‌زمان)؛ یک لیست بلند و صفحه‌ی جداگانه برای این نیاز رایج، بار شناختی غیرضروری اضافه می‌کند. اگر در آینده کاربر واقعی نشان داد که مقایسه‌ی هم‌زمان چند مدل نیاز پرتکراری است، یک صفحه‌ی «مقایسه» مجزا می‌تواند به‌عنوان یک ویژگی بعدی (نه بخشی از این جریان اصلی) اضافه شود — این تصمیم به آینده موکول شد، نه به این بلوپرینت.
+
+⚠️ **نکته‌ی تکمیلی (از سند اصلی):** Validation در دو نقطه‌ی جدا از پایپ‌لاین رخ می‌دهد:
+- **Pre-Prompt Validation:** همین‌جا (نوار رنگی بالای Full Video Prompt)، روی داده‌ی ساختاریافته (DNA، Scene، Shot) قبل از تولید Prompt.
+- **Post-Prompt Validation:** بعد از Prompt Finalization (واحد ۱۳)، روی متن نهایی رندرشده — بررسی می‌کند که تمیزکاری/فشرده‌سازی معنای اصلی را از بین نبرده باشد. اگر این بررسی مشکلی پیدا کند، همان نوار رنگی (زرد، Warning) به‌روزرسانی می‌شود، نه یک نمایش جدا.
+
+🆕 طبق الگوی بازخورد تعامل (بالا، مرحله‌ی ۳): عمل **Copy** در این جریان — که نقطه‌ی پایانی و هدف اصلی تعامل کاربر با کل اپ است — باید حتماً یک `Snackbar` تأییدی («کپی شد») نشان دهد.
+
+---
+
+## پیاده‌سازی مفهومی وضعیت گردش کار (Kotlin)
+
+```kotlin
+enum class WorkflowStep {
+    STORY_WIZARD, AI_STORY_BREAKDOWN, DNA_CONFIG, ASSET_LIBRARY, SCENE_CREATION,
+    SHOT_CREATION, VALIDATION, PROMPT_GENERATION, OUTPUT_DELIVERY
+}
+
+enum class StepStatus { NOT_STARTED, IN_PROGRESS, COMPLETED }
+
+data class WorkflowState(
+    val sessionId: String,
+    val projectId: String,
+    val currentStep: WorkflowStep,
+    val stepStatus: Map<WorkflowStep, StepStatus>,
+    val startedAt: String,
+    val lastActionAt: String,
+    val shotListViewMode: ShotListViewMode = ShotListViewMode.GRID   // 🆕 حفظ انتخاب کاربر در طول نشست
+) {
+    val progressPercentage: Int
+        get() = (stepStatus.values.count { it == StepStatus.COMPLETED } * 100) / WorkflowStep.entries.size
+}
+
+/** 🆕 حالت نمایش فهرست شات‌ها در مرحله‌ی Shot Creation. */
+enum class ShotListViewMode { GRID, TIMELINE }
+
+/** پیشروی به مرحله‌ی بعد فقط با هشدار مجاز است اگر مراحل قبلی کامل نباشند (نه Blocking). */
+fun canJumpToStep(state: WorkflowState, target: WorkflowStep): Pair<Boolean, String?> {
+    val previousSteps = WorkflowStep.entries.filter { it.ordinal < target.ordinal }
+    val allCompleted = previousSteps.all { state.stepStatus[it] == StepStatus.COMPLETED }
+    return if (allCompleted) true to null
+    else true to "برخی مراحل قبلی کامل نشده‌اند — ادامه با احتیاط"
+}
+
+/**
+ * 🆕 دسته‌بندی نوع بازخورد لازم برای یک عملیات UI — طبق الگوی مرحله‌ی ۳.
+ * این enum مشخص می‌کند کدام Composable (AlertDialog در برابر Snackbar) باید استفاده شود؛
+ * پیاده‌سازی واقعی UI در واحد ۱۶ (لایه‌ی Compose) انجام می‌شود، این فقط طبقه‌بندی مفهومی است.
+ */
+enum class FeedbackType {
+    CONFIRMATION_REQUIRED,   // مثل حذف Asset — AlertDialog قبل از اجرا
+    TRANSIENT_SUCCESS        // مثل ذخیره‌ی موفق یا Copy — Snackbar گذرا بعد از اجرا
+}
+```
+
+---
+
+## قوانین گردش کار
+
+| Rule | شرح | Severity |
+|---|---|---|
+| پرش به مرحله‌ای که پیش‌نیازش کامل نیست | فقط هشدار، نه بلاک | **Warning** |
+| وجود Blocking Error در Validation | جلوی پیشروی به Prompt Generation را می‌گیرد | **Blocking** |
+| ذخیره‌ی خودکار بعد از تکمیل مراحل کلیدی (DNA، Asset، Scene) | Auto-Save trigger | — |
+| 🆕 حذف یک Asset/Scene/Shot بدون تأیید کاربر | نقض الگوی بازخورد تعامل (باید همیشه `AlertDialog` باشد) | ساختاری (باید در پیاده‌سازی UI رعایت شود) |
+
+---
+
+## مسیرهای جایگزین
+
+- **Express Workflow:** Story Wizard (Skip) → 🆕v3 AI Story Breakdown (Skip، یا استفاده‌ی سریع با یک داستان کوتاه) → DNA (Template) → Asset (Import) → Scene (Bulk Create) → Shot (Preset) → Validate (Auto-Fix) → Generate
+- **Iterative Workflow:** ساخت یک Scene → یک Shot → تولید → بازبینی → اصلاح → افزودن Shot بیشتر → تکرار
+
+⚠️ «Collaborative Workflow» (چند کاربر همزمان) از دامنه‌ی فعلی حذف شده — اپ تک‌کاربره و بدون سرور است.
+
+---
+
+## معیارهای موفقیت (بدون KPI عددی سرعت‌محور)
+
+✅ کیفیت پرامپت نهایی، معیار اصلی موفقیت است — نه سرعت رسیدن به آن
+✅ هیچ مرحله‌ای گیج‌کننده نیست؛ Entry/Exit Condition هر مرحله شفاف است
+✅ Validation خطاهای رایج را قبل از تولید Prompt تشخیص می‌دهد
+✅ Auto-Save از دست‌رفتن داده را در تمام مراحل کلیدی جلوگیری می‌کند
+✅ 🆕 هر عملیات غیرقابل‌بازگشت همیشه تأیید صریح می‌گیرد؛ هیچ عملیات موفقی بدون بازخورد باقی نمی‌ماند
+✅ 🆕 اتصال Asset-به-Shot با یک الگوی لمسی روان (BottomSheet) انجام می‌شود، بدون تلاش برای شبیه‌سازی Drag & Drop دسکتاپ
+
+⚠️ معیارهای قدیمی «کمتر از ۲۰ دقیقه» و «نرخ ترک کاربر» (Abandonment Rate) به‌طور کامل حذف شدند — اولی چون فلسفه‌ی پروژه «کیفیت مهم‌تر از سرعت» است، دومی چون به تحلیل رفتار جمعیتی چند کاربر وابسته است و برای اپ تک‌کاربره بی‌معناست.
+
+---
+
+## سنجش کیفیت (Quality Rubric) — ابزار عملی برای «کیفیت مهم‌تر از سرعت»
+
+طبق سند اصلی KPI پروژه، صرف گفتنِ «کیفیت مهم است» بدون یک ابزار قابل‌اندازه‌گیری، عملاً غیرقابل پیگیری است. این Rubric (نه یک KPI سرعت‌محور، بلکه ابزاری برای خودارزیابی کیفیت خروجی) می‌تواند به‌صورت اختیاری، هم توسط کاربر و هم به‌عنوان یک قابلیت داخلی اپ (خودارزیابی Prompt قبل از نمایش نهایی) استفاده شود.
+
+### پنج محور سنجش (هرکدام ۰ تا ۲۰، جمعاً از ۱۰۰)
+
+| محور | سؤال کلیدی |
+|---|---|
+| **وضوح سوژه** | آیا سوژه‌ی اصلی Shot واضح و قابل‌تصویرسازی است، بدون ابهام؟ |
+| **وضوح سینمایی** | آیا پارامترهای دوربین (زاویه، فاصله، حرکت) مشخص و قابل‌اجرا هستند؟ |
+| **دقت بصری** | آیا جزئیات بصری (نور، محیط) کافی و شفاف‌اند؟ |
+| **انسجام سبکی** | آیا سبک با ژانر/Mood پروژه سازگار است؟ |
+| **ایجاز پرامپت** | آیا پرامپت بدون تکرار زائد و به‌اندازه‌ی کافی فشرده است؟ |
+
+```kotlin
+data class QualityScore(
+    val subjectClarity: Int,      // 0-20
+    val cinematicClarity: Int,    // 0-20
+    val visualSpecificity: Int,   // 0-20
+    val styleCoherence: Int,      // 0-20
+    val conciseness: Int          // 0-20
+) {
+    val total: Int get() = subjectClarity + cinematicClarity + visualSpecificity + styleCoherence + conciseness
+}
+
+/**
+ * این تابع یک ابزار کمکی/اختیاری است — نه بخشی الزامی از Validation
+ * (که در واحد ۰۷ تعریف شده). هدف: کمک به کاربر برای دیدن نقاط ضعف
+ * احتمالی پرامپت قبل از ارسال به مدل AI، نه بلاک‌کردن جریان کار.
+ */
+fun evaluatePromptQuality(renderedOutput: RenderedOutput, blueprint: PromptBlueprint): QualityScore {
+    // پیاده‌سازی واقعی بر اساس بررسی وجود/کیفیت هر بخش از structuredParts
+    // نمونه‌ی مفهومی؛ جزئیات دقیق الگوریتم در زمان پیاده‌سازی مشخص می‌شود
+    TODO("پیاده‌سازی واقعی در فاز کدنویسی")
+}
+```
+
+**نکته‌ی مهم — تفاوت با KPI قدیمی:** بر خلاف نسخه‌ی اولیه‌ی این Rubric (که بخشی از یک سیستم Test Dataset ثابت با ۲۰ ورودی از پیش تعریف‌شده برای مقایسه‌ی نسخه‌های مختلف موتور بود)، در این معماری این ابزار صرفاً برای **بازخورد لحظه‌ای به خودِ کاربر** استفاده می‌شود — نه برای مقایسه‌ی رسمی Sprint به Sprint یا معیار پذیرش یک نسخه. اگر در آینده نیاز به تست رگرسیون کیفیت بین نسخه‌های مختلف کد احساس شد، می‌توان یک Test Dataset مشابه (متناسب با ۱۹ واحد فعلی) طراحی کرد.
+
+---
+
+## یادداشت پیاده‌سازی (برای Claude Code، هنگام اجرای این بلوپرینت به‌روزشده)
+
+این بلوپرینت (طبق تعریفش) نقشه‌راه است، نه یک ماژول اجرایی مستقل با تست‌های سنتی JUnit — بنابراین «پیاده‌سازی» آن یعنی ساخت واقعی صفحات Compose که این توالی و این سه تصمیم UX را منعکس کنند:
+
+- `FeedbackType`/`ShotListViewMode` (این نسخه) باید به `domain/workflow/` (یا مسیر مشابه که برای `WorkflowState` قبلاً درنظر گرفته شده — با grep بررسی کن) اضافه شوند.
+- برای پیاده‌سازی واقعی BottomSheet انتخاب Asset، از `ModalBottomSheet` (Material 3، طبق Stack پروژه) استفاده کن.
+- برای Snackbar، از `SnackbarHostState`/`SnackbarHost` استاندارد Compose استفاده کن؛ برای AlertDialog تأییدی، از `AlertDialog` استاندارد.
+- این تغییرات عمدتاً در لایه‌ی UI (که هنوز ساخته نشده) اعمال می‌شوند، نه در `domain/` موجود — این یک Migration کد دامنه نیست، بلکه بخشی از پیاده‌سازی اولیه‌ی خودِ واحد ۱۶.
+- 🆕v3 `AI_STORY_BREAKDOWN` باید به `WorkflowStep` اضافه شود، بین `STORY_WIZARD` و `DNA_CONFIG` در ترتیب `ordinal` (چون `canJumpToStep` به ترتیب `ordinal` برای تشخیص «مراحل قبلی» متکی است) — اگر واحد ۰۱ب هنوز پیاده‌سازی نشده، این افزودن enum را می‌توان مستقل انجام داد (فقط تعریف مرحله در نقشه‌ی گردش کار)، بدون نیاز به منتظر ماندن برای تکمیل کامل منطق ۰۱ب.
+- 🆕v4 **این نسخه اولین‌بار است که فیلدهای دقیق هر فرم را مشخص می‌کند.** این فیلدها منبع حقیقت‌اند برای طراحی UI — چه Claude Code مستقیم آن‌ها را به Composable تبدیل کند، چه کاربر بخواهد این مشخصات را به یک ابزار طراحی بیرونی (مثل Figma) بدهد تا پوسته‌ی بصری مستقل طراحی شود و بعداً پیاده‌سازی گردد. اگر کاربر پیش از این قدم یک طرح دیزاین اختصاصی ارائه دهد، آن طرح **اولویت کامل بر این مشخصات دارد** — این مشخصات فقط یک پیش‌فرض معقول برای زمانی است که طرح اختصاصی وجود ندارد، نه یک الزام غیرقابل‌تغییر.
+- 🆕v4 گزینه‌های Dropdown که به enum های بلوپرینت‌های دیگر ارجاع می‌دهند (`VisualStyle`, `Mood`, `LightingStyle`, `Gender`, `ObjectSubtype`, `AspectRatio`) باید مستقیماً از آن enum ها خوانده شوند (نه رونویسی مقادیر در کد UI) تا اگر بعداً enum منبع تغییر کرد، فهرست Dropdown خودکار هماهنگ بماند.
+- 🆕v5 مراحل ۶-۷-۸ اکنون یک جریان یکپارچه‌ی UI هستند، نه سه Composable/صفحه‌ی جدا — طراحی این بخش باید یک `State` واحد داشته باشد (شامل نتیجه‌ی Validation، PromptBlueprint، و RenderedOutput هر مدل انتخابی) که با تغییر هر فیلد Shot، به‌صورت Reactive (طبق الگوی StateFlow پروژه) بازمحاسبه می‌شود؛ این را به‌عنوان یک `ViewModel` واحد برای کل Shot Composer در نظر بگیر، نه سه ViewModel جدا.
+- 🆕v5 `Bottom Navigation Bar` با ۵ آیکون اصلی (طبق بخش «مکانیزم Navigation کلی» بالا) باید در سطح بالاترین Composable اپ (Scaffold اصلی) پیاده شود، نه در سطح هر مرحله جداگانه.
+- 🆕v6 **این نسخه اولین‌بار Shot Composer را واقعاً به فیلدهای ۰۳/۰۸/۰۹/۱۰ وصل می‌کند.** با grep بررسی کن که `CameraSettings` (۰۹)، `LightingPreset`/`EnvironmentSettings` (۰۸)، `CinematicMode` (۰۳)، و `SoundProfile` (۱۰) در `domain/` موجود دقیقاً چه ساختاری دارند (این‌ها قبلاً پیاده‌سازی و تست شده‌اند) — این تب‌ها باید مستقیماً همان `data class` های واقعی را ویرایش کنند، نه یک مدل UI موازی و جدا بسازند.
+- 🆕v6 ساختار Tab-based Shot Composer به یک `TabRow` (Material 3) با ۴ Tab نیاز دارد؛ محتوای هر Tab یک Composable مجزا باشد (`ShotMainTab`, `ShotCameraTab`, `ShotLightingEnvironmentTab`, `ShotAudioTab`) که همگی از یک `ViewModel` مشترک (طبق یادداشت 🆕v5 بالا) State می‌گیرند — نه ViewModel جدا برای هر Tab، چون «Full Video Prompt» پایین صفحه باید همزمان به تغییرات هر ۴ Tab واکنش نشان دهد.
+- 🆕v6 بخش «رفتارهای سراسری» (State/Versioning و Storage) نیازمند یک `Composable` مشترک برای «نشانگر وضعیت Entity» (آیکون قفل/رنگ روی کارت‌ها) است که باید در `EntityCard`/`SceneCard`/`ShotCard`/`AssetCard` (هرکدام که در حال حاضر وجود دارند یا ساخته می‌شوند) به‌طور یکسان استفاده شود — یک Composable مشترک بساز، نه پیاده‌سازی جدا در هر کارت.
