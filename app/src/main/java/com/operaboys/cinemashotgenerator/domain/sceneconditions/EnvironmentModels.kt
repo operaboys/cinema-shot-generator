@@ -28,7 +28,18 @@ data class AmbientSoundSuggestion(val type: String, val intensity: String, val d
  * تجمیع محلیِ فقط weatherType — همان فیلدی که واحد ۱۱ (Prompt Engineering Core) واقعاً
  * می‌خواند. ابتدا در domain.promptengine تعریف شده بود؛ به اینجا منتقل شد
  * (docs/adr/013-...) با همان دلیل LightingSettings.
+ *
+ * MIGRATED (docs/adr/036-unit08-lighting-environment-ui-fields-migration.md): شش
+ * فیلد جدید (پنج nullable + یک لیست) اضافه شدند تا Tab «نور و محیط» واحد ۱۶ بتواند
+ * مستقیماً همین data class را ویرایش کند — هم‌الگو با LightingSettings. PromptAssembly.kt
+ * عمداً دست‌نخورده ماند (بلوپرینت ۱۱ هیچ ارجاعی به این فیلدها ندارد).
  */
 data class EnvironmentSettings(
-    val weatherType: WeatherType
+    val weatherType: WeatherType,
+    val weatherIntensity: WeatherIntensity? = null,
+    val windStrength: WindStrength? = null,
+    val groundState: GroundState? = null,
+    val visibility: Visibility? = null,
+    val temperatureFeel: TemperatureFeel? = null,
+    val environmentalMotion: List<EnvironmentalMotion> = emptyList()
 )

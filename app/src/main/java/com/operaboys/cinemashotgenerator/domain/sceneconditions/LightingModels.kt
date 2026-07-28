@@ -50,9 +50,21 @@ data class LightingPreset(
  * domain.promptengine تعریف شده بود؛ به اینجا منتقل شد (docs/adr/013-...) چون واحد ۰۵
  * (Shot.lighting) هم اکنون به نوع واقعیِ نتیجه‌ی resolve نیاز دارد و domain.shot نباید
  * به domain.promptengine (بالادست‌ترین واحد) وابسته شود.
+ *
+ * MIGRATED (docs/adr/036-unit08-lighting-environment-ui-fields-migration.md): پنج
+ * فیلد جدید nullable اضافه شدند تا Tab «نور و محیط» واحد ۱۶ بتواند مستقیماً همین
+ * data class را ویرایش کند (نه یک مدل UI موازی) — طبق تأکید صریح بلوپرینت ۱۶. این
+ * فیلدها فقط برای مصرف مستقیم UI هستند؛ PromptAssembly.kt (واحد ۱۱) عمداً دست‌نخورده
+ * ماند چون بلوپرینت ۱۱ هیچ ارجاعی به این فیلدها ندارد (تأییدشده با grep) — جزئیات کامل
+ * در همان ADR.
  */
 data class LightingSettings(
     val style: LightingStyle,
     val keyLightPosition: KeyLightPosition,
-    val contrastRatio: ContrastRatio
+    val contrastRatio: ContrastRatio,
+    val fillLight: FillLight? = null,
+    val colorTemperature: ColorTemperature? = null,
+    val shadowQuality: ShadowQuality? = null,
+    val lightSourceCount: LightSourceCount? = null,
+    val lightingMotivation: LightingMotivation? = null
 )

@@ -11,11 +11,22 @@ import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentalMotion
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.FillLight
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.GroundState
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightSourceCount
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivation
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ShadowQuality
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.TemperatureFeel
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.Visibility
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherIntensity
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WindStrength
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.AmbientSound
 import com.operaboys.cinemashotgenerator.domain.shot.Beat
@@ -76,15 +87,44 @@ fun CameraSettings.toDto(): CameraSettingsDto = CameraSettingsDto(
 fun LightingSettingsDto.toDomain(): LightingSettings = LightingSettings(
     style = LightingStyle.valueOf(style),
     keyLightPosition = KeyLightPosition.valueOf(keyLightPosition),
-    contrastRatio = ContrastRatio.valueOf(contrastRatio)
+    contrastRatio = ContrastRatio.valueOf(contrastRatio),
+    fillLight = fillLight?.let { FillLight.valueOf(it) },
+    colorTemperature = colorTemperature?.let { ColorTemperature.valueOf(it) },
+    shadowQuality = shadowQuality?.let { ShadowQuality.valueOf(it) },
+    lightSourceCount = lightSourceCount?.let { LightSourceCount.valueOf(it) },
+    lightingMotivation = lightingMotivation?.let { LightingMotivation.valueOf(it) }
 )
 
-fun LightingSettings.toDto(): LightingSettingsDto =
-    LightingSettingsDto(style.name, keyLightPosition.name, contrastRatio.name)
+fun LightingSettings.toDto(): LightingSettingsDto = LightingSettingsDto(
+    style = style.name,
+    keyLightPosition = keyLightPosition.name,
+    contrastRatio = contrastRatio.name,
+    fillLight = fillLight?.name,
+    colorTemperature = colorTemperature?.name,
+    shadowQuality = shadowQuality?.name,
+    lightSourceCount = lightSourceCount?.name,
+    lightingMotivation = lightingMotivation?.name
+)
 
-fun EnvironmentSettingsDto.toDomain(): EnvironmentSettings = EnvironmentSettings(WeatherType.valueOf(weatherType))
+fun EnvironmentSettingsDto.toDomain(): EnvironmentSettings = EnvironmentSettings(
+    weatherType = WeatherType.valueOf(weatherType),
+    weatherIntensity = weatherIntensity?.let { WeatherIntensity.valueOf(it) },
+    windStrength = windStrength?.let { WindStrength.valueOf(it) },
+    groundState = groundState?.let { GroundState.valueOf(it) },
+    visibility = visibility?.let { Visibility.valueOf(it) },
+    temperatureFeel = temperatureFeel?.let { TemperatureFeel.valueOf(it) },
+    environmentalMotion = environmentalMotion.map { EnvironmentalMotion.valueOf(it) }
+)
 
-fun EnvironmentSettings.toDto(): EnvironmentSettingsDto = EnvironmentSettingsDto(weatherType.name)
+fun EnvironmentSettings.toDto(): EnvironmentSettingsDto = EnvironmentSettingsDto(
+    weatherType = weatherType.name,
+    weatherIntensity = weatherIntensity?.name,
+    windStrength = windStrength?.name,
+    groundState = groundState?.name,
+    visibility = visibility?.name,
+    temperatureFeel = temperatureFeel?.name,
+    environmentalMotion = environmentalMotion.map { it.name }
+)
 
 fun ShotDto.toDomain(): Shot = Shot(
     shotId = shotId,
