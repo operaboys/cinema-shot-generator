@@ -31,17 +31,23 @@ enum class ShadowQuality { SOFT_SHADOWS, HARD_SHADOWS }
 enum class LightingMotivation { SUNLIGHT, ARTIFICIAL, MOONLIGHT, FIRE, PRACTICAL, MIXED }
 
 /**
- * خروجی mapMoodToLighting — دقیقاً طبق کد مفهومی بلوپرینت با فیلدهای String
- * (نه enum های بالا)، چون بلوپرینت این نوع را صراحتاً با مقادیر رشته‌ای snake_case
- * تعریف کرده (مثل "hard_shadows"، "cold").
+ * خروجی mapMoodToLighting.
+ *
+ * MIGRATED (docs/adr/039-unit03-unit08-mood-type-safety-migration.md، رفع F3 ممیزی
+ * pre-Unit 16): قبلاً دقیقاً طبق کد مفهومی بلوپرینت با فیلدهای String آزاد
+ * snake_case بود (چون بلوپرینت این نوع را این‌طور نوشته بود)؛ اما این مقادیر رشته‌ای
+ * ("dramatic", "hard_shadows", "cold", ...) با enum های واقعی این فایل و
+ * `domain.dna.LightingStyle` (که بعد از Migration واحد ۰۲ ساخته شدند) مطابقت
+ * نداشتند — هیچ Type System ای این عدم تطابق را نمی‌گرفت. اکنون هر فیلد enum واقعی
+ * متناظرش را می‌گیرد.
  */
 data class LightingPreset(
-    val style: String,
-    val keyLightPosition: String,
-    val fillLight: String,
-    val contrastRatio: String,
-    val shadowQuality: String,
-    val colorTemperature: String
+    val style: LightingStyle,
+    val keyLightPosition: KeyLightPosition,
+    val fillLight: FillLight,
+    val contrastRatio: ContrastRatio,
+    val shadowQuality: ShadowQuality,
+    val colorTemperature: ColorTemperature
 )
 
 /**

@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.visualidentity
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -52,21 +53,36 @@ class CinematicLanguageTest {
         assertEquals(CinematicMode.BALANCED, determineHybridPacing("unknown", avgBeatIntensity = 5f))
     }
 
-    // --- getPacingFromEmotion ---
+    // --- getPacingFromEmotion (MIGRATED, docs/adr/039-...md، رفع F4 ممیزی pre-Unit 16) ---
 
     @Test
-    fun `getPacingFromEmotion tense is fast cut`() {
-        assertEquals(CinematicMode.FAST_CUT, getPacingFromEmotion("tense"))
+    fun `getPacingFromEmotion HIGH_ENERGY category mood is fast cut`() {
+        assertEquals(CinematicMode.FAST_CUT, getPacingFromEmotion(Mood.EPIC))
     }
 
     @Test
-    fun `getPacingFromEmotion melancholy is long take`() {
-        assertEquals(CinematicMode.LONG_TAKE, getPacingFromEmotion("melancholy"))
+    fun `getPacingFromEmotion DARK category mood is fast cut`() {
+        assertEquals(CinematicMode.FAST_CUT, getPacingFromEmotion(Mood.TENSE))
     }
 
     @Test
-    fun `getPacingFromEmotion unmapped emotion defaults to balanced`() {
-        assertEquals(CinematicMode.BALANCED, getPacingFromEmotion("curious"))
+    fun `getPacingFromEmotion EMOTIONAL category mood is long take`() {
+        assertEquals(CinematicMode.LONG_TAKE, getPacingFromEmotion(Mood.MELANCHOLIC))
+    }
+
+    @Test
+    fun `getPacingFromEmotion CALM category mood is long take`() {
+        assertEquals(CinematicMode.LONG_TAKE, getPacingFromEmotion(Mood.SERENE))
+    }
+
+    @Test
+    fun `getPacingFromEmotion POSITIVE category mood is balanced`() {
+        assertEquals(CinematicMode.BALANCED, getPacingFromEmotion(Mood.HAPPY))
+    }
+
+    @Test
+    fun `getPacingFromEmotion is total across every Mood value, never throwing`() {
+        Mood.entries.forEach { mood -> getPacingFromEmotion(mood) }
     }
 
     // --- Rule 1 (Blocking): پارس مقدار خام ---

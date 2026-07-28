@@ -1,5 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.visualidentity
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
+import com.operaboys.cinemashotgenerator.domain.dna.MoodCategory
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
@@ -39,11 +41,21 @@ fun determineHybridPacing(sceneType: String, avgBeatIntensity: Float): Cinematic
     }
 }
 
-/** نگاشت احساس اصلی Scene (از DNA.global_mood_base) به یک پیش‌فرض ریتم. */
-fun getPacingFromEmotion(emotion: String): CinematicMode = when (emotion) {
-    "tense", "terrified", "furious" -> CinematicMode.FAST_CUT
-    "melancholy", "serene", "contemplative" -> CinematicMode.LONG_TAKE
-    else -> CinematicMode.BALANCED
+/**
+ * نگاشت احساس اصلی Scene (از DNA.global_mood_base) به یک پیش‌فرض ریتم.
+ *
+ * MIGRATED (docs/adr/039-unit03-unit08-mood-type-safety-migration.md، رفع F4 ممیزی
+ * pre-Unit 16): امضا از emotion: String به emotion: Mood (domain.dna، ۲۵ مقدار
+ * واقعی) تغییر کرد. نسخه‌ی قبلی رشته‌ای تعداد اندکی مقدار دستی را با grep بررسی
+ * می‌کرد که با enum واقعی Mood هم‌راستا نبودند (مثلاً "terrified"/"furious"/
+ * "melancholy" اصلاً در Mood وجود ندارند)؛ به‌جای تلاش برای حدس‌زدن نگاشت رشته‌به‌رشته،
+ * این تابع اکنون Total روی `MoodCategory` (۵ دسته‌ی سراسری Mood) کار می‌کند —
+ * هر Mood معتبر همیشه یک CinematicMode می‌گیرد، بدون نیاز به فهرست دستی رشته‌ها.
+ */
+fun getPacingFromEmotion(emotion: Mood): CinematicMode = when (emotion.category) {
+    MoodCategory.HIGH_ENERGY, MoodCategory.DARK -> CinematicMode.FAST_CUT
+    MoodCategory.EMOTIONAL, MoodCategory.CALM -> CinematicMode.LONG_TAKE
+    MoodCategory.POSITIVE -> CinematicMode.BALANCED
 }
 
 /**

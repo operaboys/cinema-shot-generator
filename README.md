@@ -167,7 +167,7 @@ PromptBlueprint (واحد ۱۱)
 
 **مصرف‌کنندگان مستقیم اصلاح‌شده** (با grep در کل پروژه پیدا شدند): `domain/story/StoryContext.kt`+`StoryValidation.kt` (import `Mood` جدید)؛ `domain/sceneconditions/LightingModels.kt`+`LightingValidation.kt` (import `LightingStyle` جدید + نگاشت نام)؛ `data/repository/ProjectDnaDto.kt`+`DnaAssetMappers.kt`+`DtoMappers.kt` (واحد ۱۵، بدون اصلاحشان کامپایل نمی‌شد)؛ ۶ فایل تست (`DnaValidationTest`, `StoryValidationTest`, `LightingValidationTest`, `ShotSettingsResolutionTest`, `PromptAssemblyTest`, `ProjectDnaRepositoryTest`, `PromptGenerationRepositoryTest`).
 
-**خارج از Scope این قدم (طبق تصریح معمار):** واحد ۰۳ (`getPacingFromEmotion`، هنوز `String` می‌گیرد نه `Mood`)، واحد ۰۸ (`mapMoodToLighting`، هنوز `String`/`LightingPreset` رشته‌ای است)، و `universal-technical-variables.md` — همگی در Migration های جداگانه‌ی بعدی به این enum های جدید وصل می‌شوند. جزئیات کامل در `docs/adr/027-unit02-dna-manager-v5-migration.md`.
+**خارج از Scope این قدم (طبق تصریح معمار):** واحد ۰۳ (`getPacingFromEmotion`، هنوز `String` می‌گیرد نه `Mood`)، واحد ۰۸ (`mapMoodToLighting`، هنوز `String`/`LightingPreset` رشته‌ای است)، و `universal-technical-variables.md` — همگی در Migration های جداگانه‌ی بعدی به این enum های جدید وصل می‌شوند. جزئیات کامل در `docs/adr/027-unit02-dna-manager-v5-migration.md`. **(به‌روزرسانی: هر دو تابع بعداً در `docs/adr/039-unit03-unit08-mood-type-safety-migration.md` کاملاً Type-Safe شدند — رفع F3/F4 ممیزی pre-Unit 16، پایین را ببینید.)**
 
 ### 🎯 نقطه‌ی عطف: واحد ۰۶ — Migration بلوپرینت نسخه ۵ (بزرگ‌ترین Migration پروژه از نظر تعداد نوع/فیلد جدید)
 
@@ -254,6 +254,30 @@ Scene رد شد — با grep تأیید شد `Shot.locationIds: List<String>` �
 
 **با این قدم، هر دو یافته‌ی 🔴 (مسدودکننده) ممیزی pre-Unit 16 (F1 و F2) رفع
 شده‌اند** — تنها ۷ یافته‌ی 🟡 و ۳ یافته‌ی ⚪ غیرمسدودکننده از آن ممیزی باقی مانده‌اند.
+
+### 🎯 نقطه‌ی عطف: Type Safety کامل `mapMoodToLighting`/`getPacingFromEmotion` — رفع یافته‌های F3 و F4 ممیزی pre-Unit 16
+
+هر دو تابع (باقی‌مانده از قبل از Migration واحد ۰۲) رشته‌ی خام می‌گرفتند/می‌دادند
+و اکنون کاملاً Type-Safe شدند:
+
+- **`mapMoodToLighting` (واحد ۰۸، F3):** امضا به `mood: Mood` تغییر کرد؛
+  `LightingPreset` کاملاً Type-Safe شد (هر ۶ فیلد enum واقعی متناظرش را می‌گیرد —
+  `LightingStyle`/`KeyLightPosition`/`FillLight`/`ContrastRatio`/`ShadowQuality`/
+  `ColorTemperature` — نه `String` آزاد). تابع اکنون Total است (بدون `null`):
+  ۶ مقدار اصلی بلوپرینت پیش‌فرض نوانس‌دار خودشان را حفظ کردند؛ ۱۹ مقدار باقی‌مانده‌ی
+  `Mood` از یک پیش‌فرض معقول در سطح `MoodCategory` استفاده می‌کنند.
+- **`getPacingFromEmotion` (واحد ۰۳، F4):** امضا به `emotion: Mood` تغییر کرد و
+  اکنون Total روی `Mood.category` است (`HIGH_ENERGY`/`DARK`→`FAST_CUT`،
+  `EMOTIONAL`/`CALM`→`LONG_TAKE`، `POSITIVE`→`BALANCED`) — به‌جای فهرست دستی چند
+  رشته که با enum واقعی `Mood` هم‌خوان نبودند.
+
+**یافته‌ی اصلاحی نسبت به پیش‌بررسی دستور کار:** با grep مستقیم در `Mood` enum
+تأیید شد `Mood.SERENE` و `Mood.CONTEMPLATIVE` (هر دو دسته‌ی `CALM`) برخلاف ادعای
+اولیه‌ی دستور کار **واقعاً وجود دارند** — رویکرد `MoodCategory`-محور این عدم‌قطعیت
+را بی‌اثر می‌کند، چون اصلاً به تطبیق تک‌تک رشته‌ها وابسته نیست. `type-registry.md`
+از قبل امضای هدف (Mood-typed، غیر-nullable) را دقیقاً مستند کرده بود — دقیقاً
+همان الگوی F1 — پس نیازی به تغییر در آن نبود. جزئیات کامل در
+`docs/adr/039-unit03-unit08-mood-type-safety-migration.md`.
 
 ## Stack
 
