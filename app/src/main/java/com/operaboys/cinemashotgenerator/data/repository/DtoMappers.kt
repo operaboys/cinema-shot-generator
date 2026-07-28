@@ -10,11 +10,11 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.AmbientSound

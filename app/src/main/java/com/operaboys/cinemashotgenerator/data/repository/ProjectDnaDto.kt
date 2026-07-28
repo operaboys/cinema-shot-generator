@@ -7,6 +7,16 @@ import kotlinx.serialization.Serializable
 // کد مفهومی خلاصه‌شده‌ی بلوپرینت). دلیل DTO محلی (نه @Serializable مستقیم روی
 // domain/): همان دلیل ADR-018 — domain/ نباید تغییر کند. Enum ها به‌صورت String
 // (نام Enum) ذخیره می‌شوند، طبق همان تصمیم قبلی.
+//
+// MIGRATED (docs/adr/027-unit02-dna-manager-v5-migration.md): این فایل با
+// domain/dna/ProjectDna.kt (بلوپرینت ۰۲ نسخه ۵) هم‌گام‌سازی شد:
+// - StylePreferencesDto/ColorPhilosophyDto/CameraPreferencesDto/LightingPreferencesDto/
+//   OverrideRulesDto کاملاً حذف شدند (فیلدهای متناظرشان از ProjectDna حذف شدند).
+// - MasterPaletteDto.colorPalette (جدید)، LightingPreferenceDto (جدید)،
+//   QualityDirectivesDto (جدید) اضافه شدند.
+// - globalContrast/aspectRatio/primaryEmotion همچنان String ذخیره می‌شوند (نام Enum)
+//   — نوع Kotlin سمت domain عوض شد (ContrastLevel/AspectRatio/Mood) ولی شکل
+//   ذخیره‌سازی JSON (رشته‌ی نام Enum) تغییری نکرد.
 
 @Serializable
 data class CoreIdentityDto(
@@ -21,7 +31,8 @@ data class MasterPaletteDto(
     val colorTemperature: String,
     val globalSaturation: String,
     val globalContrast: String,
-    val colorGradingPreset: String
+    val colorGradingPreset: String,
+    val colorPalette: List<String> = emptyList()
 )
 
 @Serializable
@@ -29,33 +40,6 @@ data class GlobalMoodBaseDto(
     val primaryEmotion: String,
     val intensity: String,
     val consistency: String
-)
-
-@Serializable
-data class ColorPhilosophyDto(
-    val paletteType: String,
-    val dominantColors: List<String>,
-    val contrastPreference: String
-)
-
-@Serializable
-data class CameraPreferencesDto(
-    val preferredMovements: List<String>,
-    val avoidMovements: List<String>
-)
-
-@Serializable
-data class LightingPreferencesDto(
-    val preferredStyles: List<String>,
-    val avoidStyles: List<String>
-)
-
-@Serializable
-data class StylePreferencesDto(
-    val cinematicLanguage: String,
-    val colorPhilosophy: ColorPhilosophyDto,
-    val cameraPreferences: CameraPreferencesDto,
-    val lightingPreferences: LightingPreferencesDto
 )
 
 @Serializable
@@ -67,10 +51,14 @@ data class OutputConstraintsDto(
 )
 
 @Serializable
-data class OverrideRulesDto(
-    val allowSceneOverride: Boolean,
-    val allowShotOverride: Boolean,
-    val requiresHumanApproval: Boolean
+data class LightingPreferenceDto(
+    val preferredStyle: String? = null
+)
+
+@Serializable
+data class QualityDirectivesDto(
+    val qualityTags: String = "",
+    val negativePrompt: String = ""
 )
 
 @Serializable
@@ -79,8 +67,8 @@ data class ProjectDnaDto(
     val projectId: String,
     val coreIdentity: CoreIdentityDto,
     val masterPalette: MasterPaletteDto,
-    val globalMoodBase: GlobalMoodBaseDto,
-    val stylePreferences: StylePreferencesDto,
     val outputConstraints: OutputConstraintsDto,
-    val overrideRules: OverrideRulesDto
+    val globalMoodBase: GlobalMoodBaseDto,
+    val lightingPreference: LightingPreferenceDto = LightingPreferenceDto(),
+    val qualityDirectives: QualityDirectivesDto = QualityDirectivesDto()
 )

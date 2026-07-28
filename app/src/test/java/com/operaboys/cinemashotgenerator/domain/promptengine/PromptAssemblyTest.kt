@@ -20,21 +20,18 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
-import com.operaboys.cinemashotgenerator.domain.dna.CameraPreferences
-import com.operaboys.cinemashotgenerator.domain.dna.ColorPhilosophy
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
 import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
-import com.operaboys.cinemashotgenerator.domain.dna.IntensityLevel
-import com.operaboys.cinemashotgenerator.domain.dna.LightingPreferences
 import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
-import com.operaboys.cinemashotgenerator.domain.dna.OverrideRules
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
-import com.operaboys.cinemashotgenerator.domain.dna.StylePreferences
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
@@ -42,11 +39,11 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.CharacterSound
@@ -70,7 +67,7 @@ class PromptAssemblyTest {
         dnaId = "dna_001",
         projectId = "proj_001",
         coreIdentity = CoreIdentity(
-            dominantVisualStyle = VisualStyle.CINEMATIC,
+            dominantVisualStyle = VisualStyle.CINEMATIC_STYLE,
             realismLevel = RealismLevel.GROUNDED,
             styleConsistency = StyleConsistency.STRICT,
             locked = true
@@ -78,40 +75,19 @@ class PromptAssemblyTest {
         masterPalette = MasterPalette(
             colorTemperature = ColorTemperature.WARM,
             globalSaturation = SaturationLevel.MEDIUM,
-            globalContrast = SaturationLevel.HIGH,
+            globalContrast = ContrastLevel.HIGH,
             colorGradingPreset = "natural"
         ),
         globalMoodBase = GlobalMoodBase(
-            primaryEmotion = "mysterious",
-            intensity = IntensityLevel.MEDIUM,
+            primaryEmotion = Mood.MYSTERIOUS,
+            intensity = "medium",
             consistency = StyleConsistency.STRICT
-        ),
-        stylePreferences = StylePreferences(
-            cinematicLanguage = "long_take",
-            colorPhilosophy = ColorPhilosophy(
-                paletteType = "natural",
-                dominantColors = listOf("earth_tones", "muted_blues"),
-                contrastPreference = "medium_high"
-            ),
-            cameraPreferences = CameraPreferences(
-                preferredMovements = listOf("dolly", "tracking", "static"),
-                avoidMovements = listOf("crane", "extreme_handheld")
-            ),
-            lightingPreferences = LightingPreferences(
-                preferredStyles = listOf("cinematic", "dramatic"),
-                avoidStyles = listOf("flat", "overly_bright")
-            )
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = emptyMap(),
             mandatoryElements = emptyList(),
             maxShotDurationSeconds = 10,
-            aspectRatio = "2.39:1"
-        ),
-        overrideRules = OverrideRules(
-            allowSceneOverride = true,
-            allowShotOverride = true,
-            requiresHumanApproval = false
+            aspectRatio = AspectRatio.ANAMORPHIC_2_39
         )
     )
 
@@ -172,7 +148,7 @@ class PromptAssemblyTest {
     )
 
     private fun sampleLightingSettings() = LightingSettings(
-        style = LightingStyle.DRAMATIC,
+        style = LightingStyle.DRAMATIC_LIGHT,
         keyLightPosition = KeyLightPosition.SIDE,
         contrastRatio = ContrastRatio.HIGH
     )

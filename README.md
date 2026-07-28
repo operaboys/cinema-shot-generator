@@ -9,7 +9,7 @@
 Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار است. تاکنون لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room و بدون UI) این واحدها پیاده‌سازی شده:
 
 - **واحد ۰۱ — Story & Override:** `domain/story/` — مدل‌های Story Wizard، قوانین اعتبارسنجی، مدل‌های Human Override.
-- **واحد ۰۲ — DNA Manager:** `domain/dna/` — مدل‌های DNA پروژه، منطق Soft Lock، قوانین اعتبارسنجی Rule 1 تا Rule 5.
+- **واحد ۰۲ — DNA Manager (Migration بلوپرینت نسخه ۵ کامل شد — بزرگ‌ترین Breaking Change تا کنون):** `domain/dna/` — `VisualStyle` اکنون ۳۴ مقدار دقیق در ۵ دسته (`VisualStyleCategory`)؛ `Mood` (۲۵ مقدار، ۵ دسته) از `domain/story/` به اینجا منتقل شد و تنها مالک این نام در کل پروژه است؛ `LightingStyle` (۲۲ مقدار، ۴ دسته) از `domain/sceneconditions/` به اینجا منتقل شد؛ `ContrastLevel` (رفع باگ واقعی: `MasterPalette.globalContrast` اشتباهاً `SaturationLevel` بود)؛ `AspectRatio` (۱۱ مقدار — `OutputConstraints.aspectRatio` از `String` به enum، Breaking Change واقعی)؛ `QualityDirectives`/`GlobalMoodBase`/`LightingPreference` کامل شدند؛ `stylePreferences`/`overrideRules` طبق تصمیم صریح معمار کاملاً حذف شدند؛ `validateColorPalette` (Rule جدید) اضافه شد. جزئیات کامل، دو تناقض واقعی کشف‌شده بین بلوپرینت/type-registry (و نحوه‌ی حل‌شان)، و فهرست کامل مصرف‌کنندگان اصلاح‌شده در `docs/adr/027-unit02-dna-manager-v5-migration.md`.
 - **واحد ۰۶ — Asset & Continuity:** `domain/asset/` — مدل‌های Character/Location Asset، Hard Lock مطلق (identity/appearance/age)، انتخاب خودکار Outfit/Expression، اعتبارسنجی فایل تصویر مرجع.
 - **واحد ۰۷ — Validation & Consistency Engine:** `domain/validation/` — Validation Engine (Severity/ValidationIssue/ValidationReport سراسری)، Logic Conflict Checker (اکنون با `MotionLevel`/`CinematicMode` واقعی)، Dependency Resolver (تحلیل اثر، تشخیص وابستگی دایره‌ای).
 - **واحد ۰۳ — Visual Identity:** `domain/visualidentity/` — Style Matrix (ترکیب کیفی سبک‌ها، بررسی سازگاری)، Cinematic Language (صاحب اصلی `CinematicMode`، تعیین ریتم Hybrid، اعتبارسنجی مدت شات).
@@ -157,6 +157,16 @@ PromptBlueprint (واحد ۱۱)
 **تصمیم کلیدی:** `IntegrityIssue(source, brokenReferenceTo, message)` مستقل از `ValidationIssue` سراسری تعریف شد (بدون `severity` — «ارجاع شکسته» طبق بلوپرینت همیشه Blocking است)؛ `validateReferentialIntegrity` نوع ساده‌ی `ShotReferences` می‌گیرد (نه `ShotEntity`/`Shot` کامل) تا بدون وابستگی به Room قابل‌تست بماند. جزئیات کامل و محدودیت شناخته‌شده‌ی Atomicity (عدم Wrap شدن `restoreProjectFromSnapshot` در یک `@Transaction` واحد — پذیرفته‌شده از ADR-023) در `docs/adr/024-unit15-export-import-deviations.md`.
 
 **با این قدم، تمام موارد «فقط امضا»ی فهرست ADR-017 (`AutoSaveManager`، `BackupManager`، `Export/Import`) اکنون پیاده‌سازی واقعی و تست‌شده دارند — واحد ۱۵ (Project Storage) کاملاً تکمیل است.**
+
+### 🎯 نقطه‌ی عطف: واحد ۰۲ — Migration بلوپرینت نسخه ۵ (بزرگ‌ترین Breaking Change تا کنون)
+
+`domain/dna/ProjectDna.kt` طبق `docs/blueprints/02-dna-manager-v2.md` (نسخه ۵) کاملاً بازنویسی شد: `VisualStyle` از ۴ مقدار کلی به ۳۴ مقدار دقیق در ۵ دسته (`VisualStyleCategory`)؛ `Mood` (۲۵ مقدار، ۵ دسته) از `domain/story/` منتقل شد — `domain/dna/` از این پس تنها مالک این نام در کل پروژه است؛ `LightingStyle` (۲۲ مقدار، ۴ دسته) از `domain/sceneconditions/` منتقل شد؛ `ContrastLevel` (رفع باگ واقعی — تأییدشده با grep: `MasterPalette.globalContrast` اشتباهاً `SaturationLevel` بود)؛ `AspectRatio` (۱۱ مقدار — `OutputConstraints.aspectRatio` از `String` به enum، Breaking Change واقعی)؛ `QualityDirectives`/`GlobalMoodBase`(کامل، `primaryEmotion: Mood`)/`LightingPreference` طبق بلوپرینت اضافه/کامل شدند.
+
+**دو تناقض واقعی بین بلوپرینت/`type-registry.md`/کد موجود** پیدا و توسط معمار حل شدند (نه به‌صورت خودسرانه): (۱) `stylePreferences`/`overrideRules` — نمونه‌ی JSON بلوپرینت هنوز داشت، ولی `data class ProjectDna` مفهومی و ردیف `type-registry.md` هر دو حذف کرده بودند؛ تصمیم نهایی: حذف کامل از `ProjectDna` (`requiresApprovalForOverride` هم حذف شد). (۲) `LightingStyle` جدید نامی دقیقاً معادل `NOIR`/`DRAMATIC`/`NATURAL` قدیمی نداشت؛ تصمیم نهایی: `NOIR→LOW_KEY`، `DRAMATIC→DRAMATIC_LIGHT`، `NATURAL→NATURAL_LIGHT` (در `LightingValidation.kt` و همه‌ی تست‌های مصرف‌کننده اعمال شد).
+
+**مصرف‌کنندگان مستقیم اصلاح‌شده** (با grep در کل پروژه پیدا شدند): `domain/story/StoryContext.kt`+`StoryValidation.kt` (import `Mood` جدید)؛ `domain/sceneconditions/LightingModels.kt`+`LightingValidation.kt` (import `LightingStyle` جدید + نگاشت نام)؛ `data/repository/ProjectDnaDto.kt`+`DnaAssetMappers.kt`+`DtoMappers.kt` (واحد ۱۵، بدون اصلاحشان کامپایل نمی‌شد)؛ ۶ فایل تست (`DnaValidationTest`, `StoryValidationTest`, `LightingValidationTest`, `ShotSettingsResolutionTest`, `PromptAssemblyTest`, `ProjectDnaRepositoryTest`, `PromptGenerationRepositoryTest`).
+
+**خارج از Scope این قدم (طبق تصریح معمار):** واحد ۰۳ (`getPacingFromEmotion`، هنوز `String` می‌گیرد نه `Mood`)، واحد ۰۸ (`mapMoodToLighting`، هنوز `String`/`LightingPreset` رشته‌ای است)، و `universal-technical-variables.md` — همگی در Migration های جداگانه‌ی بعدی به این enum های جدید وصل می‌شوند. جزئیات کامل در `docs/adr/027-unit02-dna-manager-v5-migration.md`.
 
 ## Stack
 

@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.story
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

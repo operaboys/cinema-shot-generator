@@ -13,21 +13,21 @@ import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.Prop
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
-import com.operaboys.cinemashotgenerator.domain.dna.CameraPreferences
-import com.operaboys.cinemashotgenerator.domain.dna.ColorPhilosophy
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
 import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
-import com.operaboys.cinemashotgenerator.domain.dna.IntensityLevel
-import com.operaboys.cinemashotgenerator.domain.dna.LightingPreferences
+import com.operaboys.cinemashotgenerator.domain.dna.LightingPreference
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
-import com.operaboys.cinemashotgenerator.domain.dna.OverrideRules
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.dna.QualityDirectives
 import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
-import com.operaboys.cinemashotgenerator.domain.dna.StylePreferences
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۱): نگاشت دوطرفه‌ی DTO ↔ نوع واقعی دامنه برای ProjectDna
@@ -45,40 +45,27 @@ fun ProjectDnaDto.toDomain(): ProjectDna = ProjectDna(
     masterPalette = MasterPalette(
         colorTemperature = ColorTemperature.valueOf(masterPalette.colorTemperature),
         globalSaturation = SaturationLevel.valueOf(masterPalette.globalSaturation),
-        globalContrast = SaturationLevel.valueOf(masterPalette.globalContrast),
-        colorGradingPreset = masterPalette.colorGradingPreset
+        globalContrast = ContrastLevel.valueOf(masterPalette.globalContrast),
+        colorGradingPreset = masterPalette.colorGradingPreset,
+        colorPalette = masterPalette.colorPalette
     ),
     globalMoodBase = GlobalMoodBase(
-        primaryEmotion = globalMoodBase.primaryEmotion,
-        intensity = IntensityLevel.valueOf(globalMoodBase.intensity),
+        primaryEmotion = Mood.valueOf(globalMoodBase.primaryEmotion),
+        intensity = globalMoodBase.intensity,
         consistency = StyleConsistency.valueOf(globalMoodBase.consistency)
-    ),
-    stylePreferences = StylePreferences(
-        cinematicLanguage = stylePreferences.cinematicLanguage,
-        colorPhilosophy = ColorPhilosophy(
-            paletteType = stylePreferences.colorPhilosophy.paletteType,
-            dominantColors = stylePreferences.colorPhilosophy.dominantColors,
-            contrastPreference = stylePreferences.colorPhilosophy.contrastPreference
-        ),
-        cameraPreferences = CameraPreferences(
-            preferredMovements = stylePreferences.cameraPreferences.preferredMovements,
-            avoidMovements = stylePreferences.cameraPreferences.avoidMovements
-        ),
-        lightingPreferences = LightingPreferences(
-            preferredStyles = stylePreferences.lightingPreferences.preferredStyles,
-            avoidStyles = stylePreferences.lightingPreferences.avoidStyles
-        )
     ),
     outputConstraints = OutputConstraints(
         forbiddenElements = outputConstraints.forbiddenElements,
         mandatoryElements = outputConstraints.mandatoryElements,
         maxShotDurationSeconds = outputConstraints.maxShotDurationSeconds,
-        aspectRatio = outputConstraints.aspectRatio
+        aspectRatio = AspectRatio.valueOf(outputConstraints.aspectRatio)
     ),
-    overrideRules = OverrideRules(
-        allowSceneOverride = overrideRules.allowSceneOverride,
-        allowShotOverride = overrideRules.allowShotOverride,
-        requiresHumanApproval = overrideRules.requiresHumanApproval
+    lightingPreference = LightingPreference(
+        preferredStyle = lightingPreference.preferredStyle?.let { LightingStyle.valueOf(it) }
+    ),
+    qualityDirectives = QualityDirectives(
+        qualityTags = qualityDirectives.qualityTags,
+        negativePrompt = qualityDirectives.negativePrompt
     )
 )
 
@@ -95,39 +82,26 @@ fun ProjectDna.toDto(): ProjectDnaDto = ProjectDnaDto(
         colorTemperature = masterPalette.colorTemperature.name,
         globalSaturation = masterPalette.globalSaturation.name,
         globalContrast = masterPalette.globalContrast.name,
-        colorGradingPreset = masterPalette.colorGradingPreset
+        colorGradingPreset = masterPalette.colorGradingPreset,
+        colorPalette = masterPalette.colorPalette
     ),
     globalMoodBase = GlobalMoodBaseDto(
-        primaryEmotion = globalMoodBase.primaryEmotion,
-        intensity = globalMoodBase.intensity.name,
+        primaryEmotion = globalMoodBase.primaryEmotion.name,
+        intensity = globalMoodBase.intensity,
         consistency = globalMoodBase.consistency.name
-    ),
-    stylePreferences = StylePreferencesDto(
-        cinematicLanguage = stylePreferences.cinematicLanguage,
-        colorPhilosophy = ColorPhilosophyDto(
-            paletteType = stylePreferences.colorPhilosophy.paletteType,
-            dominantColors = stylePreferences.colorPhilosophy.dominantColors,
-            contrastPreference = stylePreferences.colorPhilosophy.contrastPreference
-        ),
-        cameraPreferences = CameraPreferencesDto(
-            preferredMovements = stylePreferences.cameraPreferences.preferredMovements,
-            avoidMovements = stylePreferences.cameraPreferences.avoidMovements
-        ),
-        lightingPreferences = LightingPreferencesDto(
-            preferredStyles = stylePreferences.lightingPreferences.preferredStyles,
-            avoidStyles = stylePreferences.lightingPreferences.avoidStyles
-        )
     ),
     outputConstraints = OutputConstraintsDto(
         forbiddenElements = outputConstraints.forbiddenElements,
         mandatoryElements = outputConstraints.mandatoryElements,
         maxShotDurationSeconds = outputConstraints.maxShotDurationSeconds,
-        aspectRatio = outputConstraints.aspectRatio
+        aspectRatio = outputConstraints.aspectRatio.name
     ),
-    overrideRules = OverrideRulesDto(
-        allowSceneOverride = overrideRules.allowSceneOverride,
-        allowShotOverride = overrideRules.allowShotOverride,
-        requiresHumanApproval = overrideRules.requiresHumanApproval
+    lightingPreference = LightingPreferenceDto(
+        preferredStyle = lightingPreference.preferredStyle?.name
+    ),
+    qualityDirectives = QualityDirectivesDto(
+        qualityTags = qualityDirectives.qualityTags,
+        negativePrompt = qualityDirectives.negativePrompt
     )
 )
 

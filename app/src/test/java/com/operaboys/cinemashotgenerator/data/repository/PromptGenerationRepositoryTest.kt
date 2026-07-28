@@ -25,21 +25,19 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
-import com.operaboys.cinemashotgenerator.domain.dna.CameraPreferences
-import com.operaboys.cinemashotgenerator.domain.dna.ColorPhilosophy
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
 import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
-import com.operaboys.cinemashotgenerator.domain.dna.IntensityLevel
-import com.operaboys.cinemashotgenerator.domain.dna.LightingPreferences
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
-import com.operaboys.cinemashotgenerator.domain.dna.OverrideRules
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
-import com.operaboys.cinemashotgenerator.domain.dna.StylePreferences
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
@@ -51,7 +49,6 @@ import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.CharacterSound
@@ -116,7 +113,7 @@ class PromptGenerationRepositoryTest {
         stabilization = Stabilization.GIMBAL,
         framing = Framing.CENTERED
     )
-    private val lightingOverride = LightingSettings(LightingStyle.DRAMATIC, KeyLightPosition.SIDE, ContrastRatio.HIGH)
+    private val lightingOverride = LightingSettings(LightingStyle.DRAMATIC_LIGHT, KeyLightPosition.SIDE, ContrastRatio.HIGH)
     private val environmentOverride = EnvironmentSettings(WeatherType.RAIN)
 
     private fun sampleShot() = Shot(
@@ -140,17 +137,10 @@ class PromptGenerationRepositoryTest {
     private fun sampleDna() = ProjectDna(
         dnaId = "dna_001",
         projectId = "proj_001",
-        coreIdentity = CoreIdentity(VisualStyle.CINEMATIC, RealismLevel.GROUNDED, StyleConsistency.STRICT, locked = true),
-        masterPalette = MasterPalette(ColorTemperature.WARM, SaturationLevel.MEDIUM, SaturationLevel.HIGH, "natural"),
-        globalMoodBase = GlobalMoodBase("mysterious", IntensityLevel.MEDIUM, StyleConsistency.STRICT),
-        stylePreferences = StylePreferences(
-            "long_take",
-            ColorPhilosophy("natural", listOf("earth_tones"), "medium_high"),
-            CameraPreferences(listOf("dolly"), listOf("crane")),
-            LightingPreferences(listOf("cinematic"), listOf("flat"))
-        ),
-        outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, "2.39:1"),
-        overrideRules = OverrideRules(true, true, false)
+        coreIdentity = CoreIdentity(VisualStyle.CINEMATIC_STYLE, RealismLevel.GROUNDED, StyleConsistency.STRICT, locked = true),
+        masterPalette = MasterPalette(ColorTemperature.WARM, SaturationLevel.MEDIUM, ContrastLevel.HIGH, "natural"),
+        globalMoodBase = GlobalMoodBase(Mood.MYSTERIOUS, "medium", StyleConsistency.STRICT),
+        outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, AspectRatio.ANAMORPHIC_2_39)
     )
 
     private fun sampleScene() = Scene(
@@ -217,7 +207,7 @@ class PromptGenerationRepositoryTest {
         val input = result.getOrThrow()
 
         assertEquals("dna_001", input.dna.dnaId)
-        assertEquals(VisualStyle.CINEMATIC, input.dna.coreIdentity.dominantVisualStyle)
+        assertEquals(VisualStyle.CINEMATIC_STYLE, input.dna.coreIdentity.dominantVisualStyle)
         assertEquals("scene_001", input.scene.sceneId)
         assertEquals(NarrativeRole.CLIMAX, input.scene.narrativeRole)
         assertEquals("shot_001", input.shot.shotId)

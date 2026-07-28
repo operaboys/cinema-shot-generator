@@ -4,21 +4,18 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
-import com.operaboys.cinemashotgenerator.domain.dna.CameraPreferences
-import com.operaboys.cinemashotgenerator.domain.dna.ColorPhilosophy
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
 import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
-import com.operaboys.cinemashotgenerator.domain.dna.IntensityLevel
-import com.operaboys.cinemashotgenerator.domain.dna.LightingPreferences
 import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
-import com.operaboys.cinemashotgenerator.domain.dna.OverrideRules
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
-import com.operaboys.cinemashotgenerator.domain.dna.StylePreferences
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -57,7 +54,7 @@ class ProjectDnaRepositoryTest {
         dnaId = "dna_001",
         projectId = "proj_001",
         coreIdentity = CoreIdentity(
-            dominantVisualStyle = VisualStyle.CINEMATIC,
+            dominantVisualStyle = VisualStyle.CINEMATIC_STYLE,
             realismLevel = RealismLevel.GROUNDED,
             styleConsistency = StyleConsistency.STRICT,
             locked = true
@@ -65,40 +62,20 @@ class ProjectDnaRepositoryTest {
         masterPalette = MasterPalette(
             colorTemperature = ColorTemperature.WARM,
             globalSaturation = SaturationLevel.MEDIUM,
-            globalContrast = SaturationLevel.HIGH,
-            colorGradingPreset = "natural"
+            globalContrast = ContrastLevel.HIGH,
+            colorGradingPreset = "natural",
+            colorPalette = listOf("#3B82F6", "#8B5CF6")
         ),
         globalMoodBase = GlobalMoodBase(
-            primaryEmotion = "mysterious",
-            intensity = IntensityLevel.MEDIUM,
+            primaryEmotion = Mood.MYSTERIOUS,
+            intensity = "medium",
             consistency = StyleConsistency.STRICT
-        ),
-        stylePreferences = StylePreferences(
-            cinematicLanguage = "long_take",
-            colorPhilosophy = ColorPhilosophy(
-                paletteType = "natural",
-                dominantColors = listOf("earth_tones", "muted_blues"),
-                contrastPreference = "medium_high"
-            ),
-            cameraPreferences = CameraPreferences(
-                preferredMovements = listOf("dolly", "tracking"),
-                avoidMovements = listOf("crane")
-            ),
-            lightingPreferences = LightingPreferences(
-                preferredStyles = listOf("cinematic", "dramatic"),
-                avoidStyles = listOf("flat")
-            )
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = mapOf("camera" to listOf("dutch_angle"), "weather" to listOf("snow")),
             mandatoryElements = listOf("subject_visible"),
             maxShotDurationSeconds = 10,
-            aspectRatio = "2.39:1"
-        ),
-        overrideRules = OverrideRules(
-            allowSceneOverride = true,
-            allowShotOverride = true,
-            requiresHumanApproval = false
+            aspectRatio = AspectRatio.ANAMORPHIC_2_39
         )
     )
 

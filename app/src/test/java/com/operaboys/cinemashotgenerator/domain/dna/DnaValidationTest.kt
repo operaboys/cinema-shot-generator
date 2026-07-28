@@ -2,10 +2,21 @@ package com.operaboys.cinemashotgenerator.domain.dna
 
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+// واحد ۰۲ — تست‌های Migration بلوپرینت ۰۲ نسخه ۵ (جزئیات کامل در
+// docs/adr/027-unit02-dna-manager-v5-migration.md).
+//
+// تغییرات نسبت به نسخه‌ی قبلی این فایل:
+// - sampleDna() دیگر stylePreferences/overrideRules نمی‌سازد (این دو فیلد از
+//   ProjectDna حذف شدند، طبق تصمیم صریح معمار).
+// - دو تست `requiresApprovalForOverride reflects true/false flag` حذف شدند —
+//   خودِ تابعی که تست می‌کردند (requiresApprovalForOverride) حذف شد، چون overrideRules
+//   دیگر بخشی از ProjectDna نیست. این حذف مستقیم و عمدی است، نه فراموشی.
+// - validateShotAspectRatio تست‌ها اکنون AspectRatio enum می‌گیرند، نه String.
+// - تست‌های validateColorPalette (Rule ۶/۷ جدید) اضافه شدند.
 
 class DnaValidationTest {
 
@@ -17,13 +28,13 @@ class DnaValidationTest {
         ),
         mandatoryElements: List<String> = listOf("atmospheric_depth", "color_grading"),
         maxShotDurationSeconds: Int = 10,
-        aspectRatio: String = "2.39:1",
-        requiresHumanApproval: Boolean = true
+        aspectRatio: AspectRatio = AspectRatio.ANAMORPHIC_2_39,
+        colorPalette: List<String> = emptyList()
     ) = ProjectDna(
         dnaId = "dna_001",
         projectId = "proj_001",
         coreIdentity = CoreIdentity(
-            dominantVisualStyle = VisualStyle.CINEMATIC,
+            dominantVisualStyle = VisualStyle.CINEMATIC_STYLE,
             realismLevel = RealismLevel.GROUNDED,
             styleConsistency = StyleConsistency.STRICT,
             locked = true
@@ -31,40 +42,20 @@ class DnaValidationTest {
         masterPalette = MasterPalette(
             colorTemperature = ColorTemperature.WARM,
             globalSaturation = SaturationLevel.MEDIUM,
-            globalContrast = SaturationLevel.HIGH,
-            colorGradingPreset = "natural"
+            globalContrast = ContrastLevel.HIGH,
+            colorGradingPreset = "natural",
+            colorPalette = colorPalette
         ),
         globalMoodBase = GlobalMoodBase(
-            primaryEmotion = "mysterious",
-            intensity = IntensityLevel.MEDIUM,
+            primaryEmotion = Mood.MYSTERIOUS,
+            intensity = "medium",
             consistency = StyleConsistency.STRICT
-        ),
-        stylePreferences = StylePreferences(
-            cinematicLanguage = "long_take",
-            colorPhilosophy = ColorPhilosophy(
-                paletteType = "natural",
-                dominantColors = listOf("earth_tones", "muted_blues"),
-                contrastPreference = "medium_high"
-            ),
-            cameraPreferences = CameraPreferences(
-                preferredMovements = listOf("dolly", "tracking", "static"),
-                avoidMovements = listOf("crane", "extreme_handheld")
-            ),
-            lightingPreferences = LightingPreferences(
-                preferredStyles = listOf("cinematic", "dramatic"),
-                avoidStyles = listOf("flat", "overly_bright")
-            )
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = forbiddenElements,
             mandatoryElements = mandatoryElements,
             maxShotDurationSeconds = maxShotDurationSeconds,
             aspectRatio = aspectRatio
-        ),
-        overrideRules = OverrideRules(
-            allowSceneOverride = true,
-            allowShotOverride = true,
-            requiresHumanApproval = requiresHumanApproval
         )
     )
 
@@ -72,17 +63,17 @@ class DnaValidationTest {
 
     @Test
     fun `updateCoreIdentity without dependent shots applies change with no warning`() {
-        val result = updateCoreIdentity(sampleDna(), VisualStyle.STYLIZED, dependentShotsCount = 0)
+        val result = updateCoreIdentity(sampleDna(), VisualStyle.PHOTOREALISTIC, dependentShotsCount = 0)
 
-        assertEquals(VisualStyle.STYLIZED, result.updatedDna.coreIdentity.dominantVisualStyle)
+        assertEquals(VisualStyle.PHOTOREALISTIC, result.updatedDna.coreIdentity.dominantVisualStyle)
         assertEquals(null, result.warning)
     }
 
     @Test
     fun `updateCoreIdentity with dependent shots warns but still applies change`() {
-        val result = updateCoreIdentity(sampleDna(), VisualStyle.STYLIZED, dependentShotsCount = 5)
+        val result = updateCoreIdentity(sampleDna(), VisualStyle.PHOTOREALISTIC, dependentShotsCount = 5)
 
-        assertEquals(VisualStyle.STYLIZED, result.updatedDna.coreIdentity.dominantVisualStyle)
+        assertEquals(VisualStyle.PHOTOREALISTIC, result.updatedDna.coreIdentity.dominantVisualStyle)
         assertTrue(result.warning != null)
         assertTrue(result.warning!!.contains("5"))
     }
@@ -135,14 +126,14 @@ class DnaValidationTest {
 
     @Test
     fun `validateShotAspectRatio matching is valid`() {
-        val result = validateShotAspectRatio("2.39:1", sampleDna(aspectRatio = "2.39:1"))
+        val result = validateShotAspectRatio(AspectRatio.ANAMORPHIC_2_39, sampleDna(aspectRatio = AspectRatio.ANAMORPHIC_2_39))
 
         assertNull(result)
     }
 
     @Test
     fun `validateShotAspectRatio mismatch blocks`() {
-        val result = validateShotAspectRatio("16:9", sampleDna(aspectRatio = "2.39:1"))
+        val result = validateShotAspectRatio(AspectRatio.LANDSCAPE_16_9, sampleDna(aspectRatio = AspectRatio.ANAMORPHIC_2_39))
 
         assertEquals(Severity.BLOCKING, result!!.severity)
     }
@@ -170,15 +161,32 @@ class DnaValidationTest {
         assertTrue(result.message.contains("color_grading"))
     }
 
-    // --- Rule 5 (helper): requiresApprovalForOverride ---
+    // --- Rule 6/7 (جدید): validateColorPalette ---
 
     @Test
-    fun `requiresApprovalForOverride reflects true flag`() {
-        assertTrue(requiresApprovalForOverride(sampleDna(requiresHumanApproval = true)))
+    fun `validateColorPalette is valid for an empty palette`() {
+        assertNull(validateColorPalette(emptyList()))
     }
 
     @Test
-    fun `requiresApprovalForOverride reflects false flag`() {
-        assertFalse(requiresApprovalForOverride(sampleDna(requiresHumanApproval = false)))
+    fun `validateColorPalette is valid for up to 5 valid hex colors`() {
+        val result = validateColorPalette(listOf("#3B82F6", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981"))
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `validateColorPalette warns when more than 5 colors are given`() {
+        val result = validateColorPalette(listOf("#3B82F6", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981", "#111111"))
+
+        assertEquals(Severity.WARNING, result!!.severity)
+    }
+
+    @Test
+    fun `validateColorPalette blocks an invalid hex value`() {
+        val result = validateColorPalette(listOf("#3B82F6", "not-a-hex-color"))
+
+        assertEquals(Severity.BLOCKING, result!!.severity)
+        assertTrue(result.message.contains("not-a-hex-color"))
     }
 }

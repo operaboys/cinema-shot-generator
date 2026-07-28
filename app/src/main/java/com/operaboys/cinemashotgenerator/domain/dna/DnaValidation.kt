@@ -3,14 +3,25 @@ package com.operaboys.cinemashotgenerator.domain.dna
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
-// واحد ۰۲ — منطق Soft Lock و قوانین اعتبارسنجی (Rule 1 تا Rule 5)
-// منبع حقیقت: docs/blueprints/02-dna-manager.md
+// واحد ۰۲ — منطق Soft Lock و قوانین اعتبارسنجی (Rule 1 تا Rule 7)
+// منبع حقیقت: docs/blueprints/02-dna-manager-v2.md (نسخه ۵)
 //
-// MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
-// یک sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت (ثبت‌شده در
-// ADR-002)؛ اکنون از ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کند.
-// معادل «Valid» در دنیای سراسری، مقدار null است (چون هر تابع این فایل حداکثر یک
-// نتیجه دارد، نه لیست).
+// MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً یک
+// sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت؛ اکنون از
+// ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کند. معادل «Valid» در دنیای
+// سراسری، مقدار null است.
+//
+// تغییرات این قدم (Migration بلوپرینت ۰۲ نسخه ۵؛ جزئیات کامل در
+// docs/adr/027-unit02-dna-manager-v5-migration.md):
+// - requiresApprovalForOverride حذف شد — overrideRules دیگر بخشی از ProjectDna
+//   نیست (طبق تصمیم صریح معمار، هم‌راستا با data class ProjectDna بلوپرینت و
+//   type-registry.md). دو تست مرتبط در DnaValidationTest.kt هم حذف می‌شوند.
+// - validateShotAspectRatio اکنون AspectRatio می‌گیرد، نه String (Breaking Change
+//   واقعی OutputConstraints.aspectRatio).
+// - validateColorPalette (Rule ۶/۷ جدید) اضافه شد — منطق دقیقاً طبق بلوپرینت، اما
+//   خروجی ValidationIssue? (نه ValidationResult سه‌حالته‌ی کد مفهومی بلوپرینت) تا با
+//   الگوی موجود همین فایل (تعیین‌شده در ADR-010) هم‌راستا بماند: null=Valid،
+//   ValidationIssue(WARNING)=Warning بلوپرینت، ValidationIssue(BLOCKING)=Blocking بلوپرینت.
 
 /** Soft Lock: تغییر Core Identity همیشه مجاز است؛ فقط در صورت ناسازگاری هشدار می‌دهد. */
 data class DnaUpdateResult(
@@ -73,13 +84,16 @@ fun validateShotDuration(durationSeconds: Int, dna: ProjectDna): ValidationIssue
     return null
 }
 
-/** Rule 4 (Blocking): نقض technical_constraints — عدم تطابق aspect_ratio. */
-fun validateShotAspectRatio(aspectRatio: String, dna: ProjectDna): ValidationIssue? {
+/**
+ * Rule 4 (Blocking): نقض technical_constraints — عدم تطابق aspect_ratio.
+ * Breaking Change این قدم: aspectRatio اکنون AspectRatio enum است، نه String آزاد.
+ */
+fun validateShotAspectRatio(aspectRatio: AspectRatio, dna: ProjectDna): ValidationIssue? {
     val required = dna.outputConstraints.aspectRatio
     if (aspectRatio != required) {
         return ValidationIssue(
             Severity.BLOCKING,
-            message = "نسبت تصویر ('$aspectRatio') با نسبت الزامی DNA این پروژه ('$required') مطابقت ندارد"
+            message = "نسبت تصویر ('${aspectRatio.displayValue}') با نسبت الزامی DNA این پروژه ('${required.displayValue}') مطابقت ندارد"
         )
     }
     return null
@@ -107,11 +121,26 @@ fun checkMandatoryElementsPresent(
 }
 
 /**
- * Rule 5 — تابع کمکی مستقل: آیا Override این DNA نیاز به تأیید انسانی دارد.
- *
- * خارج از Scope این قدم: نمایش دیالوگ تأیید (UI) و ثبت خودکار Scope در حین Override
- * متعلق به HumanOverride/OverrideScope واحد ۰۱ به‌علاوه‌ی لایه‌ی UI است — این تابع فقط
- * پرچم مربوطه را از DNA می‌خواند تا فراخوان (واحدهای بعدی) بتواند تصمیم بگیرد.
+ * Rule ۶/۷ (جدید، بلوپرینت ۰۲ نسخه ۵): اعتبارسنجی colorPalette.
+ * خالی = Valid (اختیاری است)؛ بیش از ۵ مقدار = Warning (فقط ۵ مورد اول استفاده
+ * می‌شود، بدون بررسی Hex بودن باقی مقادیر — دقیقاً طبق ترتیب کد مفهومی بلوپرینت)؛
+ * هر مقدار غیر-Hex معتبر (طبق ^#[0-9A-Fa-f]{6}$) = Blocking.
  */
-fun requiresApprovalForOverride(dna: ProjectDna): Boolean =
-    dna.overrideRules.requiresHumanApproval
+fun validateColorPalette(palette: List<String>): ValidationIssue? {
+    if (palette.isEmpty()) return null
+    if (palette.size > 5) {
+        return ValidationIssue(
+            Severity.WARNING,
+            message = "بیش از ۵ رنگ توصیه نمی‌شود؛ فقط ۵ مورد اول استفاده می‌شود"
+        )
+    }
+    val hexPattern = Regex("^#[0-9A-Fa-f]{6}$")
+    val invalid = palette.filterNot { hexPattern.matches(it) }
+    if (invalid.isNotEmpty()) {
+        return ValidationIssue(
+            Severity.BLOCKING,
+            message = "مقادیر رنگ نامعتبر: ${invalid.joinToString()}"
+        )
+    }
+    return null
+}

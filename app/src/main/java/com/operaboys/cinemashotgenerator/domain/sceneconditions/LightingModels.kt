@@ -1,12 +1,20 @@
 package com.operaboys.cinemashotgenerator.domain.sceneconditions
 
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+
 // واحد ۰۸ — بخش الف: Lighting System (ساختار داده)
 // منبع حقیقت: docs/blueprints/08-scene-conditions.md
 //
 // همه‌ی ۹ پارامتر جدول این بخش گزینه‌های ثابت و محدود دارند (به‌جز rim_light که
 // خودش Boolean است) — بنابراین همه به‌صورت enum مدل شدند، نه String.
+//
+// MIGRATED (docs/adr/027-unit02-dna-manager-v5-migration.md): LightingStyle محلی
+// این واحد (۶ مقدار: NATURAL, SOFT, HARD, DRAMATIC, CINEMATIC, NOIR) حذف شد؛
+// domain.dna.LightingStyle (واحد ۰۲، ۲۲ مقدار) از این پس تنها مالک این نام در کل
+// پروژه است. سه مقدار قدیمی نام دقیقاً یکسان در enum جدید نداشتند (NATURAL→
+// NATURAL_LIGHT، DRAMATIC→DRAMATIC_LIGHT، NOIR→LOW_KEY — طبق تصمیم صریح معمار)؛
+// SOFT/HARD/CINEMATIC اصلاً استفاده‌ای در کد پروژه نداشتند (تأیید با grep).
 
-enum class LightingStyle { NATURAL, SOFT, HARD, DRAMATIC, CINEMATIC, NOIR }
 enum class KeyLightPosition { FRONT, SIDE, BACK, TOP, BOTTOM }
 enum class FillLight { NONE, SOFT, STRONG }
 enum class LightSourceCount { SINGLE, DUAL, MULTI }

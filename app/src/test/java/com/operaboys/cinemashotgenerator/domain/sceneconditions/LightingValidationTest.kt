@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.sceneconditions
 
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
@@ -38,32 +39,32 @@ class LightingValidationTest {
 
     @Test
     fun `noir with medium contrast warns`() {
-        val issue = checkNoirWithoutHighContrast(LightingStyle.NOIR, ContrastRatio.MEDIUM)
+        val issue = checkNoirWithoutHighContrast(LightingStyle.LOW_KEY, ContrastRatio.MEDIUM)
         assertEquals(Severity.WARNING, issue!!.severity)
     }
 
     @Test
     fun `noir with high contrast is valid`() {
-        assertNull(checkNoirWithoutHighContrast(LightingStyle.NOIR, ContrastRatio.HIGH))
+        assertNull(checkNoirWithoutHighContrast(LightingStyle.LOW_KEY, ContrastRatio.HIGH))
     }
 
     // --- Fill قوی + Dramatic/Noir ---
 
     @Test
     fun `strong fill with dramatic style warns`() {
-        val issue = checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.DRAMATIC)
+        val issue = checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.DRAMATIC_LIGHT)
         assertEquals(Severity.WARNING, issue!!.severity)
     }
 
     @Test
     fun `strong fill with noir style warns`() {
-        val issue = checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.NOIR)
+        val issue = checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.LOW_KEY)
         assertEquals(Severity.WARNING, issue!!.severity)
     }
 
     @Test
     fun `strong fill with natural style is valid`() {
-        assertNull(checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.NATURAL))
+        assertNull(checkStrongFillWithDramaticStyle(FillLight.STRONG, LightingStyle.NATURAL_LIGHT))
     }
 
     // --- نور از پایین ---

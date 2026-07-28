@@ -10,11 +10,11 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
-import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -55,12 +55,12 @@ class ShotSettingsResolutionTest {
     private val shotCameraOverride = sceneCameraDefault.copy(angle = CameraAngle.LOW, distance = CameraDistance.CLOSE_UP)
 
     private val sceneLightingDefault = LightingSettings(
-        style = LightingStyle.NATURAL,
+        style = LightingStyle.NATURAL_LIGHT,
         keyLightPosition = KeyLightPosition.FRONT,
         contrastRatio = ContrastRatio.LOW
     )
 
-    private val shotLightingOverride = sceneLightingDefault.copy(style = LightingStyle.DRAMATIC)
+    private val shotLightingOverride = sceneLightingDefault.copy(style = LightingStyle.DRAMATIC_LIGHT)
 
     private val sceneEnvironmentDefault = EnvironmentSettings(weatherType = WeatherType.CLEAR)
     private val shotEnvironmentOverride = EnvironmentSettings(weatherType = WeatherType.RAIN)
