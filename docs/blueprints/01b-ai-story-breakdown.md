@@ -158,7 +158,7 @@ val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(
 fun createCustomAiConnectorProfile(
     displayName: String, endpointUrl: String,
     requestBodyTemplate: String, responseJsonPath: String
-): AiConnectorProfile = AiConnectorProfile(generateId(), displayName, endpointUrl, requestBodyTemplate, jsonPathResponse = responseJsonPath)
+): AiConnectorProfile = AiConnectorProfile(generateId(), displayName, endpointUrl, requestBodyTemplate, responseJsonPath = responseJsonPath)
 
 /**
  * ارسال درخواست واقعی — از Ktor Client استفاده می‌کند (طبق Stack کلی پروژه، فقط وقتی کاربر کلید API دارد).
