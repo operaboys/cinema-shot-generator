@@ -22,6 +22,11 @@ data class SceneConstraintsDto(
 @Serializable
 data class GlobalVisualStyleRefDto(val source: String = "project_dna", val override: String? = null)
 
+// MIGRATED (docs/adr/038-unit04-scene-location-asset-link.md، رفع یافته‌ی F2 ممیزی
+// pre-Unit 16): locationAssetId اضافه شد — nullable با پیش‌فرض null، دقیقاً طبق الگوی
+// محافظه‌کارانه‌ی ADR-036 (سطح DTO هم nullable، چون دامنه هم nullable است؛ اینجا نیازی
+// به یک پیش‌فرض غیر-null محافظه‌کارانه‌تر نیست چون null در دامنه هم یک مقدار کاملاً
+// معتبر است، نه یک حالت جاافتاده).
 @Serializable
 data class SceneDto(
     val sceneId: String,
@@ -29,6 +34,7 @@ data class SceneDto(
     val sceneNumber: Int,
     val narrativeRole: String,
     val location: SceneLocationDto,
+    val locationAssetId: String? = null,
     val timeOfDay: String,
     val atmospherePrimary: String,
     val atmosphereSecondary: String? = null,

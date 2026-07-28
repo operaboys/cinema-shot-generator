@@ -3,6 +3,7 @@ package com.operaboys.cinemashotgenerator.data.repository
 import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.dao.ShotDao
 import com.operaboys.cinemashotgenerator.domain.promptengine.PromptGenerationInput
+import com.operaboys.cinemashotgenerator.domain.shot.resolveSceneLocation
 import kotlinx.serialization.json.Json
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۲، آخرین زیرقدم واحد ۱۵): اتصال نهایی collectData —
@@ -49,7 +50,10 @@ class PromptGenerationRepository(
 
         val characters = assetRepository.loadCharacterAssets(shot.characterIds).getOrElse { return Result.failure(it) }
         val objects = assetRepository.loadObjectAssets(shot.objectIds).getOrElse { return Result.failure(it) }
-        val locations = assetRepository.loadLocationAssets(shot.locationIds).getOrElse { return Result.failure(it) }
+        // MIGRATED (docs/adr/038-...): resolveSceneLocation جایگزین shot.locationIds خام
+        // شد تا وقتی این Shot صراحتاً Location ای انتخاب نکرده (locationIds خالی)،
+        // locationAssetId ارث‌برده از Scene هم بارگذاری شود، نه اینکه بی‌صدا نادیده گرفته شود.
+        val locations = assetRepository.loadLocationAssets(resolveSceneLocation(shot, scene)).getOrElse { return Result.failure(it) }
 
         val camera = settingsResolutionRepository.resolveCameraSettingsFor(shotId).getOrElse { return Result.failure(it) }
         val lighting = settingsResolutionRepository.resolveLightingSettingsFor(shotId).getOrElse { return Result.failure(it) }

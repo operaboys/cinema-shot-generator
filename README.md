@@ -15,7 +15,7 @@ Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار ا�
 - **واحد ۰۷ — Validation & Consistency Engine:** `domain/validation/` — Validation Engine (Severity/ValidationIssue/ValidationReport سراسری)، Logic Conflict Checker (اکنون با `MotionLevel`/`CinematicMode` واقعی)، Dependency Resolver (تحلیل اثر، تشخیص وابستگی دایره‌ای).
 - **واحد ۰۳ — Visual Identity:** `domain/visualidentity/` — Style Matrix (ترکیب کیفی سبک‌ها، بررسی سازگاری)، Cinematic Language (صاحب اصلی `CinematicMode`، تعیین ریتم Hybrid، اعتبارسنجی مدت شات).
 - **واحد ۰۵ — Shot Engine (Migration بلوپرینت نسخه ۳: negativePromptOverride):** `domain/shot/` — مدل‌های Shot/Beat/SoundProfile، صاحب اصلی `MotionLevel`، ارث‌بری از Scene (از طریق `inheritOrOverride` واحد ۰۴)، انتخاب Outfit (با `CharacterAsset` واقعی واحد ۰۶)، قوانین اعتبارسنجی Rule 1 تا Rule 5. `Shot.camera`/`.lighting`/`.environment` اکنون `SourcedSettings<T>` تایپ‌شده‌اند (نه `Map<String,String>` جای‌نگهدار)؛ `resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` مقدار نهایی را از `source` واقعی و `inheritOrOverride` تولید می‌کنند (ADR-013). `Shot.negativePromptOverride: String?` (پیش‌فرض `null`) اضافه شد — منبع ارث‌بری‌اش برخلاف camera/lighting/environment، **DNA پروژه** است نه Scene؛ `resolveNegativePrompt(shot, dnaNegativePrompt)` این ارث‌بری را حل می‌کند. **یافته‌ی این Migration** (کل مسیر مصرف واقعی هنوز سیم‌کشی نشده بود) در Migration واحد ۱۴ رفع شد — جزئیات در `docs/adr/028-unit05-negative-prompt-override-migration.md` و `docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md`.
-- **واحد ۰۴ — Scene Engine:** `domain/scene/` — مدل‌های Scene/SceneLocation/SceneConstraints، **صاحب اصلی `inheritOrOverride`** (تنها نسخه‌ی موجود در پروژه)، حذف Scene، قوانین اعتبارسنجی Rule 1/4/5.
+- **واحد ۰۴ — Scene Engine (`locationAssetId` برای اتصال به کتابخانه‌ی Location اضافه شد):** `domain/scene/` — مدل‌های Scene/SceneLocation/SceneConstraints، **صاحب اصلی `inheritOrOverride`** (تنها نسخه‌ی موجود در پروژه)، حذف Scene، قوانین اعتبارسنجی Rule 1/4/5. `Scene.locationAssetId: String?` (رفع F2 ممیزی pre-Unit 16 — جزئیات در `docs/adr/038-unit04-scene-location-asset-link.md`).
 - **واحد ۰۹ — Camera & Motion:** `domain/camera/` — Camera System (زاویه/فاصله/لنز/حرکت پایه و پیشرفته، ۵ قانون اعتبارسنجی)، Motion Intensity (سرعت/شدت سوژه، سرعت دوربین، Motion Blur).
 - **واحد ۰۸ — Scene Conditions (LightingSettings/EnvironmentSettings برای Tab «نور و محیط» واحد ۱۶ گسترش یافتند):** `domain/sceneconditions/` — Lighting System (Mood-to-Lighting، ۵ قانون اعتبارسنجی)، Environment & Weather Engine (Environment-to-Sound، ۸ قانون اعتبارسنجی، یکی مشترک با واحد ۰۷). `LightingSettings` اکنون ۵ فیلد جدید nullable دارد (`fillLight`, `colorTemperature`, `shadowQuality`, `lightSourceCount`, `lightingMotivation`)؛ `EnvironmentSettings` هم ۶ فیلد جدید (`weatherIntensity`, `windStrength`, `groundState`, `visibility`, `temperatureFeel`, `environmentalMotion: List<...>`) — هر دو کاملاً Backward Compatible. `PromptAssembly.kt` (واحد ۱۱) عمداً دست‌نخورده ماند چون بلوپرینت ۱۱ به این فیلدها ارجاع نمی‌دهد (تأییدشده با grep). **یافته‌ی مهم فراتر از Blast Radius اعلام‌شده:** `data/repository/DtoMappers.kt`/`SceneConditionsDto.kt` هم به‌روزرسانی شدند — بدون این تغییر، مقادیر ویرایش‌شده‌ی کاربر در این فیلدهای جدید حین ذخیره در Room بی‌صدا گم می‌شدند. جزئیات کامل در `docs/adr/036-unit08-lighting-environment-ui-fields-migration.md`.
 - **واحد ۱۰ — Audio Context Generator:** `domain/audio/` — تولید خودکار Ambient/Action Sound، پیشنهاد Breathing، `ActionSound`/`CharacterSound` بازاستفاده‌شده از واحد ۰۵ (نه بازتعریف)، Rule اعتبارسنجی تعداد لایه‌ی صوتی و timeline (با delegation به واحد ۰۷).
@@ -230,9 +230,30 @@ F1 ممیزی `docs/audit/pre-unit16-audit.md` را رفع می‌کند: `domai
 را `TODO()` گذاشته بود؛ چون ابزاری کمکی و کم‌ریسک است، یک پیاده‌سازی حداقلی واقعی
 نوشته شد، نه TODO). جزئیات کامل تصمیم در `docs/adr/037-unit16-workflow-models-quality-score.md`.
 
-این پکیج کاملاً مستقل است — فقط یافته‌ی F1 ممیزی را رفع می‌کند؛ باقی یافته‌های ممیزی
-(خصوصاً F2: نبود ارجاع `LocationAsset` در `Scene.location`) هنوز باز و منتظر تصمیم
-معماری جداگانه‌اند.
+این پکیج کاملاً مستقل است — فقط یافته‌ی F1 ممیزی را رفع می‌کند؛ یافته‌ی F2 در قدم
+بعدی رفع شد (پایین را ببینید).
+
+### 🎯 نقطه‌ی عطف: `Scene` به کتابخانه‌ی `LocationAsset` وصل شد — رفع یافته‌ی F2 ممیزی pre-Unit 16 (آخرین یافته‌ی 🔴)
+
+`Scene.locationAssetId: String? = null` اضافه شد — ارجاع اختیاری به `LocationAsset.assetId`
+واحد ۰۶، در کنار `SceneLocation` توصیفی موجود (نه جایگزین آن)؛ اکنون فرم «تنظیمات
+Scene» بلوپرینت ۱۶ می‌تواند واقعاً از کتابخانه‌ی Location انتخاب کند، نه یک Label
+متنی آزاد. **بررسی مستقل مهم:** پیشنهاد اولیه‌ی افزودن یک فیلد دوم به `Shot`
+(الگوی `SourcedSettings<T>`، مشابه camera/lighting/environment) برای ارث‌بری از
+Scene رد شد — با grep تأیید شد `Shot.locationIds: List<String>` موجود از قبل
+دقیقاً همان نقش را (هم در Rule اعتبارسنجی BLOCKING «حداقل یک Subject»، هم در
+بارگذاری واقعی `LocationAsset` حین تولید پرامپت) ایفا می‌کند؛ افزودن فیلد دوم فقط
+یک مسیر موازیِ سیم‌کشی‌نشده می‌ساخت (همان الگوی «فیلد تزئینی» که ADR-036 از آن
+پرهیز کرد). به‌جای آن، تابع خالص `resolveSceneLocation(shot, scene): List<String>`
+در `ShotSettingsResolution.kt` اضافه شد که تهی‌بودن `locationIds` موجود را
+به‌عنوان سیگنال ارث‌بری/Override بازتفسیر می‌کند، و در
+`PromptGenerationRepository.collectData` سیم‌کشی شد. `SceneDto`/`SceneMappers.kt`
+هم برای این فیلد جدید کامل شدند (طبق الگوی ADR-036 — بدون این تغییر، مقدار
+انتخاب‌شده‌ی کاربر حین ذخیره در Room بی‌صدا گم می‌شد). جزئیات کامل در
+`docs/adr/038-unit04-scene-location-asset-link.md`.
+
+**با این قدم، هر دو یافته‌ی 🔴 (مسدودکننده) ممیزی pre-Unit 16 (F1 و F2) رفع
+شده‌اند** — تنها ۷ یافته‌ی 🟡 و ۳ یافته‌ی ⚪ غیرمسدودکننده از آن ممیزی باقی مانده‌اند.
 
 ## Stack
 

@@ -28,12 +28,21 @@ data class GlobalVisualStyleRef(
     val override: String? = null
 )
 
+/**
+ * MIGRATED (docs/adr/038-unit04-scene-location-asset-link.md، رفع یافته‌ی F2 ممیزی
+ * pre-Unit 16): locationAssetId ارجاع اختیاری به LocationAsset.assetId در کتابخانه‌ی
+ * دارایی‌ها است — در کنار SceneLocation موجود (نه جایگزین آن)، چون
+ * SceneLocation.description همچنان برای توصیف متنی آزاد لازم است (خصوصاً خروجی خودکار
+ * واحد ۰۱ب که فقط توصیف متنی تولید می‌کند، نه یک Asset واقعی). null یعنی این Scene
+ * هنوز به کتابخانه وصل نشده.
+ */
 data class Scene(
     val sceneId: String,
     val sceneTitle: String? = null,
     val sceneNumber: Int,
     val narrativeRole: NarrativeRole,
     val location: SceneLocation,
+    val locationAssetId: String? = null,
     val timeOfDay: TimeOfDay,
     val atmospherePrimary: Atmosphere,
     val atmosphereSecondary: Atmosphere? = null,

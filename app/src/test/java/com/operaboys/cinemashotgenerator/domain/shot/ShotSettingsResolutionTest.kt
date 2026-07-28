@@ -11,6 +11,12 @@ import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
+import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
@@ -152,5 +158,41 @@ class ShotSettingsResolutionTest {
     fun `resolveNegativePrompt falls back to the DNA default when no override is set`() {
         val shot = baseShot()
         assertEquals("blurry, low quality", resolveNegativePrompt(shot, "blurry, low quality"))
+    }
+
+    // --- resolveSceneLocation (docs/adr/038-unit04-scene-location-asset-link.md، رفع F2) ---
+
+    private fun sceneWith(locationAssetId: String?) = Scene(
+        sceneId = "scene_001",
+        sceneNumber = 1,
+        narrativeRole = NarrativeRole.CLIMAX,
+        location = SceneLocation(type = LocationType.OUTDOOR, description = "خیابان شلوغ شهری، شب"),
+        locationAssetId = locationAssetId,
+        timeOfDay = TimeOfDay.NIGHT,
+        atmospherePrimary = Atmosphere.TENSE
+    )
+
+    @Test
+    fun `resolveSceneLocation inherits the scene's locationAssetId when the shot has no explicit locations`() {
+        val shot = baseShot().copy(locationIds = emptyList())
+        val scene = sceneWith(locationAssetId = "loc_office")
+
+        assertEquals(listOf("loc_office"), resolveSceneLocation(shot, scene))
+    }
+
+    @Test
+    fun `resolveSceneLocation returns an empty list when the shot has no locations and the scene is not linked to the library`() {
+        val shot = baseShot().copy(locationIds = emptyList())
+        val scene = sceneWith(locationAssetId = null)
+
+        assertEquals(emptyList<String>(), resolveSceneLocation(shot, scene))
+    }
+
+    @Test
+    fun `resolveSceneLocation uses the shot's own locationIds as an override, ignoring the scene default`() {
+        val shot = baseShot().copy(locationIds = listOf("loc_rooftop"))
+        val scene = sceneWith(locationAssetId = "loc_office")
+
+        assertEquals(listOf("loc_rooftop"), resolveSceneLocation(shot, scene))
     }
 }

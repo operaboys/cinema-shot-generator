@@ -123,7 +123,7 @@
 | `Atmosphere` | enum | CALM, TENSE, DARK, BRIGHT, MYSTERIOUS, EMOTIONAL | ✅ |
 | `SceneLocation` | data class | type, description | ✅ |
 | `SceneConstraints` | data class | cameraRestrictions, lightingRestrictions, environmentRestrictions | ✅ |
-| `Scene` | data class | sceneId, sceneTitle, sceneNumber, narrativeRole, location, timeOfDay, atmospherePrimary, atmosphereSecondary, constraints, shotCount | ✅ |
+| `Scene` | data class | sceneId, sceneTitle, sceneNumber, narrativeRole, location, locationAssetId, timeOfDay, atmospherePrimary, atmosphereSecondary, constraints, shotCount | ✅🔧 `locationAssetId: String?` اضافه شد (رفع F2 ممیزی pre-Unit 16، docs/adr/038-unit04-scene-location-asset-link.md) — ارجاع اختیاری به `LocationAsset.assetId` واحد ۰۶، در کنار `SceneLocation` توصیفی موجود |
 
 ---
 
@@ -148,6 +148,13 @@
 | `Shot` | data class | shotId, sceneId, shotNumber, shotTitle, shotDescription, shotGoal, shotType, durationSeconds, motionLevel, beats, imageReferences, camera: SourcedSettings\<CameraSettings\>?, lighting: SourcedSettings\<LightingSettings\>?, environment: SourcedSettings\<EnvironmentSettings\>?, soundProfile, negativePromptOverride, characterIds, objectIds, locationIds | ✅🔧 سه فیلد `camera`/`lighting`/`environment` + `shotTitle` اضافه شدند — قبلاً حتی در خودِ data class تعریف نشده بودند |
 
 توابع `resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` همگی `Result<T>` برمی‌گردانند (نه مقدار مستقیم) — ✅🔧 جدید.
+
+`resolveSceneLocation(shot: Shot, scene: Scene): List<String>` — ✅🔧 جدید (رفع F2 ممیزی
+pre-Unit 16، docs/adr/038-unit04-scene-location-asset-link.md). برخلاف سه تابع بالا،
+`Shot` هیچ فیلد جدیدی برای این منظور نگرفت — `Shot.locationIds` موجود همان نقش
+منبع ارث‌بری/Override را ایفا می‌کند (خالی ⇐ ارث از `Scene.locationAssetId`، غیرخالی ⇐
+Override صریح شات)؛ خروجی `List<String>` است نه `Result<T>` چون فهرست خالی یک وضعیت
+معتبر است، نه خطا.
 
 ---
 
