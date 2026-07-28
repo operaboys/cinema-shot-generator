@@ -23,6 +23,15 @@ import kotlinx.serialization.Serializable
 // صریح تصمیم بگیرد)، اما DTO مسئول Backward Compatibility داده‌ی واقعاً سریالایز‌شده‌ی
 // قدیمی روی دیسک است (رکوردهایی که این فیلدها را نداشتند) — طبق پیشنهاد صریح خودِ
 // بلوپرینت (character_tier → MAIN، subtype → GENERAL_PROP، هر دو محافظه‌کارترین حالت).
+//
+// MIGRATION (docs/adr/031-unit06-physical-appearance-gender-migration.md): همان الگو
+// برای gender تکرار شد — در DTO همچنان String می‌ماند (نه Gender enum غیر-nullable)،
+// چون داده‌ی قدیمی سریالایز‌شده ممکن است gender را با حروف کوچک ("male") ذخیره کرده
+// باشد؛ نگاشت به enum با uppercase-normalize در DnaAssetMappers.kt انجام می‌شود. سایر
+// فیلدها (height/build/hair/facialFeatures) اکنون nullable هستند — مستقیماً هم‌شکل با
+// نوع دامنه، چون این فیلدها همیشه اختیاری بوده‌اند و «Backward Compatibility با مقدار
+// پیش‌فرض جعلی» برایشان معنا ندارد (nullable→nullable طبیعی‌ترین نگاشت است، برخلاف
+// characterTier/gender که واقعاً enum غیر-nullable با پیش‌فرض لازم دارند).
 
 @Serializable
 data class HairDto(val color: String, val style: String, val length: String)
@@ -34,10 +43,11 @@ data class FacialFeaturesDto(val eyes: String, val distinctiveMarks: List<String
 data class PhysicalAppearanceDto(
     val ageRange: String,
     val gender: String,
-    val height: String,
-    val build: String,
-    val hair: HairDto,
-    val facialFeatures: FacialFeaturesDto
+    val height: String? = null,
+    val build: String? = null,
+    val hair: HairDto? = null,
+    val physicalFeatures: String? = null,
+    val facialFeatures: FacialFeaturesDto? = null
 )
 
 @Serializable

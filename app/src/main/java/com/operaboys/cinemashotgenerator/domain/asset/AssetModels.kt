@@ -7,11 +7,10 @@ package com.operaboys.cinemashotgenerator.domain.asset
 // شدند): AssetValidation.kt، مصرف‌کنندگان (AssetRepository.kt، PromptEngineModels.kt) و
 // تست‌ها هم در بخش دوم به‌روزرسانی شدند — پروژه کامل کامپایل می‌شود و تست می‌گذراند.
 //
-// PhysicalAppearance/Gender (تغییرات v4/v5 بلوپرینت: gender:String→Gender enum،
-// nullable شدن height/build/hair/facialFeatures، افزودن physicalFeatures/toPromptString)
-// عمداً در این قدم دست‌نخورده ماندند — دستور کار این قدم صریحاً هفت مورد مشخص را برای
-// AssetModels.kt فهرست کرده بود که PhysicalAppearance/Gender جزوشان نبود؛ جزئیات کامل
-// در ADR-029.
+// MIGRATION تکمیلی (docs/adr/031-unit06-physical-appearance-gender-migration.md):
+// PhysicalAppearance/Gender (تغییرات v4/v5 بلوپرینت که در ADR-029 عمداً خارج از Scope
+// مانده بودند) در این قدم Migrate شدند — gender:String→Gender enum، nullable شدن
+// height/build/hair/facialFeatures، افزودن physicalFeatures/toPromptString.
 
 /**
  * سه نوع Asset طبق بلوپرینت. AssetType همچنان سه مقدار دارد و در لایه‌ی Room (واحد ۱۵)
@@ -19,6 +18,9 @@ package com.operaboys.cinemashotgenerator.domain.asset
  * ObjectAsset دامنه نیست (طبق Option A پایین‌تر) — نوع Kotlin خودش تفکیک‌کننده است.
  */
 enum class AssetType { CHARACTER, LOCATION, OBJECT }
+
+/** طبق فرم واقعی «Add New Asset» — سه مقدار دقیق، نه رشته‌ی آزاد. */
+enum class Gender { FEMALE, MALE, OTHER }
 
 data class Hair(
     val color: String,
@@ -31,14 +33,40 @@ data class FacialFeatures(
     val distinctiveMarks: List<String> = emptyList()
 )
 
+/**
+ * MIGRATED (docs/adr/031-unit06-physical-appearance-gender-migration.md): gender از
+ * String آزاد به Gender enum؛ height/build/hair/facialFeatures از غیر-nullable به
+ * nullable (چون طبق فرم واقعی همه‌شان اختیاری‌اند)؛ physicalFeatures جدید (توصیف آزاد
+ * تکمیلی، مستقل از hair/facialFeatures ساختاریافته). toPromptString() عیناً طبق کد
+ * مفهومی بلوپرینت کپی شد.
+ */
 data class PhysicalAppearance(
     val ageRange: String,
-    val gender: String,
-    val height: String,
-    val build: String,
-    val hair: Hair,
-    val facialFeatures: FacialFeatures
-)
+    val gender: Gender,
+    val height: String? = null,
+    val build: String? = null,
+    val hair: Hair? = null,
+    val physicalFeatures: String? = null,
+    val facialFeatures: FacialFeatures? = null
+) {
+    /**
+     * تبدیل به یک جمله‌ی خوانا برای پرامپت — بدون این تابع، enforceCharacterContinuity
+     * (واحد ۱۱) مجبور بود توصیف را دستی از فیلدهای خام بسازد.
+     */
+    fun toPromptString(): String {
+        val parts = mutableListOf<String>()
+        parts += "$ageRange ${gender.name.lowercase()}"
+        height?.let { parts += it }
+        build?.let { parts += "$it build" }
+        hair?.let { parts += "${it.length} ${it.color} hair, ${it.style} style" }
+        facialFeatures?.let { ff ->
+            parts += "${ff.eyes} eyes"
+            if (ff.distinctiveMarks.isNotEmpty()) parts += ff.distinctiveMarks.joinToString(", ")
+        }
+        physicalFeatures?.let { parts += it }
+        return parts.joinToString(", ")
+    }
+}
 
 /** شرط اختیاری برای انتخاب خودکار — هم برای Outfit و هم برای Expression استفاده می‌شود. */
 data class OutfitCondition(

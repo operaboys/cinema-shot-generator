@@ -9,6 +9,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ContinuityRules
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.Expression
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
@@ -58,7 +59,7 @@ class AssetRepositoryTest {
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
-            gender = "male",
+            gender = Gender.MALE,
             height = "tall",
             build = "athletic",
             hair = Hair(color = "black", style = "short", length = "short"),

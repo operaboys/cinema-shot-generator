@@ -167,7 +167,7 @@
 | `Outfit` | data class | id, name, description, isDefault, condition | ✅ |
 | `OutfitCondition` | data class | weather, timeOfDay, locationType | ✅ |
 | `ContinuityRules` | data class | identityLock, appearanceLock, ageLock, antiDrift, allowedOverrides | ✅ |
-| `CharacterAsset` | data class | assetId, characterTier, name, physicalAppearance, outfits, expressions, props, defaultMood, basePrompt, continuityRules, referenceImages | ✅ |
+| `CharacterAsset` | data class | assetId, characterTier, name, physicalAppearance, outfits, expressions, props, defaultMood, basePrompt, continuityRules, continuityLockLevel, referenceImages | ✅🔧 `continuityLockLevel` اضافه شد (پیش‌فرض `defaultLockLevelForTier(characterTier)`؛ جزئیات در ADR-029) |
 | `ObjectAsset` | data class | assetId, name, description, subtype, size, materialAndColor, specialTrait, basePrompt, continuityLockLevel | ✅ |
 | `LocationAsset` | data class | assetId, name, description, environment, timeCompatibility, weatherCompatibility, keyElements, basePrompt, continuityLockLevel | ✅ |
 | `ReferenceImage` | data class | localFilePath, description | ✅ (بدون `type` — تفاوت عمدی با `ImageReference` واحد ۰۵) |

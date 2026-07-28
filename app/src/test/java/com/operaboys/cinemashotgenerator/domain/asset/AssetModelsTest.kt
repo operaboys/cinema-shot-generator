@@ -33,7 +33,7 @@ class AssetModelsTest {
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
-            gender = "male",
+            gender = Gender.MALE,
             height = "tall",
             build = "athletic",
             hair = Hair(color = "black", style = "short", length = "short"),
@@ -81,5 +81,33 @@ class AssetModelsTest {
         )
         assertEquals(ObjectSubtype.PERSONAL_PROP, obj.subtype)
         assertEquals(PropContinuityLevel.FORM, obj.continuityLockLevel)
+    }
+
+    // --- PhysicalAppearance.toPromptString() (docs/adr/031-unit06-physical-appearance-gender-migration.md) ---
+
+    @Test
+    fun `toPromptString includes every optional field when all are provided`() {
+        val appearance = PhysicalAppearance(
+            ageRange = "35-40",
+            gender = Gender.FEMALE,
+            height = "tall",
+            build = "athletic",
+            hair = Hair(color = "black", style = "short", length = "short"),
+            physicalFeatures = "a small scar above the left eyebrow",
+            facialFeatures = FacialFeatures(eyes = "brown", distinctiveMarks = listOf("scar on left cheek"))
+        )
+        val result = appearance.toPromptString()
+
+        assertEquals(
+            "35-40 female, tall, athletic build, short black hair, short style, brown eyes, " +
+                "scar on left cheek, a small scar above the left eyebrow",
+            result
+        )
+    }
+
+    @Test
+    fun `toPromptString only includes ageRange and gender when every optional field is absent`() {
+        val appearance = PhysicalAppearance(ageRange = "20-25", gender = Gender.OTHER)
+        assertEquals("20-25 other", appearance.toPromptString())
     }
 }

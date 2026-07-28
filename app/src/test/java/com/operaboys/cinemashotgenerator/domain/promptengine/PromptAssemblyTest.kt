@@ -4,6 +4,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Environment as AssetEnvironment
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
@@ -123,7 +124,7 @@ class PromptAssemblyTest {
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
-            gender = "male",
+            gender = Gender.MALE,
             height = "tall",
             build = "athletic",
             hair = Hair(color = "black", style = "short", length = "short"),

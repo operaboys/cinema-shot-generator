@@ -8,6 +8,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ContinuityRules
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.Expression
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
@@ -121,11 +122,12 @@ fun CharacterAssetDto.toDomain(): CharacterAsset {
         name = name,
         physicalAppearance = PhysicalAppearance(
             ageRange = physicalAppearance.ageRange,
-            gender = physicalAppearance.gender,
+            gender = Gender.valueOf(physicalAppearance.gender.uppercase()),
             height = physicalAppearance.height,
             build = physicalAppearance.build,
-            hair = Hair(physicalAppearance.hair.color, physicalAppearance.hair.style, physicalAppearance.hair.length),
-            facialFeatures = FacialFeatures(physicalAppearance.facialFeatures.eyes, physicalAppearance.facialFeatures.distinctiveMarks)
+            hair = physicalAppearance.hair?.let { Hair(it.color, it.style, it.length) },
+            physicalFeatures = physicalAppearance.physicalFeatures,
+            facialFeatures = physicalAppearance.facialFeatures?.let { FacialFeatures(it.eyes, it.distinctiveMarks) }
         ),
         outfits = outfits.map {
             Outfit(it.id, it.name, it.description, it.isDefault, it.condition?.toDomain())
@@ -155,11 +157,12 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
     name = name,
     physicalAppearance = PhysicalAppearanceDto(
         ageRange = physicalAppearance.ageRange,
-        gender = physicalAppearance.gender,
+        gender = physicalAppearance.gender.name,
         height = physicalAppearance.height,
         build = physicalAppearance.build,
-        hair = HairDto(physicalAppearance.hair.color, physicalAppearance.hair.style, physicalAppearance.hair.length),
-        facialFeatures = FacialFeaturesDto(physicalAppearance.facialFeatures.eyes, physicalAppearance.facialFeatures.distinctiveMarks)
+        hair = physicalAppearance.hair?.let { HairDto(it.color, it.style, it.length) },
+        physicalFeatures = physicalAppearance.physicalFeatures,
+        facialFeatures = physicalAppearance.facialFeatures?.let { FacialFeaturesDto(it.eyes, it.distinctiveMarks) }
     ),
     outfits = outfits.map { OutfitDto(it.id, it.name, it.description, it.isDefault, it.condition?.toDto()) },
     expressions = expressions.map { ExpressionDto(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDto()) },

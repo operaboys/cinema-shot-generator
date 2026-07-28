@@ -1,7 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
-import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.selectOutfitForScene
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 
@@ -16,15 +15,13 @@ import com.operaboys.cinemashotgenerator.domain.scene.Scene
 // ۲. character.outfitOverride در بلوپرینت فرض شده بود، اما CharacterAsset چنین فیلدی
 //    ندارد و هیچ منبع داده‌ی دیگری هم برای «انتخاب دستی Outfit در یک شات خاص» در
 //    واحدهای پیاده‌شده وجود ندارد — manualOverrideId همیشه null است.
-
-/**
- * توصیف فیزیکی کاراکتر از فیلدهای واقعی PhysicalAppearance — چون این نوع (واحد ۰۶)
- * متد describe() ندارد (بررسی‌شده با grep).
- */
-fun describePhysicalAppearance(appearance: PhysicalAppearance): String {
-    return "${appearance.ageRange} ${appearance.gender}, ${appearance.build} build, " +
-        "${appearance.hair.color} ${appearance.hair.style} hair, ${appearance.facialFeatures.eyes} eyes"
-}
+//
+// MIGRATED (docs/adr/031-unit06-physical-appearance-gender-migration.md): تابع محلی
+// describePhysicalAppearance حذف شد — PhysicalAppearance.toPromptString() (واحد ۰۶،
+// نسخه ۵) اکنون همان کار را انجام می‌دهد. این دقیقاً همان باگی بود که بلوپرینت واحد ۰۶
+// نسخه ۵ کشف کرد (توصیف مستقیم فیلدهای خام به‌جای تابع رسمی)؛ در این پروژه توصیف
+// دستی صریح بود (نه toString() پیش‌فرض)، پس خروجی همیشه معنادار بوده، اما اکنون منبع
+// واحد این منطق toPromptString() است، نه دو محل مستقل.
 
 /** توصیف فیزیکی قفل‌شده‌ی کاراکتر را بدون تغییر در پرامپت اعمال می‌کند (طبق واحد ۰۶ - Hard Lock). */
 fun enforceCharacterContinuity(
@@ -34,6 +31,6 @@ fun enforceCharacterContinuity(
 ): List<String> {
     return characters.map { character ->
         val outfit = selectOutfitForScene(character.outfits, sceneWeather, manualOverrideId = null)
-        "${describePhysicalAppearance(character.physicalAppearance)}, wearing ${outfit.description}"
+        "${character.physicalAppearance.toPromptString()}, wearing ${outfit.description}"
     }
 }

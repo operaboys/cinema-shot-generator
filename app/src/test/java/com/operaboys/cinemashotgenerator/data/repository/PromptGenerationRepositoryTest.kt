@@ -9,6 +9,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
@@ -159,8 +160,12 @@ class PromptGenerationRepositoryTest {
         characterTier = CharacterTier.MAIN,
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
-            "35-40", "male", "tall", "athletic",
-            Hair("black", "short", "short"), FacialFeatures("brown")
+            ageRange = "35-40",
+            gender = Gender.MALE,
+            height = "tall",
+            build = "athletic",
+            hair = Hair("black", "short", "short"),
+            facialFeatures = FacialFeatures("brown")
         ),
         outfits = listOf(Outfit("outfit_01", "Default", "black jacket", isDefault = true))
     )
