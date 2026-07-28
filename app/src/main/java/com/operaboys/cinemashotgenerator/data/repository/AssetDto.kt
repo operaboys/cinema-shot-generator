@@ -15,6 +15,14 @@ import kotlinx.serialization.Serializable
 // CharacterAsset اصلاً فیلدی از این نوع ندارد (EvolutionTimeline یک نوع مستقل با
 // characterId خودش است، نه بخشی از CharacterAsset)، پس چیزی برای سریالایز کردن به
 // این‌ها متصل به CharacterAsset وجود ندارد.
+//
+// MIGRATION بخش دوم (docs/adr/029-unit06-continuity-tiers-migration-part1.md):
+// characterTier/subtype در سطح DTO عمداً String با یک پیش‌فرض محافظه‌کارانه دارند
+// (نه enum غیر-nullable مثل نوع دامنه) — این دقیقاً همان تمایزی است که در ADR-029
+// مستند شده: نوع دامنه‌ی Kotlin این دو فیلد را الزامی نگه می‌دارد (هر ساخت جدید باید
+// صریح تصمیم بگیرد)، اما DTO مسئول Backward Compatibility داده‌ی واقعاً سریالایز‌شده‌ی
+// قدیمی روی دیسک است (رکوردهایی که این فیلدها را نداشتند) — طبق پیشنهاد صریح خودِ
+// بلوپرینت (character_tier → MAIN، subtype → GENERAL_PROP، هر دو محافظه‌کارترین حالت).
 
 @Serializable
 data class HairDto(val color: String, val style: String, val length: String)
@@ -77,26 +85,46 @@ data class ReferenceImageDto(val localFilePath: String, val description: String)
 data class CharacterAssetDto(
     val assetId: String,
     val assetType: String = "CHARACTER",
+    val characterTier: String = "MAIN",
     val name: String,
     val physicalAppearance: PhysicalAppearanceDto,
     val outfits: List<OutfitDto>,
     val expressions: List<ExpressionDto> = emptyList(),
     val props: List<PropDto> = emptyList(),
+    val defaultMood: String? = null,
+    val basePrompt: String? = null,
     val continuityRules: ContinuityRulesDto = ContinuityRulesDto(),
+    val continuityLockLevel: String? = null,
     val referenceImages: List<ReferenceImageDto> = emptyList()
 )
 
 @Serializable
 data class EnvironmentDto(val type: String, val size: String, val lightingCondition: String)
 
+/** MIGRATED (Option A): دیگر assetType ندارد — فقط برای LOCATION استفاده می‌شود، تمایز با ObjectAssetDto در نوع Kotlin است. */
 @Serializable
 data class LocationAssetDto(
     val assetId: String,
-    val assetType: String,
     val name: String,
     val description: String,
     val environment: EnvironmentDto,
     val timeCompatibility: List<String> = emptyList(),
     val weatherCompatibility: List<String> = emptyList(),
-    val keyElements: List<String> = emptyList()
+    val keyElements: List<String> = emptyList(),
+    val basePrompt: String? = null,
+    val continuityLockLevel: String = "STYLE"
+)
+
+/** جدید (Option A): معادل مستقل ObjectAssetDto برای AssetType.OBJECT. */
+@Serializable
+data class ObjectAssetDto(
+    val assetId: String,
+    val name: String,
+    val description: String,
+    val subtype: String = "GENERAL_PROP",
+    val size: String,
+    val materialAndColor: String,
+    val specialTrait: String? = null,
+    val basePrompt: String? = null,
+    val continuityLockLevel: String = "FORM"
 )

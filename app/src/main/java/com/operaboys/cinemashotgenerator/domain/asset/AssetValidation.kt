@@ -4,8 +4,9 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlin.math.min
 
-// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule 1، ۲، ۳، ۵، ۶، ۶ب، ۷)
-// منبع حقیقت: docs/blueprints/06-asset-and-continuity.md
+// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule 1، ۲، ۳، ۵، ۶، ۶ب، ۷، و از Migration بخش
+// دوم: ۱۰، ۱۱، ۱۲)
+// منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md (نسخه ۵)
 //
 // MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
 // یک sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت (ثبت‌شده در
@@ -13,6 +14,9 @@ import kotlin.math.min
 // Valid = null). Rule 4 (Hard Lock) همچنان از UpdateResult در AssetContinuity.kt
 // استفاده می‌کند — آن نوع عمداً از این Migration مستثنا شد تا تضمین سطح Type System
 // «Hard Lock هرگز فقط Warning نیست» از بین نرود (تصمیم تأییدشده، جزئیات در ADR-010).
+//
+// MIGRATION بخش دوم (docs/adr/029-unit06-continuity-tiers-migration-part1.md، بخش
+// «تکمیل Migration»): Rule 10/11/12 اضافه شدند.
 
 data class ImageValidationResult(val valid: Boolean, val reason: String? = null)
 
@@ -106,6 +110,48 @@ fun checkSimilarAssetName(name: String, existingNames: List<String>): Validation
     }
     return null
 }
+
+/**
+ * Rule 10 (Blocking): ObjectAsset.size/materialAndColor الزامی هستند و نمی‌توانند
+ * رشته‌ی خالی/whitespace-only باشند. specialTrait اختیاری است — طبق جدول بلوپرینت
+ * («فیلد اختیاری نیازی به Rule ندارد») عمداً هیچ بررسی‌ای برایش نوشته نشده.
+ */
+fun validateObjectAsset(asset: ObjectAsset): List<ValidationIssue> {
+    val issues = mutableListOf<ValidationIssue>()
+    if (asset.size.isBlank()) {
+        issues += ValidationIssue(Severity.BLOCKING, message = "فیلد size برای Object/Prop الزامی است و نمی‌تواند خالی باشد")
+    }
+    if (asset.materialAndColor.isBlank()) {
+        issues += ValidationIssue(Severity.BLOCKING, message = "فیلد materialAndColor برای Object/Prop الزامی است و نمی‌تواند خالی باشد")
+    }
+    return issues
+}
+
+/**
+ * Rule 11 (Warning): basePrompt (هر سه نوع Asset) اگر پر شده اما فقط whitespace
+ * است، هشدار می‌دهد. null یا رشته‌ی کاملاً خالی مشکلی ندارند (فیلد اختیاری).
+ *
+ * یک تابع عمومی روی String? به‌جای سه تابع تقریباً تکراری برای هر نوع Asset —
+ * دقیقاً همان الگوی تعمیم‌یافته‌ی قبلاً تأییدشده در ADR-027 (تعمیم
+ * validateShotAgainstDna فراتر از کد مفهومی تحت‌اللفظی بلوپرینت) — چون basePrompt
+ * روی CharacterAsset/LocationAsset/ObjectAsset هیچ Supertype مشترکی ندارد و منطق
+ * بررسی صرفاً روی مقدار String متکی است، نه روی نوع Asset.
+ */
+fun validateBasePrompt(basePrompt: String?): ValidationIssue? {
+    if (basePrompt != null && basePrompt.isNotEmpty() && basePrompt.isBlank()) {
+        return ValidationIssue(Severity.WARNING, message = "basePrompt فقط شامل فاصله‌ی خالی است؛ یا محتوای واقعی وارد کنید یا خالی بگذارید")
+    }
+    return null
+}
+
+// Rule 12 (Blocking): ObjectAsset.subtype باید یکی از سه مقدار معتبر ObjectSubtype
+// باشد. عمداً هیچ تابع Runtime برای این Rule نوشته نشده — subtype در امضای
+// ObjectAsset از نوع enum class ObjectSubtype غیر-nullable است، پس این تضمین از قبل
+// در سطح Type System برقرار است: کامپایلر اصلاً اجازه نمی‌دهد یک ObjectAsset با
+// subtype نامعتبر ساخته شود. این دقیقاً همان الگوی اثبات‌شده با AssetContinuityTest
+// («hard lock fields never produce anything other than Blocked or Allowed») است —
+// یک قانون که به‌جای کد Runtime، با خودِ Type System اجرا می‌شود. تست اثباتی این
+// مورد در AssetValidationTest.kt (نه یک تابع validate جدید) آمده.
 
 private fun levenshteinDistance(a: String, b: String): Int {
     if (a == b) return 0

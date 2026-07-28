@@ -5,12 +5,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
 import com.operaboys.cinemashotgenerator.data.entity.ShotEntity
-import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.audio.AmbientSound
@@ -154,6 +156,7 @@ class PromptGenerationRepositoryTest {
 
     private fun sampleCharacter() = CharacterAsset(
         assetId = "char_001",
+        characterTier = CharacterTier.MAIN,
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             "35-40", "male", "tall", "athletic",
@@ -162,13 +165,13 @@ class PromptGenerationRepositoryTest {
         outfits = listOf(Outfit("outfit_01", "Default", "black jacket", isDefault = true))
     )
 
-    private fun sampleObjectAsset() = LocationAsset(
-        assetId = "obj_001", assetType = AssetType.OBJECT, name = "Service Pistol",
-        description = "a worn revolver", environment = Environment("indoor", "small", "dim")
+    private fun sampleObjectAsset() = ObjectAsset(
+        assetId = "obj_001", name = "Service Pistol", description = "a worn revolver",
+        subtype = ObjectSubtype.PERSONAL_PROP, size = "small", materialAndColor = "worn black metal"
     )
 
     private fun sampleLocationAsset() = LocationAsset(
-        assetId = "loc_001", assetType = AssetType.LOCATION, name = "Detective's Office",
+        assetId = "loc_001", name = "Detective's Office",
         description = "a dimly lit office", environment = Environment("indoor", "small", "dim")
     )
 
@@ -190,7 +193,7 @@ class PromptGenerationRepositoryTest {
             ShotEntity("shot_001", "scene_001", json.encodeToString(ShotDto.serializer(), sampleShot().toDto()))
         )
         AssetRepository(database.assetDao()).saveCharacterAsset("proj_001", sampleCharacter())
-        AssetRepository(database.assetDao()).saveLocationAsset("proj_001", sampleObjectAsset())
+        AssetRepository(database.assetDao()).saveObjectAsset("proj_001", sampleObjectAsset())
         AssetRepository(database.assetDao()).saveLocationAsset("proj_001", sampleLocationAsset())
         if (withAudioContext) {
             AudioContextRepository(database.audioContextDao()).saveAudioContext(sampleAudioContext())

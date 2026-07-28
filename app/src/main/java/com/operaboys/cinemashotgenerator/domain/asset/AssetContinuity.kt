@@ -3,11 +3,9 @@ package com.operaboys.cinemashotgenerator.domain.asset
 // واحد ۰۶ — Hard/Soft Lock تداوم (Rule 4 + سطوح جدید Character/Location/Prop)
 // منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md (نسخه ۵)
 //
-// MIGRATION بخش اول (docs/adr/029-unit06-continuity-tiers-migration-part1.md):
-// این فایل هنوز کامپایل نمی‌شود — AssetContinuityTest.kt (خارج از Scope این قدم) هنوز
-// امضای قدیمی ۲-آرگومانی validateCharacterUpdate را صدا می‌زند و شامل یک when غیر-exhaustive
-// روی UpdateResult است که با افزوده‌شدن Warned دیگر کامل نیست؛ هر دو در بخش دوم اصلاح می‌شوند
-// — طبق دستور کار عمداً در این قدم دست‌نخورده ماندند.
+// MIGRATION (docs/adr/029-unit06-continuity-tiers-migration-part1.md، هر دو بخش کامل
+// شدند): AssetContinuityTest.kt در بخش دوم به امضای جدید سه‌آرگومانی validateCharacterUpdate
+// به‌روزرسانی و exhaustiveness آن روی UpdateResult (سه حالت اکنون) اصلاح شد.
 //
 // تفاوت بنیادی با Soft Lock واحد ۰۲ (DNA Manager): سطح FULL هنوز دقیقاً همان رفتار Hard
 // Lock قدیمی (بدون هیچ استثنا، بدون هیچ نرم‌ترشدن) را دارد — پیام‌های خطا byte-for-byte

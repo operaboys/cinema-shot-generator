@@ -3,11 +3,9 @@ package com.operaboys.cinemashotgenerator.domain.asset
 // واحد ۰۶ — Asset & Continuity (ساختار داده)
 // منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md (نسخه ۵)
 //
-// MIGRATION بخش اول (docs/adr/029-unit06-continuity-tiers-migration-part1.md):
-// این قدم فقط AssetModels.kt و AssetContinuity.kt را در بر می‌گیرد — AssetValidation.kt،
-// تست‌ها، و مصرف‌کنندگان (data/repository/AssetRepository.kt، domain/promptengine/)
-// عمداً در این قدم دست‌نخورده ماندند (طبق دستور کار)؛ این دو فایل تا تکمیل بخش دوم
-// کامپایل نخواهند شد — این وضعیت مورد انتظار است، نه خطا.
+// MIGRATION (docs/adr/029-unit06-continuity-tiers-migration-part1.md، هر دو بخش کامل
+// شدند): AssetValidation.kt، مصرف‌کنندگان (AssetRepository.kt، PromptEngineModels.kt) و
+// تست‌ها هم در بخش دوم به‌روزرسانی شدند — پروژه کامل کامپایل می‌شود و تست می‌گذراند.
 //
 // PhysicalAppearance/Gender (تغییرات v4/v5 بلوپرینت: gender:String→Gender enum،
 // nullable شدن height/build/hair/facialFeatures، افزودن physicalFeatures/toPromptString)

@@ -2,17 +2,24 @@ package com.operaboys.cinemashotgenerator.data.repository
 
 import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.ContinuityRules
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.Expression
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.Prop
+import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
+import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
 import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
@@ -105,38 +112,46 @@ fun ProjectDna.toDto(): ProjectDnaDto = ProjectDnaDto(
     )
 )
 
-fun CharacterAssetDto.toDomain(): CharacterAsset = CharacterAsset(
-    assetId = assetId,
-    assetType = AssetType.valueOf(assetType),
-    name = name,
-    physicalAppearance = PhysicalAppearance(
-        ageRange = physicalAppearance.ageRange,
-        gender = physicalAppearance.gender,
-        height = physicalAppearance.height,
-        build = physicalAppearance.build,
-        hair = Hair(physicalAppearance.hair.color, physicalAppearance.hair.style, physicalAppearance.hair.length),
-        facialFeatures = FacialFeatures(physicalAppearance.facialFeatures.eyes, physicalAppearance.facialFeatures.distinctiveMarks)
-    ),
-    outfits = outfits.map {
-        Outfit(it.id, it.name, it.description, it.isDefault, it.condition?.toDomain())
-    },
-    expressions = expressions.map {
-        Expression(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDomain())
-    },
-    props = props.map { Prop(it.id, it.name, it.description, it.category) },
-    continuityRules = ContinuityRules(
-        identityLock = continuityRules.identityLock,
-        appearanceLock = continuityRules.appearanceLock,
-        ageLock = continuityRules.ageLock,
-        antiDrift = continuityRules.antiDrift,
-        allowedOverrides = continuityRules.allowedOverrides
-    ),
-    referenceImages = referenceImages.map { ReferenceImage(it.localFilePath, it.description) }
-)
+fun CharacterAssetDto.toDomain(): CharacterAsset {
+    val tier = CharacterTier.valueOf(characterTier)
+    return CharacterAsset(
+        assetId = assetId,
+        assetType = AssetType.valueOf(assetType),
+        characterTier = tier,
+        name = name,
+        physicalAppearance = PhysicalAppearance(
+            ageRange = physicalAppearance.ageRange,
+            gender = physicalAppearance.gender,
+            height = physicalAppearance.height,
+            build = physicalAppearance.build,
+            hair = Hair(physicalAppearance.hair.color, physicalAppearance.hair.style, physicalAppearance.hair.length),
+            facialFeatures = FacialFeatures(physicalAppearance.facialFeatures.eyes, physicalAppearance.facialFeatures.distinctiveMarks)
+        ),
+        outfits = outfits.map {
+            Outfit(it.id, it.name, it.description, it.isDefault, it.condition?.toDomain())
+        },
+        expressions = expressions.map {
+            Expression(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDomain())
+        },
+        props = props.map { Prop(it.id, it.name, it.description, it.category) },
+        defaultMood = defaultMood,
+        basePrompt = basePrompt,
+        continuityRules = ContinuityRules(
+            identityLock = continuityRules.identityLock,
+            appearanceLock = continuityRules.appearanceLock,
+            ageLock = continuityRules.ageLock,
+            antiDrift = continuityRules.antiDrift,
+            allowedOverrides = continuityRules.allowedOverrides
+        ),
+        continuityLockLevel = continuityLockLevel?.let { CharacterContinuityLevel.valueOf(it) } ?: defaultLockLevelForTier(tier),
+        referenceImages = referenceImages.map { ReferenceImage(it.localFilePath, it.description) }
+    )
+}
 
 fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
     assetId = assetId,
     assetType = assetType.name,
+    characterTier = characterTier.name,
     name = name,
     physicalAppearance = PhysicalAppearanceDto(
         ageRange = physicalAppearance.ageRange,
@@ -149,6 +164,8 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
     outfits = outfits.map { OutfitDto(it.id, it.name, it.description, it.isDefault, it.condition?.toDto()) },
     expressions = expressions.map { ExpressionDto(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDto()) },
     props = props.map { PropDto(it.id, it.name, it.description, it.category) },
+    defaultMood = defaultMood,
+    basePrompt = basePrompt,
     continuityRules = ContinuityRulesDto(
         identityLock = continuityRules.identityLock,
         appearanceLock = continuityRules.appearanceLock,
@@ -156,6 +173,7 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
         antiDrift = continuityRules.antiDrift,
         allowedOverrides = continuityRules.allowedOverrides
     ),
+    continuityLockLevel = continuityLockLevel.name,
     referenceImages = referenceImages.map { ReferenceImageDto(it.localFilePath, it.description) }
 )
 
@@ -164,22 +182,48 @@ private fun OutfitCondition.toDto(): OutfitConditionDto = OutfitConditionDto(wea
 
 fun LocationAssetDto.toDomain(): LocationAsset = LocationAsset(
     assetId = assetId,
-    assetType = AssetType.valueOf(assetType),
     name = name,
     description = description,
     environment = Environment(environment.type, environment.size, environment.lightingCondition),
     timeCompatibility = timeCompatibility,
     weatherCompatibility = weatherCompatibility,
-    keyElements = keyElements
+    keyElements = keyElements,
+    basePrompt = basePrompt,
+    continuityLockLevel = LocationContinuityLevel.valueOf(continuityLockLevel)
 )
 
 fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
     assetId = assetId,
-    assetType = assetType.name,
     name = name,
     description = description,
     environment = EnvironmentDto(environment.type, environment.size, environment.lightingCondition),
     timeCompatibility = timeCompatibility,
     weatherCompatibility = weatherCompatibility,
-    keyElements = keyElements
+    keyElements = keyElements,
+    basePrompt = basePrompt,
+    continuityLockLevel = continuityLockLevel.name
+)
+
+fun ObjectAssetDto.toDomain(): ObjectAsset = ObjectAsset(
+    assetId = assetId,
+    name = name,
+    description = description,
+    subtype = ObjectSubtype.valueOf(subtype),
+    size = size,
+    materialAndColor = materialAndColor,
+    specialTrait = specialTrait,
+    basePrompt = basePrompt,
+    continuityLockLevel = PropContinuityLevel.valueOf(continuityLockLevel)
+)
+
+fun ObjectAsset.toDto(): ObjectAssetDto = ObjectAssetDto(
+    assetId = assetId,
+    name = name,
+    description = description,
+    subtype = subtype.name,
+    size = size,
+    materialAndColor = materialAndColor,
+    specialTrait = specialTrait,
+    basePrompt = basePrompt,
+    continuityLockLevel = continuityLockLevel.name
 )

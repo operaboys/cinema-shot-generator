@@ -48,8 +48,8 @@ class PromptGenerationRepository(
             ?: return Result.failure(IllegalStateException("ProjectDna برای پروژه‌ی '${sceneEntity.projectId}' یافت نشد"))
 
         val characters = assetRepository.loadCharacterAssets(shot.characterIds).getOrElse { return Result.failure(it) }
-        val objects = assetRepository.loadAssets(shot.objectIds).getOrElse { return Result.failure(it) }
-        val locations = assetRepository.loadAssets(shot.locationIds).getOrElse { return Result.failure(it) }
+        val objects = assetRepository.loadObjectAssets(shot.objectIds).getOrElse { return Result.failure(it) }
+        val locations = assetRepository.loadLocationAssets(shot.locationIds).getOrElse { return Result.failure(it) }
 
         val camera = settingsResolutionRepository.resolveCameraSettingsFor(shotId).getOrElse { return Result.failure(it) }
         val lighting = settingsResolutionRepository.resolveLightingSettingsFor(shotId).getOrElse { return Result.failure(it) }

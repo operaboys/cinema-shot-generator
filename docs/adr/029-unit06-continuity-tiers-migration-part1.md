@@ -1,9 +1,8 @@
-# ADR-029: Migration واحد ۰۶ (Asset & Continuity) — بخش اول: Tier/Lock Levels
+# ADR-029: Migration واحد ۰۶ (Asset & Continuity) — Tier/Lock Levels
 
 **تاریخ:** 2026-07-28
-**وضعیت:** بخش اول کامل شد (فقط `AssetModels.kt` و `AssetContinuity.kt`). این دو فایل هنوز
-به‌تنهایی کامپایل نمی‌شوند — `AssetValidation.kt`، تست‌ها و مصرف‌کنندگان عمداً در این قدم
-دست‌نخورده ماندند و بخش دوم Migration را تشکیل می‌دهند. هنوز commit نشده (طبق دستور کار).
+**وضعیت:** هر دو بخش کامل شدند. پروژه کامل کامپایل می‌شود و تست می‌گذراند (420 تست، ۰
+Failure، ۰ Error — `gradle :app:assembleDebug :app:testDebugUnitTest`، `BUILD SUCCESSFUL`).
 
 ## Context
 
@@ -134,23 +133,91 @@ Backward-Compatible است (فیلد جدید با پیش‌فرض محاسبه�
   `validatePropUpdate(fieldBeingChanged, isFormField)` عیناً طبق کد مفهومی بلوپرینت — هر دو
   فقط بین `Warned`/`Allowed` انتخاب می‌کنند، هرگز `Blocked` برنمی‌گردانند.
 
-## خارج از Scope این قدم (بخش دوم)
+## بخش دوم — تکمیل Migration (کامپایل کامل + تست‌ها + Commit نهایی)
 
-- `domain/asset/AssetValidation.kt`
-- `app/src/test/.../asset/AssetContinuityTest.kt` (امضای جدید + Exhaustiveness fix)
-- مصرف‌کنندگان: `data/repository/AssetRepository.kt` (توابع/DTO جدید برای `ObjectAsset`)،
-  `domain/promptengine/PromptEngineModels.kt` (`PromptGenerationInput.objects` نوعش باید
-  `List<ObjectAsset>` شود)، ۲-۳ فایل تست دیگر که `AssetType.OBJECT` را با `LocationAsset`
-  می‌سازند.
+### Rule های جدید (`AssetValidation.kt`)
+
+- **Rule 10 (Blocking):** `validateObjectAsset(asset: ObjectAsset): List<ValidationIssue>` —
+  `size`/`materialAndColor` خالی/whitespace-only هرکدام یک `ValidationIssue(BLOCKING)`
+  مستقل تولید می‌کنند؛ `specialTrait` طبق جدول بلوپرینت («فیلد اختیاری نیازی به Rule
+  ندارد») هیچ بررسی‌ای ندارد.
+- **Rule 11 (Warning):** `validateBasePrompt(basePrompt: String?): ValidationIssue?` — یک
+  تابع عمومی روی `String?` به‌جای سه تابع تقریباً تکراری برای CharacterAsset/LocationAsset/
+  ObjectAsset، چون این سه نوع هیچ Supertype مشترکی ندارند و منطق فقط به مقدار String متکی
+  است، نه به نوع Asset. این دقیقاً همان الگوی تعمیم‌یافته‌ی قبلاً تأییدشده در ADR-027
+  (تعمیم `validateShotAgainstDna` فراتر از امضای تحت‌اللفظی بلوپرینت) است — مستند شده اینجا
+  چون یک تعمیم آگاهانه است، نه صرفاً پرکردن یک جزئیات مشخص‌نشده.
+- **Rule 12 (Blocking):** عمداً **بدون تابع Runtime**. `ObjectAsset.subtype: ObjectSubtype`
+  در Kotlin از نوع enum غیر-nullable است، پس این تضمین از قبل در سطح Type System برقرار
+  است — کامپایلر اصلاً اجازه نمی‌دهد یک `ObjectAsset` با `subtype` نامعتبر ساخته شود. این
+  دقیقاً همان الگوی اثبات‌شده با تست `AssetContinuityTest`(«hard lock fields never produce
+  anything other than Blocked or Allowed») است: یک قانون که به‌جای کد Runtime، با خودِ Type
+  System اجرا می‌شود. تست اثباتی این مورد (`rule12 every ObjectSubtype value constructs a
+  valid ObjectAsset`) در `AssetValidationTest.kt` آمده، نه یک تابع validate جدید.
+
+### مصرف‌کنندگان اصلاح‌شده (Blast Radius، طبق grep معمار + grep تکمیلی من)
+
+- **`data/repository/AssetDto.kt`:** `ObjectAssetDto` جدید اضافه شد. `CharacterAssetDto`
+  گسترش یافت (`characterTier: String = "MAIN"`, `defaultMood`, `basePrompt`,
+  `continuityLockLevel: String?`). `LocationAssetDto` فیلد `assetType` را از دست داد (دیگر
+  لازم نیست — `AssetEntity.assetType` ستون Room همچنان تفکیک می‌کند) و `basePrompt`/
+  `continuityLockLevel` گرفت.
+  **تصمیم مهم:** `characterTier`/`subtype` در سطح DTO عمداً `String` با پیش‌فرض
+  محافظه‌کارانه هستند (`"MAIN"`/`"GENERAL_PROP"`، دقیقاً پیشنهاد خودِ بلوپرینت) — نه enum
+  غیر-nullable مثل نوع دامنه. این تمایز آگاهانه است: نوع دامنه‌ی Kotlin این دو فیلد را
+  الزامی نگه می‌دارد (هر ساخت جدید در کد باید صریح تصمیم بگیرد)، اما DTO مسئول Backward
+  Compatibility داده‌ی واقعاً سریالایز‌شده‌ی قدیمی روی دیسک است (رکوردهایی که این فیلدها را
+  نداشتند) — دو نگرانی متفاوت که باید در دو لایه‌ی متفاوت حل شوند.
+- **`data/repository/DnaAssetMappers.kt`:** `CharacterAssetDto.toDomain()`/`toDto()`،
+  `LocationAssetDto.toDomain()`/`toDto()` به‌روزرسانی شدند؛ `ObjectAssetDto.toDomain()`/
+  `ObjectAsset.toDto()` جدید اضافه شدند. `continuityLockLevel` غایب در DTO قدیمی با
+  `defaultLockLevelForTier(tier)` جایگزین می‌شود (نه یک مقدار هاردکد جدا).
+- **`data/repository/AssetRepository.kt`:** `saveObjectAsset`/`loadObjectAssets` جدید؛
+  `loadAssets` قدیمی (که Object/Location مشترک برمی‌گرداند) به `loadLocationAssets`
+  (فقط Location) تغییر نام یافت. تفکیک AssetType اکنون صریحاً با
+  `AssetType.LOCATION.name`/`AssetType.OBJECT.name` انجام می‌شود (نه از فیلد حذف‌شده‌ی
+  `asset.assetType`). جدول Room (`AssetEntity`) بدون تغییر ماند.
+- **`domain/promptengine/PromptEngineModels.kt`:** `PromptGenerationInput.objects` از
+  `List<LocationAsset>` به `List<ObjectAsset>` تغییر کرد؛ `locations` بدون تغییر.
+  **یافته‌ی مهم با grep:** هیچ مصرف‌کننده‌ی واقعی دیگری (`PromptAssembly.kt` یا هر جای
+  دیگر `domain/promptengine`/`domain/outputdelivery`) این دو فیلد را نمی‌خواند — دقیقاً
+  همان یافته‌ی ADR-028 («این دو فیلد هنوز به Pipeline رندر واقعی وصل نشده‌اند») — پس Blast
+  Radius واقعی محدود به تغییر امضای نوع بود، بدون نیاز به تغییر منطق دیگری.
+- **`data/repository/PromptGenerationRepository.kt`:** دو خط `collectData` به
+  `loadObjectAssets`/`loadLocationAssets` جدید اشاره می‌کنند.
+- **۶ فایل تست:** `AssetContinuityTest.kt` (بازنویسی کامل — امضای جدید + Exhaustiveness
+  fix + تست‌های MEDIUM/NONE/Location/Prop جدید)، `AssetModelsTest.kt` (جدید)،
+  `AssetValidationTest.kt` (Rule 10/11/12)، `AssetRepositoryTest.kt`،
+  `PromptGenerationRepositoryTest.kt`، `PromptAssemblyTest.kt`، `ShotOutfitSelectionTest.kt`،
+  `CharacterContinuityTest.kt` (این دو آخر فقط افزودن `characterTier` به ساخت
+  `CharacterAsset` موجود نیاز داشتند).
+
+### یافته‌ی جانبی حین اجرا (باگ واقعی، رفع شد)
+
+نام تست `` `loadLocationAssets skips ids that are not locations (e.g. an object)` `` باعث
+شکست کامپایل شد: `e: ... Name contains illegal characters: ..` — نقطه (`.`) در نام تابع
+Backtick-quoted شده، چون این نام مستقیماً به‌عنوان نام متد JVM کامپایل می‌شود و نقطه در نام
+متد JVM غیرمجاز است. اصلاح: حذف «`e.g.`» از متن نام تست (بدون تغییر معنایی).
+
+### اجرای واقعی (طبق الزام دستور کار)
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` (اجرای اول: `BUILD FAILED` به‌خاطر باگ
+بالا؛ اجرای دوم پس از اصلاح: `BUILD SUCCESSFUL`). شمارش واقعی از JUnit XML
+(`app/build/test-results/testDebugUnitTest/*.xml`، جمع `tests="N"` با grep+awk):
+**۴۲۰ تست، ۰ Failure، ۰ Error.**
+
+### خارج از Scope این Migration (هر دو بخش) — واقعاً باقی‌مانده
+
+- Migration `gender`/`PhysicalAppearance` به enum `Gender`/nullable fields/`toPromptString()`
+  (بلوپرینت v4/v5) — هیچ‌کدام در فهرست صریح دستور کار هیچ‌یک از دو بخش نبود.
 - به‌روزرسانی `docs/reference/type-registry.md` برای انعکاس `continuityLockLevel` روی
-  `CharacterAsset` (تصمیم ۳ بالا).
-- Migration `gender`/`PhysicalAppearance` (تصمیم ۴ بالا).
+  ردیف `CharacterAsset` (تصمیم ۳ بخش اول) — یک بدهی مستندسازی کوچک، نه کد.
 
 ## Consequences
 
-- **آسان می‌شود:** ساختار داده‌ی واحد ۰۶ اکنون دقیقاً با بلوپرینت نسخه‌ی ۵ برای Tier/Lock
-  Levels و تفکیک Object/Location هم‌راستاست؛ `AssetContinuity.kt` آماده‌ی استفاده توسط
-  `AssetValidation.kt` در بخش دوم است.
-- **بدهی شناخته‌شده و مستند:** دو فایل این قدم به‌تنهایی کامپایل نمی‌شوند تا بخش دوم کامل
-  شود (مورد انتظار، نه خطا)؛ `type-registry.md` نیاز به یک به‌روزرسانی کوچک برای
-  `continuityLockLevel` دارد.
+- **آسان می‌شود:** ساختار داده و منطق اعتبارسنجی واحد ۰۶ اکنون دقیقاً با بلوپرینت نسخه‌ی
+  ۵ برای Tier/Lock Levels، تفکیک Object/Location، و Rule های ۱۰/۱۱/۱۲ هم‌راستاست؛ کل پروژه
+  کامپایل می‌شود و ۴۲۰ تست (شامل هر مصرف‌کننده‌ی این Migration) موفق‌اند.
+- **بدهی شناخته‌شده و مستند:** `type-registry.md` نیاز به یک به‌روزرسانی کوچک برای
+  `continuityLockLevel` دارد؛ Migration `gender`/`PhysicalAppearance` به یک قدم جداگانه‌ی
+  آینده موکول شد.

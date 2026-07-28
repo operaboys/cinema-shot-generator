@@ -1,11 +1,13 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
-import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Environment as AssetEnvironment
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
@@ -116,6 +118,7 @@ class PromptAssemblyTest {
 
     private fun sampleCharacter() = CharacterAsset(
         assetId = "char_001",
+        characterTier = CharacterTier.MAIN,
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
@@ -128,10 +131,18 @@ class PromptAssemblyTest {
         outfits = listOf(Outfit(id = "outfit_01", name = "Default Look", description = "black leather jacket, jeans", isDefault = true))
     )
 
-    private fun sampleLocationAsset(type: AssetType) = LocationAsset(
-        assetId = if (type == AssetType.OBJECT) "obj_005" else "loc_002",
-        assetType = type,
-        name = if (type == AssetType.OBJECT) "Service Pistol" else "دفتر کارآگاه",
+    private fun sampleObjectAsset() = ObjectAsset(
+        assetId = "obj_005",
+        name = "Service Pistol",
+        description = "توضیح نمونه",
+        subtype = ObjectSubtype.PERSONAL_PROP,
+        size = "small",
+        materialAndColor = "worn black metal"
+    )
+
+    private fun sampleLocationAsset() = LocationAsset(
+        assetId = "loc_002",
+        name = "دفتر کارآگاه",
         description = "توضیح نمونه",
         environment = AssetEnvironment(type = "indoor", size = "small", lightingCondition = "dim")
     )
@@ -169,8 +180,8 @@ class PromptAssemblyTest {
         scene = sampleScene(),
         shot = sampleShot(),
         characters = listOf(sampleCharacter()),
-        objects = listOf(sampleLocationAsset(AssetType.OBJECT)),
-        locations = listOf(sampleLocationAsset(AssetType.LOCATION)),
+        objects = listOf(sampleObjectAsset()),
+        locations = listOf(sampleLocationAsset()),
         camera = sampleCameraSettings(),
         lighting = sampleLightingSettings(),
         environment = sampleEnvironmentSettings(),

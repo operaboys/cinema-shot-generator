@@ -2,6 +2,7 @@ package com.operaboys.cinemashotgenerator.domain.promptengine
 
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
 import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
@@ -26,10 +27,11 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 /**
  * ورودی جمع‌آوری‌شده برای تولید یک PromptBlueprint.
  *
- * - objects/locations هر دو از نوع LocationAsset اند (نه یک نوع «Asset» عمومی که در
- *   پروژه وجود ندارد) — طبق تصمیم ADR-003 (واحد ۰۶)، LocationAsset از قبل هر دو
- *   AssetType.LOCATION و AssetType.OBJECT را پوشش می‌دهد؛ تمایز فقط با فیلد assetType
- *   نمونه‌ها مشخص می‌شود، نه با دو نوع Kotlin جدا.
+ * - MIGRATED (docs/adr/029-unit06-continuity-tiers-migration-part1.md، بخش دوم):
+ *   objects اکنون از نوع ObjectAsset است (قبلاً LocationAsset، طبق تصمیم قدیمی
+ *   ADR-003 که LocationAsset را برای هر دو AssetType.LOCATION و AssetType.OBJECT
+ *   مشترک گرفته بود). با تفکیک Option A در واحد ۰۶، این دو مفهوم اکنون دو Kotlin
+ *   type کاملاً مستقل‌اند؛ locations همچنان LocationAsset است، بدون تغییر.
  * - camera/lighting/environment: انواع واقعی (واحدهای ۰۹/۰۸) هستند. اتصال واقعی این‌ها
  *   از Shot.camera/.lighting/.environment (که پس از ADR-013 خودشان typed هستند) به‌عهده‌ی
  *   لایه‌ای است که collectData را در آینده پیاده می‌کند (خارج از Scope این قدم) — با
@@ -41,7 +43,7 @@ data class PromptGenerationInput(
     val scene: Scene,
     val shot: Shot,
     val characters: List<CharacterAsset>,
-    val objects: List<LocationAsset>,
+    val objects: List<ObjectAsset>,
     val locations: List<LocationAsset>,
     val camera: CameraSettings,
     val lighting: LightingSettings,

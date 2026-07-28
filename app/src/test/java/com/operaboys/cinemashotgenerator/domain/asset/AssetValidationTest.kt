@@ -139,4 +139,77 @@ class AssetValidationTest {
         val result = checkSimilarAssetName("Detective John", existingNames = listOf("Old Warehouse"))
         assertNull(result)
     }
+
+    // --- Rule 10: ObjectAsset.size/materialAndColor الزامی؛ specialTrait اختیاری ---
+
+    private fun sampleObject(size: String = "small", materialAndColor: String = "worn black metal") = ObjectAsset(
+        assetId = "obj_001",
+        name = "Service Pistol",
+        description = "a worn revolver",
+        subtype = ObjectSubtype.PERSONAL_PROP,
+        size = size,
+        materialAndColor = materialAndColor
+    )
+
+    @Test
+    fun `rule10 blank size is blocking`() {
+        val issues = validateObjectAsset(sampleObject(size = "  "))
+        assertEquals(1, issues.size)
+        assertEquals(Severity.BLOCKING, issues[0].severity)
+    }
+
+    @Test
+    fun `rule10 blank materialAndColor is blocking`() {
+        val issues = validateObjectAsset(sampleObject(materialAndColor = ""))
+        assertEquals(1, issues.size)
+        assertEquals(Severity.BLOCKING, issues[0].severity)
+    }
+
+    @Test
+    fun `rule10 both size and materialAndColor blank produce two blocking issues`() {
+        val issues = validateObjectAsset(sampleObject(size = "", materialAndColor = "   "))
+        assertEquals(2, issues.size)
+        assertTrue(issues.all { it.severity == Severity.BLOCKING })
+    }
+
+    @Test
+    fun `rule10 specialTrait has no rule and does not affect validity`() {
+        val issues = validateObjectAsset(sampleObject())
+        assertTrue(issues.isEmpty())
+    }
+
+    // --- Rule 11: basePrompt (هر سه نوع Asset) نباید whitespace-only باشد ---
+
+    @Test
+    fun `rule11 null basePrompt is valid (optional field)`() {
+        assertNull(validateBasePrompt(null))
+    }
+
+    @Test
+    fun `rule11 empty basePrompt is valid (optional field)`() {
+        assertNull(validateBasePrompt(""))
+    }
+
+    @Test
+    fun `rule11 whitespace-only basePrompt warns`() {
+        val result = validateBasePrompt("   ")
+        assertEquals(Severity.WARNING, result!!.severity)
+    }
+
+    @Test
+    fun `rule11 non-blank basePrompt is valid`() {
+        assertNull(validateBasePrompt("a lone figure under a flickering streetlamp"))
+    }
+
+    // --- Rule 12: ObjectAsset.subtype باید یکی از سه مقدار معتبر ObjectSubtype باشد ---
+    // بدون تابع Runtime جداگانه — این تست همان تضمین Type System را اثبات می‌کند
+    // (نمی‌توان یک ObjectAsset با subtype نامعتبر ساخت، پس چیزی برای رد کردن نیست).
+
+    @Test
+    fun `rule12 every ObjectSubtype value constructs a valid ObjectAsset`() {
+        ObjectSubtype.values().forEach { subtype ->
+            val asset = sampleObject().copy(subtype = subtype)
+            assertEquals(subtype, asset.subtype)
+        }
+    }
 }

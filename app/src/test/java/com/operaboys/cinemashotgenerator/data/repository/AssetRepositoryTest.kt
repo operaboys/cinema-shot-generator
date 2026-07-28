@@ -3,14 +3,16 @@ package com.operaboys.cinemashotgenerator.data.repository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
-import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.ContinuityRules
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.Expression
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
@@ -52,6 +54,7 @@ class AssetRepositoryTest {
 
     private val fullCharacter = CharacterAsset(
         assetId = "char_001",
+        characterTier = CharacterTier.MAIN,
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
@@ -85,13 +88,24 @@ class AssetRepositoryTest {
 
     private val fullLocation = LocationAsset(
         assetId = "loc_001",
-        assetType = AssetType.LOCATION,
         name = "Detective's Office",
         description = "A dimly lit office with rain-streaked windows",
         environment = Environment(type = "indoor", size = "small", lightingCondition = "dim"),
         timeCompatibility = listOf("night", "dusk"),
         weatherCompatibility = listOf("rain", "storm"),
-        keyElements = listOf("desk", "window", "filing cabinet")
+        keyElements = listOf("desk", "window", "filing cabinet"),
+        basePrompt = "a dimly lit detective's office"
+    )
+
+    private val fullObject = ObjectAsset(
+        assetId = "obj_001",
+        name = "Service Pistol",
+        description = "a worn service revolver",
+        subtype = ObjectSubtype.PERSONAL_PROP,
+        size = "small",
+        materialAndColor = "worn black metal",
+        specialTrait = "engraved initials",
+        basePrompt = "a worn revolver with engraved initials"
     )
 
     @Test
@@ -105,13 +119,31 @@ class AssetRepositoryTest {
     }
 
     @Test
-    fun `saveLocationAsset then loadAssets round-trips the full structure exactly`() = runBlocking {
+    fun `saveLocationAsset then loadLocationAssets round-trips the full structure exactly`() = runBlocking {
         val result = repository.saveLocationAsset("proj_001", fullLocation)
         assertTrue(result.isSuccess)
 
-        val loaded = repository.loadAssets(listOf("loc_001"))
+        val loaded = repository.loadLocationAssets(listOf("loc_001"))
         assertTrue(loaded.isSuccess)
         assertEquals(listOf(fullLocation), loaded.getOrThrow())
+    }
+
+    @Test
+    fun `saveObjectAsset then loadObjectAssets round-trips the full structure exactly`() = runBlocking {
+        val result = repository.saveObjectAsset("proj_001", fullObject)
+        assertTrue(result.isSuccess)
+
+        val loaded = repository.loadObjectAssets(listOf("obj_001"))
+        assertTrue(loaded.isSuccess)
+        assertEquals(listOf(fullObject), loaded.getOrThrow())
+    }
+
+    @Test
+    fun `loadLocationAssets skips ids that are not locations, such as an object`() = runBlocking {
+        repository.saveObjectAsset("proj_001", fullObject)
+        val loaded = repository.loadLocationAssets(listOf("obj_001"))
+        assertTrue(loaded.isSuccess)
+        assertTrue(loaded.getOrThrow().isEmpty())
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
@@ -19,6 +20,7 @@ class CharacterContinuityTest {
 
     private val character = CharacterAsset(
         assetId = "char_001",
+        characterTier = CharacterTier.MAIN,
         name = "Detective John",
         physicalAppearance = PhysicalAppearance(
             ageRange = "35-40",
