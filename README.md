@@ -183,6 +183,14 @@ PromptBlueprint (واحد ۱۱)
 1. **`buildReferenceImageInstruction` جدید در `Renderer.kt`:** وقتی یک Shot به Asset هایی با تصویر رفرنس متصل است و مدل هدف `supportsImagePrompt=true` دارد، `renderBlueprintToText` اکنون یک جمله‌ی دستوری کلی («use the attached reference image(s)...») در جایگاه دوم پرامپت تزریق می‌کند — هرگز نام فایل/مسیر تصویر را درج نمی‌کند. با grep تأیید شد هیچ تست موجودی سناریوی `imageReferences` غیرخالی را پوشش نمی‌داد، پس این تغییر هیچ تست قبلی را نشکست.
 2. **اتصال `negativePrompt` (تکمیل ADR-028):** `PromptBlueprint.negativePrompt: String = ""` اضافه شد؛ `assemblePromptBlueprint` (واحد ۱۱) اکنون `resolveNegativePrompt` (واحد ۰۵) را با `shot`/`dna.qualityDirectives` واقعی صدا می‌زند؛ `Renderer.kt` این مقدار را فقط برای پروفایل‌هایی که `supportsNegativePrompt=true` دارند در هر دو مسیر متن و JSON اعمال می‌کند — بی‌صدا نادیده گرفته می‌شود وقتی مدل پشتیبانی نمی‌کند.
 
+### 🎯 نقطه‌ی عطف: شروع واحد ۰۱ب (AI Story Breakdown) — قدم اول: Prompt Builder + Chunk Combiner
+
+اولین قدم از ساخت یک واحد کاملاً جدید — `domain/storybreakdown/` — طبق `docs/blueprints/01b-ai-story-breakdown.md` (نسخه ۲). این قدم فقط بخش الف (Prompt Builder) و بخش پ (Chunk Combiner) را پیاده کرد؛ بخش‌های ب (AI Connector)، ت (JSON Doctor)، ث (Story-to-Domain Mapper) در قدم‌های بعدی می‌آیند — اما **این قدم خودش کامل، مستقل، و کامپایل‌شونده است** (بر خلاف یک Migration قبلی که عمداً یک وضعیت میانی ناقص رها شد؛ طبق الزام صریح این مرحله، هر قدم این واحد باید به‌تنهایی `BUILD SUCCESSFUL` بدهد).
+
+- **`PromptBuilder.kt`:** `StoryBreakdownRequest`، `buildStoryBreakdownPrompt` (پرامپت متنی آماده برای AI بیرونی، شامل سبک/حال‌وهوا از `StoryContext` واحد ۰۱، داستان آزاد کاربر، و دستور فرمت JSON خروجی + `[CONTINUE]`)، سه Rule اعتبارسنجی (طول داستان، محدوده‌ی تعداد شات، هشدار تعداد شات بالا).
+- **`ChunkCombiner.kt`:** `isPartialResponse`/`smartCombineChunks` (چسباندن پاسخ‌های چندبخشی AI قبل از Parse JSON)، Rule هشدار برای تکه‌ی آخر ناقص.
+- جزئیات کامل (شامل تصمیم مستند درباره‌ی `genre: List<Genre>` به‌جای مقدار تکی بلوپرینت) در `docs/adr/032-unit01b-story-breakdown-step1-prompt-builder-chunk-combiner.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -202,6 +210,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
+│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner — قدم اول؛ AI Connector/JSON Doctor/Mapper در قدم‌های بعدی)
 │   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 │   ├── validation/ → واحد ۰۷: Validation & Consistency Engine
