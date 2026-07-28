@@ -191,6 +191,10 @@ PromptBlueprint (واحد ۱۱)
 - **`ChunkCombiner.kt`:** `isPartialResponse`/`smartCombineChunks` (چسباندن پاسخ‌های چندبخشی AI قبل از Parse JSON)، Rule هشدار برای تکه‌ی آخر ناقص.
 - جزئیات کامل (شامل تصمیم مستند درباره‌ی `genre: List<Genre>` به‌جای مقدار تکی بلوپرینت) در `docs/adr/032-unit01b-story-breakdown-step1-prompt-builder-chunk-combiner.md`.
 
+### 🎯 نقطه‌ی عطف: واحد ۰۱ب — قدم دوم: JSON Doctor
+
+بخش ت بلوپرینت پیاده شد — `JsonDoctor.kt`: `diagnoseJsonError` (که در بلوپرینت `TODO()` بود، اکنون الگوریتم واقعی دارد: تشخیص کاما اضافه، نقل‌قول‌های تزئینی، پاسخ ناتمام، براکت نامتعادل، یا `UNKNOWN`)، `attemptAutoFix` (تعمیر خودکار کاما اضافه/نقل‌قول تزئینی، عیناً طبق بلوپرینت)، و `repairJson` (جریان کامل Parse→Diagnose→AutoFix، با نتیجه‌ی `JsonRepairResult.Success`/`NeedsManualRepair`). Rule 7 (JSON بعد از تعمیر هنوز نامعتبر) و Rule 8 (کلیدهای الزامی `characters`/`locations`/`shots` غایب) با `ValidationIssue` سراسری پیاده شدند. تصمیم مستند مهم: ترتیب بررسی انواع خطا (`INCOMPLETE_RESPONSE` قبل از `UNMATCHED_BRACKET`) تا پاسخ‌های واقعاً بریده‌شده از خطاهای ساختاری معمولی تفکیک شوند — جزئیات کامل در `docs/adr/033-unit01b-story-breakdown-step2-json-doctor.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -210,7 +214,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
-│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner — قدم اول؛ AI Connector/JSON Doctor/Mapper در قدم‌های بعدی)
+│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner + JSON Doctor — قدم‌های اول و دوم؛ AI Connector/Mapper در قدم‌های بعدی)
 │   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 │   ├── validation/ → واحد ۰۷: Validation & Consistency Engine
