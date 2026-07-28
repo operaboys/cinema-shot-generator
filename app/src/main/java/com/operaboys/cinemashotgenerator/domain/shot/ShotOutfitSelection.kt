@@ -3,7 +3,7 @@ package com.operaboys.cinemashotgenerator.domain.shot
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 
 // واحد ۰۵ — انتخاب Outfit یک کاراکتر در سطح Shot
-// منبع حقیقت: docs/blueprints/05-shot-engine.md
+// منبع حقیقت: docs/blueprints/05-shot-engine-v2.md
 //
 // از نوع واقعی CharacterAsset (واحد ۰۶، از قبل پیاده‌سازی‌شده) استفاده می‌کند —
 // طبق دستور کار صریح، بازتعریف نشد.

@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
 // واحد ۱۱ — فاز ۲: سیستم اولویت‌بندی
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 // دقیقاً طبق کد مفهومی بلوپرینت — Generic و بدون وابستگی خارجی.
 //
 // این اولویت‌بندی («Human Override > Shot > Scene > DNA») مستقل از سیستم Override

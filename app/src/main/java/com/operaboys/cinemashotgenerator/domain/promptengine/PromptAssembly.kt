@@ -6,7 +6,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import java.util.UUID
 
 // واحد ۱۱ — تابع اصلی مونتاژ PromptBlueprint (قلب معماری کل سیستم)
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 //
 // انحراف تأییدشده از کد مفهومی بلوپرینت: پارامتر چهارم (validationIssues) اضافه شد
 // تا conflictsResolved/warnings از خروجی واقعی واحد ۰۷ پر شوند، نه هاردکد 0/emptyList

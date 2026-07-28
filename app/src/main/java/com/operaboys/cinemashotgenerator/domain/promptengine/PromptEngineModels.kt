@@ -14,7 +14,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
 // واحد ۱۱ — Prompt Engineering Core (ساختار داده — فاز ۱ و خروجی)
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 //
 // همه‌ی انواع این فایل از پکیج‌های واقعی واحدهای از قبل پیاده‌شده import شده‌اند —
 // جزئیات نگاشت‌های غیربدیهی (objects/locations) در

@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
 // واحد ۱۱ — فاز ۵: مدیریت Seed
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 //
 // تصمیم آگاهانه‌ی بلوپرینت: seed یک پارامتر فرمت خروجی (مثل --ar) نیست — یک تصمیم
 // محتوایی برای ثبات بصری بین شات‌هاست، هم‌رده با Character Continuity. بنابراین در

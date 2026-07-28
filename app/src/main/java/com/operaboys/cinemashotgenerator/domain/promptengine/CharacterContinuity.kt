@@ -5,7 +5,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.selectOutfitForScene
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 
 // واحد ۱۱ — فاز ۴: اعمال Character Continuity
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 //
 // دو انحراف تأییدشده از کد مفهومی بلوپرینت (هر دو تأییدشده توسط کاربر پیش از پیاده‌سازی،
 // جزئیات در docs/adr/012-unit11-prompt-engineering-core-deviations.md):

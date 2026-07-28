@@ -4,7 +4,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
 // واحد ۱۱ — فاز ۳: حل تضاد
-// منبع حقیقت: docs/blueprints/11-prompt-engineering-core.md
+// منبع حقیقت: docs/blueprints/11-prompt-engineering-core-v2.md
 //
 // منطق تشخیص تضاد کاملاً متعلق به واحد ۰۷ است و اینجا تکرار نمی‌شود — این فایل فقط
 // خروجی واحد ۰۷ (List<ValidationIssue>؛ هیچ Rule-level function ای در پروژه از

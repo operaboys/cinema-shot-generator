@@ -6,7 +6,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.validateBeatSheetTime
 
 // واحد ۰۵ — قوانین اعتبارسنجی Shot (Rule 1 تا Rule 4؛ Rule 5 ساختاری، پایین توضیح داده شده؛
 // Rule 8 اضافه‌شده در Migration بعدی — رفع F9 ممیزی pre-Unit 16)
-// منبع حقیقت: docs/blueprints/05-shot-engine.md، docs/blueprints/05-shot-engine-v2.md (Rule 8)
+// منبع حقیقت: docs/blueprints/05-shot-engine-v2.md
 //
 // همه‌ی توابع این فایل از ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کنند —
 // ادامه‌ی همان تصمیم تأییدشده در واحد ۰۳ (docs/adr/005-...) که برای کد جدید،

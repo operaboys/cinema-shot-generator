@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 // واحد ۱۵ — Project Storage System (قدم ۳، زیرقدم ۱: اتصال ProjectDna)
-// منبع حقیقت: docs/blueprints/15-project-storage.md، docs/blueprints/02-dna-manager.md
+// منبع حقیقت: docs/blueprints/15-project-storage.md، docs/blueprints/02-dna-manager-v2.md
 //
 // این Entity در قدم ۱ وجود نداشت — بلوپرینت ۱۵ اصلاً هیچ Entity ای برای ProjectDna
 // فهرست نکرده بود (فقط Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/

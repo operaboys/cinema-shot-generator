@@ -145,7 +145,7 @@
 | `ActionSound` | data class | timestampSeconds, type, description | ✅ (یکسان با واحد ۱۰) |
 | `CharacterSound` | data class | characterId, type, description | ✅ (یکسان با واحد ۱۰) |
 | `SoundProfile` | data class | enabled, ambientAutoGenerate, ambientSounds, actionSounds, characterSounds | ✅ |
-| `Shot` | data class | shotId, sceneId, shotNumber, shotTitle, shotDescription, shotGoal, shotType, durationSeconds, motionLevel, beats, imageReferences, camera: SourcedSettings\<CameraSettings\>?, lighting: SourcedSettings\<LightingSettings\>?, environment: SourcedSettings\<EnvironmentSettings\>?, soundProfile, negativePromptOverride, characterIds, objectIds, locationIds | ✅🔧 سه فیلد `camera`/`lighting`/`environment` + `shotTitle` اضافه شدند — قبلاً حتی در خودِ data class تعریف نشده بودند |
+| `Shot` | data class | shotId, sceneId, shotNumber, shotTitle, shotDescription, shotGoal, shotType, durationSeconds, motionLevel, beats, imageReferences, camera: SourcedSettings\<CameraSettings\>, lighting: SourcedSettings\<LightingSettings\>, environment: SourcedSettings\<EnvironmentSettings\>, soundProfile, negativePromptOverride, characterIds, objectIds, locationIds | ✅🔧 سه فیلد `camera`/`lighting`/`environment` + `shotTitle` اضافه شدند — قبلاً حتی در خودِ data class تعریف نشده بودند. رفع F11 ممیزی pre-Unit 16: `camera`/`lighting`/`environment` اشتباهاً `?` (nullable) داشتند؛ با grep در `ShotModels.kt` تأیید شد هر سه non-nullable هستند (پیش‌فرض `SourcedSettings()`، نه `null`) |
 
 توابع `resolveCameraSettings`/`resolveLightingSettings`/`resolveEnvironmentSettings` همگی `Result<T>` برمی‌گردانند (نه مقدار مستقیم) — ✅🔧 جدید.
 

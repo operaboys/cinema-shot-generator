@@ -300,6 +300,32 @@ Scene رد شد — با grep تأیید شد `Shot.locationIds: List<String>` �
 
 جزئیات کامل در `docs/adr/040-unit05-unit08-type-registry-negative-prompt-rule8.md`.
 
+### 🎯 نقطه‌ی عطف: ممیزی pre-Unit 16 کاملاً بسته شد — رفع F10، F11، F12 (آخرین یافته‌ها)
+
+سه یافته‌ی ⚪ (صرفاً مستندسازی، بدون اثر بر رفتار/کامپایل کد) رفع شدند:
+
+- **F10:** ۱۲ کامنت هدر «منبع حقیقت» که هنوز به نام بلوپرینت بدون `-v2` اشاره
+  می‌کردند (`ProjectDnaEntity.kt`، `ShotSettingsResolution.kt`،
+  `ShotOutfitSelection.kt`، `ShotValidation.kt`، `AssetSelection.kt`، و ۷ فایل
+  `domain/promptengine/`) به نسخه‌ی `-v2` واقعی موجود در `docs/blueprints/`
+  اصلاح شدند. ADR های تاریخی طبق تصریح دستور کار دست‌نخورده ماندند.
+- **F11:** ردیف `Shot` در `type-registry.md` — علامت اشتباه `?` (nullable) از هر
+  سه فیلد `camera`/`lighting`/`environment` حذف شد (با grep تأیید شد این سه در
+  `ShotModels.kt` واقعی non-nullable هستند).
+- **F12:** `docs/blueprints/16-user-workflow-v2.md` — فهرست ناقص `EntityState`
+  (`Draft/Review/Locked/Final`) به ۵ مقدار واقعی enum (`+Archived`) اصلاح شد؛
+  چون هیچ‌جای بلوپرینت نگاشت رنگ/آیکون per-value برای هیچ‌کدام از ۵ حالت مشخص
+  نکرده بود (نه فقط برای Archived)، یک پیشنهاد ساده‌ی اولیه برای هر ۵ حالت اضافه
+  شد (راهنما، نه الزام طراحی نهایی).
+
+جزئیات کامل در `docs/adr/041-pre-unit16-audit-final-cleanup-f10-f11-f12.md`.
+
+**با این قدم، ممیزی `docs/audit/pre-unit16-audit.md` کاملاً بسته شده است** —
+F1 تا F4 و F7 تا F12 رفع شدند؛ F5 (Outfit) و F6 (Location fields) عمداً برای
+زمان طراحی واقعی فرم‌های واحد ۱۶ نگه داشته شده‌اند (تصمیم آگاهانه‌ی ممیزی اصلی،
+نه یافته‌ی فراموش‌شده). هیچ مانع شناخته‌شده‌ای دیگر پیش از شروع Composable های
+واقعی واحد ۱۶ باقی نمانده است.
+
 ## Stack
 
 - **زبان:** Kotlin

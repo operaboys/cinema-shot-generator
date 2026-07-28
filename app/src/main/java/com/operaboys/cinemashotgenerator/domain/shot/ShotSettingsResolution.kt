@@ -2,7 +2,7 @@ package com.operaboys.cinemashotgenerator.domain.shot
 
 // اتصال معماری بین Shot.camera/.lighting/.environment (SourcedSettings<T> واحد ۰۵) و
 // انواع نهاییِ تایپ‌شده که واحد ۱۱ (Prompt Engineering Core) به آن‌ها نیاز دارد.
-// منبع حقیقت: docs/blueprints/05-shot-engine.md (بخش «ارث‌بری و Override») و
+// منبع حقیقت: docs/blueprints/05-shot-engine-v2.md (بخش «ارث‌بری و Override») و
 // docs/blueprints/04-scene-engine.md (inheritOrOverride). جزئیات کامل و تصمیمات
 // مستقل در docs/adr/013-unit05-settings-resolution-deviations.md.
 

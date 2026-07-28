@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.asset
 
 // واحد ۰۶ — انتخاب خودکار Outfit/Expression بر اساس شرایط صحنه
-// منبع حقیقت: docs/blueprints/06-asset-and-continuity.md
+// منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md
 //
 // اولویت: Override دستی کاربر > شرط منطبق با صحنه > Fallback به Default.
 
