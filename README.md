@@ -195,6 +195,12 @@ PromptBlueprint (واحد ۱۱)
 
 بخش ت بلوپرینت پیاده شد — `JsonDoctor.kt`: `diagnoseJsonError` (که در بلوپرینت `TODO()` بود، اکنون الگوریتم واقعی دارد: تشخیص کاما اضافه، نقل‌قول‌های تزئینی، پاسخ ناتمام، براکت نامتعادل، یا `UNKNOWN`)، `attemptAutoFix` (تعمیر خودکار کاما اضافه/نقل‌قول تزئینی، عیناً طبق بلوپرینت)، و `repairJson` (جریان کامل Parse→Diagnose→AutoFix، با نتیجه‌ی `JsonRepairResult.Success`/`NeedsManualRepair`). Rule 7 (JSON بعد از تعمیر هنوز نامعتبر) و Rule 8 (کلیدهای الزامی `characters`/`locations`/`shots` غایب) با `ValidationIssue` سراسری پیاده شدند. تصمیم مستند مهم: ترتیب بررسی انواع خطا (`INCOMPLETE_RESPONSE` قبل از `UNMATCHED_BRACKET`) تا پاسخ‌های واقعاً بریده‌شده از خطاهای ساختاری معمولی تفکیک شوند — جزئیات کامل در `docs/adr/033-unit01b-story-breakdown-step2-json-doctor.md`.
 
+### 🎯 نقطه‌ی عطف: واحد ۰۱ب — قدم سوم: Story-to-Domain Mapper (حیاتی‌ترین بخش این واحد)
+
+بخش ث بلوپرینت پیاده شد — `StoryToDomainMapper.kt`: `mapAiCharacterToAsset`/`mapAiLocationToAsset`/`mapAiObjectToAsset` (تبدیل خروجی ساده‌ی AI به `CharacterAsset`/`LocationAsset`/`ObjectAsset` واقعی با مقادیر پیش‌فرض معقول — `role`→`CharacterTier`، `gender`→`Gender` enum، هر دو case-insensitive)، `groupAiShotsIntoScenes` (گروه‌بندی شات‌ها بر اساس نام صحنه)، `mapAiShotToShot` (اتصال به Asset ها بر اساس تطبیق نام، با گزارش صریح نام‌های یافت‌نشده به‌جای نادیده‌گرفتن بی‌صدا)، و `processAiResponse` که کل جریان بخش پ→ت→ث را به هم وصل می‌کند (`ChunkCombiner` → `JsonDoctor` → Parse → سه Mapper → `StoryBreakdownResult` نهایی). Rule 9 (نام یافت‌نشده) و Rule 10 (مغایرت تعداد شات با هدف) با `ValidationIssue` سراسری پیاده شدند. جزئیات کامل تصمیم‌ها (شناسه‌های تایپ‌شده، Placeholder های محیط/مکان، ساختار `ProcessAiResponseResult` سه‌حالته) در `docs/adr/034-unit01b-story-breakdown-step3-story-to-domain-mapper.md`.
+
+با این قدم، تمام منطق دامنه‌ی واحد ۰۱ب کامل است به‌جز بخش ب (AI Connector Profile — یک لایه‌ی اتصال HTTP، بدون منطق دامنه‌ی پیچیده) که آخرین قدم جداگانه‌ی این واحد خواهد بود.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -214,7 +220,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
-│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner + JSON Doctor — قدم‌های اول و دوم؛ AI Connector/Mapper در قدم‌های بعدی)
+│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner + JSON Doctor + Story-to-Domain Mapper — قدم‌های اول تا سوم؛ فقط AI Connector در قدم بعدی/آخر باقی مانده)
 │   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 │   ├── validation/ → واحد ۰۷: Validation & Consistency Engine
