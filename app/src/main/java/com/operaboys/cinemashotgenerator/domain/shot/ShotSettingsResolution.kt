@@ -21,6 +21,23 @@ fun resolveEnvironmentSettings(shot: Shot, sceneDefault: EnvironmentSettings?): 
     resolveSourcedSettings(shot.environment, sceneDefault)
 
 /**
+ * حل نهایی Negative Prompt مؤثر این Shot (docs/blueprints/05-shot-engine-v2.md).
+ * برخلاف resolveCameraSettings/resolveLightingSettings/resolveEnvironmentSettings
+ * (که منبع ارث‌بری‌شان Scene است، پس sceneDefault می‌گیرند)، منبع ارث‌بری اینجا DNA
+ * پروژه است — طبق تصریح بلوپرینت («نه یک تنظیم مخصوص یک صحنه‌ی خاص»).
+ *
+ * امضا عمداً String می‌گیرد (نه ProjectDna کامل) تا این تابع به کل ProjectDna
+ * وابسته نشود — طبق پیشنهاد صریح بلوپرینت؛ فراخوان مسئول استخراج
+ * dna.qualityDirectives.negativePrompt پیش از فراخوانی این تابع است.
+ *
+ * اگر Override دستی وجود دارد (حتی رشته‌ی خالی، برای غیرفعال‌کردن کامل negative
+ * prompt در همین Shot)، همان استفاده می‌شود؛ وگرنه مقدار سطح DNA.
+ */
+fun resolveNegativePrompt(shot: Shot, dnaNegativePrompt: String): String {
+    return shot.negativePromptOverride ?: dnaNegativePrompt
+}
+
+/**
  * sceneDefault بیرونی تزریق می‌شود چون Scene خودش فیلد پیش‌فرض camera/lighting/environment
  * ندارد (تأیید شده با grep در SceneModels.kt؛ ADR-013) — بلوپرینت ۰۴ فقط globalVisualStyle
  * و لیست‌های محدودکننده (restrictions) را روی Scene تعریف کرده، نه مقدار واقعی این سه.

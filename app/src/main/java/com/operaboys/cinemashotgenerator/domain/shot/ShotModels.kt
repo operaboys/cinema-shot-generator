@@ -5,13 +5,18 @@ import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSetti
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 
 // واحد ۰۵ — Shot Engine (ساختار داده)
-// منبع حقیقت: docs/blueprints/05-shot-engine.md
+// منبع حقیقت: docs/blueprints/05-shot-engine-v2.md (نسخه ۳)
 //
 // این واحد صاحب اصلی MotionLevel است. واحد ۰۷ (Logic Conflict Checker) قبلاً
 // پارامتر motionLevel را به‌صورت String موقت گرفته بود دقیقاً چون این enum هنوز
 // جایی تعریف نشده بود (docs/adr/004-...) — حالا اینجا صاحب واقعی‌اش تعریف می‌شود.
 // آیا واحد ۰۷ باید بعداً به این enum واقعی Migrate شود، سؤالی است که در
 // docs/adr/006-unit05-shot-engine-deviations.md مطرح شده، نه اجراشده.
+//
+// MIGRATED (docs/adr/028-unit05-negative-prompt-override-migration.md):
+// negativePromptOverride اضافه شد — پیش‌فرض null یعنی از
+// domain.dna.QualityDirectives.negativePrompt (واحد ۰۲) ارث می‌برد؛ منبع ارث‌بری
+// عمداً DNA پروژه است، نه Scene (برخلاف camera/lighting/environment).
 
 enum class ShotGoal { ESTABLISHING, ACTION, EMOTIONAL, DIALOGUE, TRANSITION }
 enum class ShotType { EXTREME_WIDE, WIDE, MEDIUM, CLOSE_UP, EXTREME_CLOSE_UP }
@@ -86,6 +91,7 @@ data class Shot(
     val lighting: SourcedSettings<LightingSettings> = SourcedSettings(),
     val environment: SourcedSettings<EnvironmentSettings> = SourcedSettings(),
     val soundProfile: SoundProfile,
+    val negativePromptOverride: String? = null,   // null یعنی از DNA پروژه ارث می‌برد (resolveNegativePrompt)
     val characterIds: List<String> = emptyList(),
     val objectIds: List<String> = emptyList(),
     val locationIds: List<String> = emptyList(),

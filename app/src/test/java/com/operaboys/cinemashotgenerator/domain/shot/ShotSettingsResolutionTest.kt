@@ -133,4 +133,24 @@ class ShotSettingsResolutionTest {
         val result = resolveEnvironmentSettings(shot, null)
         assertEquals(shotEnvironmentOverride, result.getOrThrow())
     }
+
+    // --- resolveNegativePrompt (docs/adr/028-unit05-negative-prompt-override-migration.md) ---
+
+    @Test
+    fun `resolveNegativePrompt uses the shot override when present, even as an empty string`() {
+        val shot = baseShot().copy(negativePromptOverride = "")
+        assertEquals("", resolveNegativePrompt(shot, "blurry, low quality"))
+    }
+
+    @Test
+    fun `resolveNegativePrompt uses a non-empty shot override over the DNA default`() {
+        val shot = baseShot().copy(negativePromptOverride = "watermark")
+        assertEquals("watermark", resolveNegativePrompt(shot, "blurry, low quality"))
+    }
+
+    @Test
+    fun `resolveNegativePrompt falls back to the DNA default when no override is set`() {
+        val shot = baseShot()
+        assertEquals("blurry, low quality", resolveNegativePrompt(shot, "blurry, low quality"))
+    }
 }
