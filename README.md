@@ -9,6 +9,7 @@
 Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار است. تاکنون لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room و بدون UI) این واحدها پیاده‌سازی شده:
 
 - **واحد ۰۱ — Story & Override (تأییدشده هم‌راستا با بلوپرینت نسخه ۴):** `domain/story/` — مدل‌های Story Wizard، قوانین اعتبارسنجی، مدل‌های Human Override. بازبینی این قدم تأیید کرد کد از قبل کاملاً با `docs/blueprints/01-story-and-override-v2.md` (نسخه ۴) هم‌راستا بود (فیلدهای مسطح `moodPrimary`/`moodSecondary`، بدون فرمت تودرتوی قدیمی؛ `Mood` از `domain.dna` طبق ADR-027) — فقط کامنت هدر ۳ فایل (`HumanOverride.kt`, `OverrideActions.kt`, `StoryValidation.kt`) که هنوز به بلوپرینت بدون `-v2` اشاره می‌کردند اصلاح شد.
+- **واحد ۰۱ب — AI Story Breakdown (واحد کاملاً جدید، منطق دامنه کامل شد):** `domain/storybreakdown/` — تجزیه‌ی داستان آزاد کاربر با کمک یک AI متنی بیرونی: `PromptBuilder.kt` (ساخت پرامپت درخواست)، `ChunkCombiner.kt` (چسباندن پاسخ‌های چندبخشی)، `JsonDoctor.kt` (تشخیص/تعمیر خودکار خطای JSON)، `StoryToDomainMapper.kt` (تبدیل خروجی ساده‌ی AI به `CharacterAsset`/`LocationAsset`/`ObjectAsset`/`Scene`/`Shot` واقعی)، `AiConnector.kt` (قرارداد مسیر ارسال مستقیم API — HTTP واقعی کار آینده است). جزئیات کامل در `docs/adr/032` تا `docs/adr/035`.
 - **واحد ۰۲ — DNA Manager (Migration بلوپرینت نسخه ۵ کامل شد — بزرگ‌ترین Breaking Change تا کنون):** `domain/dna/` — `VisualStyle` اکنون ۳۴ مقدار دقیق در ۵ دسته (`VisualStyleCategory`)؛ `Mood` (۲۵ مقدار، ۵ دسته) از `domain/story/` به اینجا منتقل شد و تنها مالک این نام در کل پروژه است؛ `LightingStyle` (۲۲ مقدار، ۴ دسته) از `domain/sceneconditions/` به اینجا منتقل شد؛ `ContrastLevel` (رفع باگ واقعی: `MasterPalette.globalContrast` اشتباهاً `SaturationLevel` بود)؛ `AspectRatio` (۱۱ مقدار — `OutputConstraints.aspectRatio` از `String` به enum، Breaking Change واقعی)؛ `QualityDirectives`/`GlobalMoodBase`/`LightingPreference` کامل شدند؛ `stylePreferences`/`overrideRules` طبق تصمیم صریح معمار کاملاً حذف شدند؛ `validateColorPalette` (Rule جدید) اضافه شد. جزئیات کامل، دو تناقض واقعی کشف‌شده بین بلوپرینت/type-registry (و نحوه‌ی حل‌شان)، و فهرست کامل مصرف‌کنندگان اصلاح‌شده در `docs/adr/027-unit02-dna-manager-v5-migration.md`.
 - **واحد ۰۶ — Asset & Continuity (Migration بلوپرینت نسخه ۵ کامل شد):** `domain/asset/` — `CharacterTier` (MAIN/SECONDARY/BACKGROUND) با `defaultLockLevelForTier`؛ Hard Lock قدیمی (فقط Allowed/Blocked مطلق) اکنون شرطی به سه سطح مستقل `CharacterContinuityLevel`(FULL/MEDIUM/NONE)/`LocationContinuityLevel`(STYLE)/`PropContinuityLevel`(FORM) است — `UpdateResult` حالت سوم `Warned` گرفت، اما سطح **FULL** بایت‌به‌بایت همان رفتار Blocking بدون استثنای قبلی را حفظ کرده. `ObjectAsset` از `LocationAsset` مشترک قدیمی کاملاً تفکیک شد (Option A طبق توصیه‌ی بلوپرینت) — `LocationAsset` اکنون فقط مکان است. Rule های جدید ۱۰ (size/materialAndColor الزامی)، ۱۱ (basePrompt نباید whitespace-only باشد، روی هر سه نوع Asset)، ۱۲ (ObjectAsset.subtype — تضمین‌شده در سطح Type System، بدون تابع Runtime). جزئیات کامل در `docs/adr/029-unit06-continuity-tiers-migration-part1.md`. **تکمیل شد:** `PhysicalAppearance` اکنون `Gender` enum واقعی دارد (نه رشته‌ی آزاد)؛ `height`/`build`/`hair`/`facialFeatures` nullable شدند؛ `physicalFeatures`/`toPromptString()` اضافه شدند — جزئیات در `docs/adr/031-unit06-physical-appearance-gender-migration.md`.
 - **واحد ۰۷ — Validation & Consistency Engine:** `domain/validation/` — Validation Engine (Severity/ValidationIssue/ValidationReport سراسری)، Logic Conflict Checker (اکنون با `MotionLevel`/`CinematicMode` واقعی)، Dependency Resolver (تحلیل اثر، تشخیص وابستگی دایره‌ای).
@@ -199,7 +200,23 @@ PromptBlueprint (واحد ۱۱)
 
 بخش ث بلوپرینت پیاده شد — `StoryToDomainMapper.kt`: `mapAiCharacterToAsset`/`mapAiLocationToAsset`/`mapAiObjectToAsset` (تبدیل خروجی ساده‌ی AI به `CharacterAsset`/`LocationAsset`/`ObjectAsset` واقعی با مقادیر پیش‌فرض معقول — `role`→`CharacterTier`، `gender`→`Gender` enum، هر دو case-insensitive)، `groupAiShotsIntoScenes` (گروه‌بندی شات‌ها بر اساس نام صحنه)، `mapAiShotToShot` (اتصال به Asset ها بر اساس تطبیق نام، با گزارش صریح نام‌های یافت‌نشده به‌جای نادیده‌گرفتن بی‌صدا)، و `processAiResponse` که کل جریان بخش پ→ت→ث را به هم وصل می‌کند (`ChunkCombiner` → `JsonDoctor` → Parse → سه Mapper → `StoryBreakdownResult` نهایی). Rule 9 (نام یافت‌نشده) و Rule 10 (مغایرت تعداد شات با هدف) با `ValidationIssue` سراسری پیاده شدند. جزئیات کامل تصمیم‌ها (شناسه‌های تایپ‌شده، Placeholder های محیط/مکان، ساختار `ProcessAiResponseResult` سه‌حالته) در `docs/adr/034-unit01b-story-breakdown-step3-story-to-domain-mapper.md`.
 
-با این قدم، تمام منطق دامنه‌ی واحد ۰۱ب کامل است به‌جز بخش ب (AI Connector Profile — یک لایه‌ی اتصال HTTP، بدون منطق دامنه‌ی پیچیده) که آخرین قدم جداگانه‌ی این واحد خواهد بود.
+### 🎯 نقطه‌ی عطف: واحد ۰۱ب (AI Story Breakdown) کامل شد — قدم چهارم و آخر: AI Connector Profile
+
+بخش ب بلوپرینت (مسیر ۲: AI Connector Profile) پیاده شد — `AiConnector.kt`: `AiConnectorProfile`، `createCustomAiConnectorProfile`، Rule 4 (کلید API خالی) و Rule 5 (پیام خطای واقعی سرویس). **تصمیم مستند (Option A):** پیاده‌سازی واقعی HTTP Call با Ktor Client عمداً به یک قدم کاملاً جداگانه‌ی آینده موکول شد — دقیقاً طبق اجازه‌ی صریح خودِ بلوپرینت («می‌تواند به زیرقدم بعدی موکول شود اگر حجم واقعی بزرگ‌تر از انتظار بود»)؛ `sendToAiConnector` عمداً `TODO()` است (تست صریح تأیید می‌کند `NotImplementedError` می‌دهد، نه یک باگ خاموش). جزئیات کامل تصمیم (شامل بررسی هزینه‌ی واقعی Option B) در `docs/adr/035-unit01b-story-breakdown-step4-ai-connector.md`.
+
+**با این قدم، واحد ۰۱ب (AI Story Breakdown) از نظر منطق دامنه کامل است — خلاصه‌ی هر چهار قدم:**
+
+| قدم | فایل(ها) | بخش بلوپرینت | ADR |
+|---|---|---|---|
+| ۱ | `PromptBuilder.kt`, `ChunkCombiner.kt` | الف (Prompt Builder)، پ (Chunk Combiner) | `docs/adr/032-...md` |
+| ۲ | `JsonDoctor.kt` | ت (JSON Doctor) | `docs/adr/033-...md` |
+| ۳ | `StoryToDomainMapper.kt` | ث (Story-to-Domain Mapper) | `docs/adr/034-...md` |
+| ۴ | `AiConnector.kt` | ب (AI Connector Profile) | `docs/adr/035-...md` |
+
+**کار آینده‌ی شناخته‌شده (نه بدهی پنهان — صریحاً مستند شده، نه ادعای اتمام کامل):**
+- پیاده‌سازی واقعی HTTP در `sendToAiConnector` با Ktor Client (که نسخه‌اش از قبل در `gradle/libs.versions.toml` اعلام شده اما هنوز به هیچ ماژولی وصل نشده) — نیازمند انتخاب Engine مناسب Android و تست با Mock Engine.
+- فهرست واقعی `BUILTIN_AI_CONNECTOR_PROFILES` (Claude API، OpenAI API، Gemini، ...) با جزئیات دقیق request/response از مستندات رسمی هرکدام — در حال حاضر عمداً خالی است.
+- اتصال واقعی UI (واحد ۱۶، هنوز ساخته نشده) که گام تعاملی Rule 11 (تأیید نهایی کاربر پیش از اعمال قطعی نتیجه‌ی Mapper) را پیاده می‌کند.
 
 ## Stack
 
@@ -220,7 +237,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
-│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (Prompt Builder + Chunk Combiner + JSON Doctor + Story-to-Domain Mapper — قدم‌های اول تا سوم؛ فقط AI Connector در قدم بعدی/آخر باقی مانده)
+│   ├── storybreakdown/ → واحد ۰۱ب: AI Story Breakdown (کامل — Prompt Builder + Chunk Combiner + JSON Doctor + Story-to-Domain Mapper + AI Connector Profile؛ HTTP واقعی Ktor و فهرست پروفایل‌های واقعی سرویس‌ها کار آینده هستند)
 │   ├── dna/    → واحد ۰۲: DNA Manager (Soft Lock)
 │   ├── asset/  → واحد ۰۶: Asset & Continuity (Hard Lock)
 │   ├── validation/ → واحد ۰۷: Validation & Consistency Engine

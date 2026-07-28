@@ -77,7 +77,8 @@ private data class SimpleAiResponse(
     val shots: List<SimpleShotFromAi> = emptyList()
 )
 
-private fun generateId(prefix: String): String = "${prefix}_" + UUID.randomUUID().toString().replace("-", "").take(12)
+/** internal (نه private) — AiConnector.kt هم از همین مولد شناسه‌ی مشترک استفاده می‌کند. */
+internal fun generateId(prefix: String): String = "${prefix}_" + UUID.randomUUID().toString().replace("-", "").take(12)
 
 /**
  * حداقل یک Outfit پیش‌فرض معتبر (طبق Rule 5 واحد ۰۶: هر کاراکتر باید حداقل یک Outfit
