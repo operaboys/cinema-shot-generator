@@ -218,6 +218,22 @@ PromptBlueprint (واحد ۱۱)
 - فهرست واقعی `BUILTIN_AI_CONNECTOR_PROFILES` (Claude API، OpenAI API، Gemini، ...) با جزئیات دقیق request/response از مستندات رسمی هرکدام — در حال حاضر عمداً خالی است.
 - اتصال واقعی UI (واحد ۱۶، هنوز ساخته نشده) که گام تعاملی Rule 11 (تأیید نهایی کاربر پیش از اعمال قطعی نتیجه‌ی Mapper) را پیاده می‌کند.
 
+### 🎯 نقطه‌ی عطف: `domain/workflow/` ساخته شد — رفع یافته‌ی F1 ممیزی pre-Unit 16
+
+اولین قدم آماده‌سازی واحد ۱۶ (User Workflow / اولین UI واقعی پروژه)، مستقیماً یافته‌ی
+F1 ممیزی `docs/audit/pre-unit16-audit.md` را رفع می‌کند: `domain/workflow/` که کاملاً
+غایب بود (در حالی که `docs/reference/type-registry.md` از قبل جدول کامل آن را ✅
+نشان می‌داد)، اکنون ساخته شد — `WorkflowModels.kt`: `WorkflowStep`، `StepStatus`،
+`ShotListViewMode`، `FeedbackType`، `WorkflowState` (با `progressPercentage`)،
+`canJumpToStep` (هرگز پیشروی را Block نمی‌کند، فقط هشدار می‌دهد)، و `QualityScore`/
+`evaluatePromptQuality` (ابزار اختیاری خودارزیابی کیفیت پرامپت — بلوپرینت این تابع
+را `TODO()` گذاشته بود؛ چون ابزاری کمکی و کم‌ریسک است، یک پیاده‌سازی حداقلی واقعی
+نوشته شد، نه TODO). جزئیات کامل تصمیم در `docs/adr/037-unit16-workflow-models-quality-score.md`.
+
+این پکیج کاملاً مستقل است — فقط یافته‌ی F1 ممیزی را رفع می‌کند؛ باقی یافته‌های ممیزی
+(خصوصاً F2: نبود ارجاع `LocationAsset` در `Scene.location`) هنوز باز و منتظر تصمیم
+معماری جداگانه‌اند.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -246,6 +262,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── scene/  → واحد ۰۴: Scene Engine (صاحب اصلی inheritOrOverride)
 │   ├── camera/ → واحد ۰۹: Camera & Motion
 │   ├── sceneconditions/ → واحد ۰۸: Scene Conditions (Lighting + Environment)
+│   ├── workflow/ → واحد ۱۶: User Workflow (WorkflowState/canJumpToStep/QualityScore — رفع یافته‌ی F1 ممیزی pre-Unit 16)
 │   ├── audio/  → واحد ۱۰: Audio Context Generator
 │   ├── promptengine/ → واحد ۱۱: Prompt Engineering Core (قلب سیستم — تجمیع همه‌ی واحدها)
 │   ├── stateversioning/ → واحد ۱۲: State & Versioning (State Machine + Lock + Versioning + Impact Analysis)
