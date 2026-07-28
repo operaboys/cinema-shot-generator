@@ -5,7 +5,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
 // واحد ۱۴ — Output Delivery System (بخش ج: Bilingual System — فقط ساختار داده و منطق
 // ترجمه؛ نه UI/Compose واقعی)
-// منبع حقیقت: docs/blueprints/14-output-delivery.md
+// منبع حقیقت: docs/blueprints/14-output-delivery-v2.md (نسخه ۳)
 //
 // NOTE (خارج از Scope این قدم، عمداً پیاده نشد): generateBilingualPrompt/
 // translateToFarsi بلوپرینت اینجا پیاده نشدند — فهرست صریح این قدم آن‌ها را نام نبرده

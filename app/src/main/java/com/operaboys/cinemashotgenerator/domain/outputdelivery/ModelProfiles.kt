@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.outputdelivery
 
 // واحد ۱۴ — Output Delivery System (بخش الف: Model Profile Library — تکمیل)
-// منبع حقیقت: docs/blueprints/14-output-delivery.md
+// منبع حقیقت: docs/blueprints/14-output-delivery-v2.md (نسخه ۳)
 //
 // طبق تصمیم معمار: بلوپرینت ۱۴ دست‌نخورده ماند — خودش صراحتاً تأکید کرده جدول
 // مدل‌هایش «نقطه‌ی شروع، نه فهرست نهایی» است و معماری باید Data-driven باشد. این

@@ -5,7 +5,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import java.util.UUID
 
 // واحد ۱۴ — Output Delivery System (بخش ب: Output Composer)
-// منبع حقیقت: docs/blueprints/14-output-delivery.md
+// منبع حقیقت: docs/blueprints/14-output-delivery-v2.md (نسخه ۳)
 //
 // طبق جایگاه واقعی در Pipeline (PromptBlueprint → Renderer این واحد → Prompt
 // Finalization واحد ۱۳، هنوز پیاده نشده → Output Composer): renderedOutputs همیشه از

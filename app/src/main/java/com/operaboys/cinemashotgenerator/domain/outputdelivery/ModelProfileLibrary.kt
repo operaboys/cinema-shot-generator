@@ -4,7 +4,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
 // واحد ۱۴ — Output Delivery System (بخش الف: Model Profile Library)
-// منبع حقیقت: docs/blueprints/14-output-delivery.md
+// منبع حقیقت: docs/blueprints/14-output-delivery-v2.md (نسخه ۳)
 
 data class ModelCapabilities(
     val supportsVideo: Boolean,

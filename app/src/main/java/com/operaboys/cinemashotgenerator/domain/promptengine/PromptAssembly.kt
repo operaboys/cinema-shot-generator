@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.promptengine
 
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.shot.resolveNegativePrompt
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import java.util.UUID
 
@@ -11,6 +12,13 @@ import java.util.UUID
 // تا conflictsResolved/warnings از خروجی واقعی واحد ۰۷ پر شوند، نه هاردکد 0/emptyList
 // (بلوپرینت این دو را TODO آینده گذاشته بود؛ چون واحد ۰۷ از قبل کامل پیاده شده، پر
 // کردن واقعی همین‌جا ممکن و منطقی بود). جزئیات در ADR-012.
+//
+// MIGRATED (docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md):
+// resolveNegativePrompt (واحد ۰۵، ADR-028) اینجا فراخوانی می‌شود — این تابع همان‌جا
+// نوشته شده بود اما تا این قدم به هیچ فیلد واقعی وصل نشده بود. این‌جا محل منطقی
+// فراخوانی است چون input.shot و input.dna.qualityDirectives هر دو از قبل در دسترس‌اند
+// و assemblePromptBlueprint همان لایه‌ای است که بقیه‌ی مقادیر Resolve‌شده (seed،
+// conflictsResolved) را هم می‌سازد.
 
 /** تابع اصلی مونتاژ PromptBlueprint از داده‌ی جمع‌آوری‌شده. */
 fun assemblePromptBlueprint(
@@ -57,7 +65,8 @@ fun assemblePromptBlueprint(
         weightedEmphasis = collectWeightedEmphasis(weightedTags),
         seed = manageSeed(input.shot.shotId, useSeed, null),
         conflictsResolved = conflictResolution.conflictsResolved,
-        warnings = conflictResolution.warnings
+        warnings = conflictResolution.warnings,
+        negativePrompt = resolveNegativePrompt(input.shot, input.dna.qualityDirectives.negativePrompt)
     )
 }
 

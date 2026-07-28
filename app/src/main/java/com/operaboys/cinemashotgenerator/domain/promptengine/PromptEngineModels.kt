@@ -63,6 +63,17 @@ data class StructuredParts(
     val audioDescription: String? // از Ambient/Action خودکار + Character دستی
 )
 
+/**
+ * MIGRATED (docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md):
+ * negativePrompt تکمیل‌کننده‌ی ADR-028 (واحد ۰۵) است — آنجا resolveNegativePrompt
+ * نوشته شد اما به هیچ فیلد واقعی در مسیر Blueprint→Render وصل نشده بود. اینجا اضافه
+ * شد چون PromptBlueprint (نه PromptGenerationInput) خروجی «نهاییِ Resolve‌شده»ی
+ * واحد ۱۱ است — دقیقاً همان الگویی که conflictsResolved/warnings/seed از قبل
+ * دنبال می‌کنند (مقدار خام در PromptGenerationInput می‌ماند، مقدار Resolve‌شده در
+ * PromptBlueprint می‌نشیند). پیش‌فرض "" (نه null) چون resolveNegativePrompt خودش
+ * هم همیشه String غیر-nullable برمی‌گرداند (fallback به‌ dna.qualityDirectives.negativePrompt
+ * که پیش‌فرضش "" است، نه null).
+ */
 data class PromptBlueprint(
     val promptBlueprintId: String,
     val shotId: String,
@@ -71,5 +82,6 @@ data class PromptBlueprint(
     val weightedEmphasis: Map<String, Float>,
     val seed: Int?,
     val conflictsResolved: Int,
-    val warnings: List<ValidationIssue>
+    val warnings: List<ValidationIssue>,
+    val negativePrompt: String = ""
 )

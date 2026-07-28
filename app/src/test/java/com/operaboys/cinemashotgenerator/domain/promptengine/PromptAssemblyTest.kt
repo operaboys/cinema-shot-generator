@@ -31,6 +31,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
 import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.dna.QualityDirectives
 import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
@@ -245,5 +246,32 @@ class PromptAssemblyTest {
         )
 
         assertNull(blueprint.structuredParts.environmentSpecs)
+    }
+
+    // --- negativePrompt (docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md، تکمیل ADR-028) ---
+
+    @Test
+    fun `assemblePromptBlueprint falls back to the DNA default negativePrompt when the shot has no override`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(dna = sampleDna().copy(qualityDirectives = QualityDirectives(negativePrompt = "blurry, low quality"))),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+        assertEquals("blurry, low quality", blueprint.negativePrompt)
+    }
+
+    @Test
+    fun `assemblePromptBlueprint uses the shot's negativePromptOverride over the DNA default`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(
+                shot = sampleShot().copy(negativePromptOverride = "watermark"),
+                dna = sampleDna().copy(qualityDirectives = QualityDirectives(negativePrompt = "blurry, low quality"))
+            ),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+        assertEquals("watermark", blueprint.negativePrompt)
     }
 }

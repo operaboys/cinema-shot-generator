@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.outputdelivery
 
 import com.operaboys.cinemashotgenerator.domain.promptengine.PromptBlueprint
+import com.operaboys.cinemashotgenerator.domain.shot.ImageReference
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlinx.serialization.json.buildJsonObject
@@ -8,7 +9,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 // واحد ۱۴ — Output Delivery System (بخش الف: Renderer)
-// منبع حقیقت: docs/blueprints/14-output-delivery.md
+// منبع حقیقت: docs/blueprints/14-output-delivery-v2.md (نسخه ۳)
 //
 // PromptBlueprint/StructuredParts از domain.promptengine (واحد ۱۱، از قبل پیاده‌شده)
 // import شده‌اند — بدون بازتعریف. تمام فیلدهای structuredParts که این فایل می‌خواند
@@ -20,6 +21,30 @@ import kotlinx.serialization.json.putJsonObject
 // کامل تصمیمات در docs/adr/025-unit14-renderer-json-and-weighting-deviations.md.
 // import مستقیم kotlinx.serialization.json در لایه‌ی domain/ طبق تصمیم صریح معمار
 // همین قدم است (نه یک الگوی عمومی جدید برای این پروژه).
+//
+// MIGRATED (docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md):
+// buildReferenceImageInstruction اضافه شد (دقیقاً طبق کد مفهومی بلوپرینت نسخه ۳)؛
+// negativePrompt (تکمیل ADR-028) در هر دو مسیر متن/JSON فقط وقتی
+// capabilities.supportsNegativePrompt=true باشد اعمال می‌شود — طبق تصریح بلوپرینت
+// «در مدل‌هایی که پشتیبانی نمی‌کنند، بی‌صدا نادیده گرفته می‌شود، نه خطا».
+
+/**
+ * 🆕 اگر Shot به Asset هایی با تصویر رفرنس متصل است و مدل هدف پشتیبانی می‌کند، یک
+ * جمله‌ی دستوری کلی (نه نام فایل) تولید می‌کند. کاملاً مستقل و قابل‌تست، جدا از
+ * renderBlueprintToText — بدون وابستگی به I/O یا فایل واقعی.
+ */
+fun buildReferenceImageInstruction(
+    imageReferences: List<ImageReference>,
+    profile: ModelProfile
+): String? {
+    if (imageReferences.isEmpty()) return null
+    if (!profile.capabilities.supportsImagePrompt) return null
+
+    return if (imageReferences.size == 1)
+        "use the attached reference image for this subject's appearance"
+    else
+        "use the attached reference images for these subjects' appearances"
+}
 
 /** قلب Renderer: تبدیل structured_parts به یک متن پایه بر اساس ترجیح ساختاری پروفایل. */
 fun renderBlueprintToText(blueprint: PromptBlueprint, profile: ModelProfile): String {
@@ -31,6 +56,14 @@ fun renderBlueprintToText(blueprint: PromptBlueprint, profile: ModelProfile): St
 
     if (parts.timelineBeats != null && profile.capabilities.supportsVideo) segments += "Timeline: ${parts.timelineBeats}"
     if (parts.audioDescription != null && profile.capabilities.supportsVideo) segments += "Audio: ${parts.audioDescription}"
+    if (blueprint.negativePrompt.isNotBlank() && profile.capabilities.supportsNegativePrompt) {
+        segments += "Negative prompt: ${blueprint.negativePrompt}"
+    }
+
+    // 🆕 دستور استفاده از عکس رفرنس — همیشه نزدیک ابتدای توصیف سوژه اضافه می‌شود، نه
+    // انتهای پرامپت، چون این یک دستور راهنمای ادراک بصری است، نه یک جزئیات فرعی.
+    val referenceInstruction = buildReferenceImageInstruction(blueprint.imageReferences, profile)
+    if (referenceInstruction != null) segments.add(1, referenceInstruction)
 
     var text = segments.joinToString(if (profile.format.structure == "paragraph") ". " else ", ")
 
@@ -109,6 +142,9 @@ private fun buildJsonPrompt(blueprint: PromptBlueprint, profile: ModelProfile): 
             putJsonObject("weightedEmphasis") {
                 blueprint.weightedEmphasis.forEach { (tag, weight) -> put(tag, weight) }
             }
+        }
+        if (profile.capabilities.supportsNegativePrompt && blueprint.negativePrompt.isNotBlank()) {
+            put("negativePrompt", blueprint.negativePrompt)
         }
     }.toString()
 }

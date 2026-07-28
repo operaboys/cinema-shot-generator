@@ -2,6 +2,7 @@ package com.operaboys.cinemashotgenerator.domain.outputdelivery
 
 import com.operaboys.cinemashotgenerator.domain.promptengine.PromptBlueprint
 import com.operaboys.cinemashotgenerator.domain.promptengine.StructuredParts
+import com.operaboys.cinemashotgenerator.domain.shot.ImageReference
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -32,17 +33,23 @@ class RendererTest {
 
     private fun blueprint(
         parts: StructuredParts = structuredParts(),
-        weightedEmphasis: Map<String, Float> = emptyMap()
+        weightedEmphasis: Map<String, Float> = emptyMap(),
+        imageReferences: List<ImageReference> = emptyList(),
+        negativePrompt: String = ""
     ) = PromptBlueprint(
         promptBlueprintId = "prompt_001",
         shotId = "shot_001",
         structuredParts = parts,
-        imageReferences = emptyList(),
+        imageReferences = imageReferences,
         weightedEmphasis = weightedEmphasis,
         seed = null,
         conflictsResolved = 0,
-        warnings = emptyList()
+        warnings = emptyList(),
+        negativePrompt = negativePrompt
     )
+
+    private fun sampleImageReference(id: String = "ref_1") =
+        ImageReference(type = "character", localFilePath = "/storage/$id.jpg", description = "front-facing reference")
 
     private val videoCapableProfile = ModelProfile(
         profileId = "veo_3_1",
@@ -57,6 +64,14 @@ class RendererTest {
 
     private val noVideoProfile = videoCapableProfile.copy(
         capabilities = videoCapableProfile.capabilities.copy(supportsVideo = false)
+    )
+
+    private val imagePromptProfile = videoCapableProfile.copy(
+        capabilities = videoCapableProfile.capabilities.copy(supportsImagePrompt = true)
+    )
+
+    private val negativePromptProfile = videoCapableProfile.copy(
+        capabilities = videoCapableProfile.capabilities.copy(supportsNegativePrompt = true)
     )
 
     // --- renderBlueprintToText ---
@@ -255,5 +270,104 @@ class RendererTest {
         val issue = validatePromptLength(rendered.formattedPrompt, tightProfile)
 
         assertEquals(Severity.WARNING, issue!!.severity)
+    }
+
+    // --- buildReferenceImageInstruction (docs/adr/030-unit14-reference-image-and-negative-prompt-migration.md) ---
+
+    @Test
+    fun `buildReferenceImageInstruction returns null when imageReferences is empty`() {
+        assertNull(buildReferenceImageInstruction(emptyList(), imagePromptProfile))
+    }
+
+    @Test
+    fun `buildReferenceImageInstruction returns null when the profile does not support image prompts`() {
+        assertNull(buildReferenceImageInstruction(listOf(sampleImageReference()), videoCapableProfile))
+    }
+
+    @Test
+    fun `buildReferenceImageInstruction returns singular phrasing for exactly one reference image`() {
+        val instruction = buildReferenceImageInstruction(listOf(sampleImageReference()), imagePromptProfile)
+        assertEquals("use the attached reference image for this subject's appearance", instruction)
+    }
+
+    @Test
+    fun `buildReferenceImageInstruction returns plural phrasing for multiple reference images`() {
+        val instruction = buildReferenceImageInstruction(
+            listOf(sampleImageReference("ref_1"), sampleImageReference("ref_2")),
+            imagePromptProfile
+        )
+        assertEquals("use the attached reference images for these subjects' appearances", instruction)
+    }
+
+    @Test
+    fun `buildReferenceImageInstruction never includes the file path or file name`() {
+        val instruction = buildReferenceImageInstruction(listOf(sampleImageReference("ref_1")), imagePromptProfile)
+        assertFalse(instruction!!.contains("ref_1"))
+        assertFalse(instruction.contains(".jpg"))
+    }
+
+    // --- renderBlueprintToText: تزریق دستور عکس رفرنس در جایگاه دوم segments ---
+
+    @Test
+    fun `renderBlueprintToText inserts the reference image instruction near the start, not at the end`() {
+        val bp = blueprint(imageReferences = listOf(sampleImageReference()))
+        val text = renderBlueprintToText(bp, imagePromptProfile)
+
+        // مقایسه‌ی صریح قبل/بعد طبق الزام دستور کار: قبل از این Migration، هیچ سناریوی
+        // imageReferences غیرخالی در RendererTest.kt پوشش داده نشده بود (blueprint()
+        // همیشه emptyList داشت) — پس این یک تست کاملاً جدید است، نه اصلاح یک انتظار
+        // قدیمی. متن اکنون باید بلافاصله بعد از subjectDescription این جمله را داشته باشد.
+        val expectedTextWithoutInstruction = renderBlueprintToText(bp.copy(imageReferences = emptyList()), imagePromptProfile)
+        assertTrue(text.contains("use the attached reference image for this subject's appearance"))
+        assertTrue(text.startsWith("a detective. use the attached reference image for this subject's appearance"))
+        assertFalse(expectedTextWithoutInstruction.contains("use the attached reference image"))
+    }
+
+    @Test
+    fun `renderBlueprintToText omits the reference image instruction when the profile does not support it`() {
+        val bp = blueprint(imageReferences = listOf(sampleImageReference()))
+        val text = renderBlueprintToText(bp, videoCapableProfile)
+        assertFalse(text.contains("use the attached reference image"))
+    }
+
+    // --- negativePrompt (تکمیل ADR-028): فقط وقتی مدل پشتیبانی می‌کند اعمال می‌شود ---
+
+    @Test
+    fun `renderBlueprintToText includes negative prompt when the profile supports it`() {
+        val bp = blueprint(negativePrompt = "blurry, low quality")
+        val text = renderBlueprintToText(bp, negativePromptProfile)
+        assertTrue(text.contains("Negative prompt: blurry, low quality"))
+    }
+
+    @Test
+    fun `renderBlueprintToText silently omits negative prompt when the profile does not support it`() {
+        val bp = blueprint(negativePrompt = "blurry, low quality")
+        val text = renderBlueprintToText(bp, videoCapableProfile)
+        assertFalse(text.contains("Negative prompt"))
+    }
+
+    @Test
+    fun `renderBlueprintToText omits negative prompt segment when it is blank, even if the profile supports it`() {
+        val bp = blueprint(negativePrompt = "")
+        val text = renderBlueprintToText(bp, negativePromptProfile)
+        assertFalse(text.contains("Negative prompt"))
+    }
+
+    @Test
+    fun `render with a json profile includes negativePrompt when the profile supports it`() {
+        val bp = blueprint(negativePrompt = "blurry, low quality")
+        val jsonNegativeProfile = negativePromptProfile.copy(format = ModelFormat(type = "json", structure = "paragraph"))
+        val rendered = render(bp, jsonNegativeProfile)
+
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertEquals("blurry, low quality", parsed.getValue("negativePrompt").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `render with a json profile omits negativePrompt when the profile does not support it`() {
+        val bp = blueprint(negativePrompt = "blurry, low quality")
+        val rendered = render(bp, videoCapableProfile) // videoCapableProfile.supportsNegativePrompt == false
+        val parsed = Json.parseToJsonElement(rendered.formattedPrompt).jsonObject
+        assertFalse(parsed.containsKey("negativePrompt"))
     }
 }
