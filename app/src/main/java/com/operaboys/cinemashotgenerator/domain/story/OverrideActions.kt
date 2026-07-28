@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 // واحد ۰۱ — عملیات Human Override (بخش ب، قوانین ۱ تا ۳)
-// منبع حقیقت: docs/blueprints/01-story-and-override.md
+// منبع حقیقت: docs/blueprints/01-story-and-override-v2.md (نسخه ۴)
 
 /** رویداد Override برای ثبت در State & Versioning (واحد ۱۲). */
 data class OverrideEvent(

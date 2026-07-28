@@ -1,7 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.story
 
 // واحد ۰۱ — Human Override (بخش ب)
-// منبع حقیقت: docs/blueprints/01-story-and-override.md
+// منبع حقیقت: docs/blueprints/01-story-and-override-v2.md (نسخه ۴)
 
 enum class OverrideType { ARTISTIC, NARRATIVE, VISUAL, TECHNICAL }
 

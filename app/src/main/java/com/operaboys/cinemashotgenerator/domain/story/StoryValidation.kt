@@ -5,7 +5,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
 // واحد ۰۱ — قوانین اعتبارسنجی Story Wizard (Rule 1 تا Rule 4)
-// منبع حقیقت: docs/blueprints/01-story-and-override.md
+// منبع حقیقت: docs/blueprints/01-story-and-override-v2.md (نسخه ۴)
 //
 // MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
 // یک ValidationIssue/ValidationResult محلی داشت (ثبت‌شده در ADR-001)؛ اکنون از
