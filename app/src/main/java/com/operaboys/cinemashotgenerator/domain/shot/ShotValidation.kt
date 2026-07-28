@@ -4,12 +4,19 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.validateBeatSheetTimeline
 
-// واحد ۰۵ — قوانین اعتبارسنجی Shot (Rule 1 تا Rule 4؛ Rule 5 ساختاری، پایین توضیح داده شده)
-// منبع حقیقت: docs/blueprints/05-shot-engine.md
+// واحد ۰۵ — قوانین اعتبارسنجی Shot (Rule 1 تا Rule 4؛ Rule 5 ساختاری، پایین توضیح داده شده؛
+// Rule 8 اضافه‌شده در Migration بعدی — رفع F9 ممیزی pre-Unit 16)
+// منبع حقیقت: docs/blueprints/05-shot-engine.md، docs/blueprints/05-shot-engine-v2.md (Rule 8)
 //
 // همه‌ی توابع این فایل از ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کنند —
 // ادامه‌ی همان تصمیم تأییدشده در واحد ۰۳ (docs/adr/005-...) که برای کد جدید،
 // استفاده از نوع سراسری موجود به‌جای ساخت نوع محلی دیگر ترجیح دارد.
+//
+// NOTE: این فایل هیچ تابع تجمیع‌کننده‌ی سطح‌بالا (validateShot) ندارد — هر Rule
+// مستقل و جداگانه فراخوانی می‌شود (تأییدشده با grep،
+// docs/adr/040-unit05-unit08-type-registry-negative-prompt-rule8.md). Rule 8 هم به
+// همین شکل مستقل اضافه شد؛ سیم‌کشی به یک جریان Validation واقعی (مثلاً هنگام Save
+// شات در واحد ۱۶) کار آینده است.
 
 /** Rule 1 (Blocking): shot_description حداقل ۱۰ کاراکتر. */
 fun validateShotDescription(shotDescription: String): ValidationIssue? {
@@ -66,6 +73,25 @@ fun validateImageReferenceFile(localFilePath: String, fileExists: (String) -> Bo
             Severity.BLOCKING,
             field = "local_file_path",
             message = "فایل رفرنس تصویر پیدا نشد: $localFilePath"
+        )
+    }
+    return null
+}
+
+/**
+ * Rule 8 (Warning): negative_prompt_override، اگر null نباشد، نباید کاملاً
+ * whitespace-only باشد (رفع F9 ممیزی pre-Unit 16، docs/blueprints/05-shot-engine-v2.md:272).
+ * `null` یک حالت کاملاً معتبر است (یعنی از DNA پروژه ارث می‌برد —
+ * `resolveNegativePrompt`)؛ این Rule فقط زمانی فعال می‌شود که کاربر صریحاً یک
+ * Override نوشته باشد اما آن مقدار بی‌معنی باشد.
+ */
+fun validateNegativePromptOverride(shot: Shot): ValidationIssue? {
+    val override = shot.negativePromptOverride ?: return null
+    if (override.isBlank()) {
+        return ValidationIssue(
+            Severity.WARNING,
+            field = "negative_prompt_override",
+            message = "negative_prompt_override فقط فاصله‌ی خالی است — یا آن را حذف کن تا از DNA پروژه ارث ببرد، یا یک مقدار معنادار وارد کن"
         )
     }
     return null

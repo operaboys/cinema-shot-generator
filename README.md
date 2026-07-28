@@ -279,6 +279,27 @@ Scene رد شد — با grep تأیید شد `Shot.locationIds: List<String>` �
 همان الگوی F1 — پس نیازی به تغییر در آن نبود. جزئیات کامل در
 `docs/adr/039-unit03-unit08-mood-type-safety-migration.md`.
 
+### 🎯 نقطه‌ی عطف: اصلاح مستندسازی + Rule 8 — رفع یافته‌های F7، F8، F9 ممیزی pre-Unit 16
+
+سه یافته‌ی کوچک و مستقل با هم رفع شدند:
+
+- **F7 (`type-registry.md`، ردیف `LightingSettings`):** فیلد جاافتاده‌ی
+  `lightSourceCount` اضافه و نام اشتباه `motivation` به `lightingMotivation`
+  اصلاح شد — ردیف اکنون دقیقاً با ۸ فیلد واقعی `LightingModels.kt` (به همان
+  ترتیب) یکی است.
+- **F8 (`type-registry.md`، ردیف `EnvironmentSettings`):** فیلد نادرست/بی‌ربط
+  `locationType` (که هیچ‌جا در `EnvironmentSettings` واقعی وجود نداشت) حذف شد؛
+  `windStrength` و `environmentalMotion` (هر دو کاملاً غایب از سند بودند) اضافه
+  شدند — ردیف اکنون دقیقاً با ۷ فیلد واقعی `EnvironmentModels.kt` یکی است.
+- **F9 (`ShotValidation.kt`، Rule 8 جدید):** `validateNegativePromptOverride(shot)`
+  اضافه شد — طبق `docs/blueprints/05-shot-engine-v2.md:272`، `negative_prompt_override`
+  اگر `null` نباشد نباید whitespace-only باشد (Warning). **یافته‌ی جانبی مستند
+  (نه رفع‌شده):** این فایل هیچ تابع تجمیع‌کننده‌ی سطح‌بالا (`validateShot`) ندارد —
+  هر ۵ Rule (شامل Rule 8 جدید) مستقل فراخوانی می‌شوند؛ سیم‌کشی به یک جریان
+  Validation واقعی به لایه‌ی UI آینده (واحد ۱۶) موکول است.
+
+جزئیات کامل در `docs/adr/040-unit05-unit08-type-registry-negative-prompt-rule8.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

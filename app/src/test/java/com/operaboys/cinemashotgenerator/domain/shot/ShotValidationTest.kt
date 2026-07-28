@@ -74,4 +74,35 @@ class ShotValidationTest {
     fun `rule4 existing file is valid`() {
         assertNull(validateImageReferenceFile("/storage/ref.jpg", fileExists = { true }))
     }
+
+    // --- Rule 8 (رفع F9 ممیزی pre-Unit 16) ---
+
+    private fun baseShot(negativePromptOverride: String?) = Shot(
+        shotId = "shot_001",
+        sceneId = "scene_001",
+        shotNumber = 1,
+        shotDescription = "A detective walks into a dimly lit office",
+        shotGoal = ShotGoal.ESTABLISHING,
+        shotType = ShotType.WIDE,
+        durationSeconds = 4f,
+        motionLevel = MotionLevel.MODERATE,
+        soundProfile = SoundProfile(enabled = true),
+        negativePromptOverride = negativePromptOverride
+    )
+
+    @Test
+    fun `rule8 null override is valid (inherits from DNA)`() {
+        assertNull(validateNegativePromptOverride(baseShot(negativePromptOverride = null)))
+    }
+
+    @Test
+    fun `rule8 a meaningful override is valid`() {
+        assertNull(validateNegativePromptOverride(baseShot(negativePromptOverride = "blurry, low quality")))
+    }
+
+    @Test
+    fun `rule8 a whitespace-only override warns`() {
+        val issue = validateNegativePromptOverride(baseShot(negativePromptOverride = "   "))
+        assertEquals(Severity.WARNING, issue!!.severity)
+    }
 }

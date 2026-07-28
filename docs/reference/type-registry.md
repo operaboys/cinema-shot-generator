@@ -138,8 +138,8 @@
 | `Beat` | data class | timestampSeconds, eventType, description, subjectId | ✅ |
 | `SettingsSource` | enum | SCENE, OVERRIDE | ✅🔧 جدید |
 | `SourcedSettings<T>` | data class | source: SettingsSource, settings: T | ✅🔧 جدید — قبلاً فقط در متن نثر واحد ۱۱ ارجاع می‌شد، هیچ‌جا تعریف نشده بود |
-| `LightingSettings` | data class | style: LightingStyle, keyLightPosition, fillLight, contrastRatio, shadowQuality, colorTemperature, motivation | ✅🔧 جدید — تایپ گمشده‌ی بحرانی، حالا تعریف کامل شد |
-| `EnvironmentSettings` | data class | weatherType, weatherIntensity, locationType, groundState, visibility, temperatureFeel | ✅🔧 جدید — تایپ گمشده‌ی بحرانی، حالا تعریف کامل شد |
+| `LightingSettings` | data class | style: LightingStyle, keyLightPosition, contrastRatio, fillLight, colorTemperature, shadowQuality, lightSourceCount, lightingMotivation | ✅🔧 رفع F7 ممیزی pre-Unit 16 — `lightSourceCount` (جاافتاده) اضافه و نام اشتباه `motivation` به `lightingMotivation` اصلاح شد؛ ترتیب فیلدها اکنون دقیقاً با کد واقعی یکی است |
+| `EnvironmentSettings` | data class | weatherType, weatherIntensity, windStrength, groundState, visibility, temperatureFeel, environmentalMotion | ✅🔧 رفع F8 ممیزی pre-Unit 16 — `locationType` (نام اشتباه/بی‌ربط، متعلق به `domain.scene.LocationType`) حذف شد؛ `windStrength` و `environmentalMotion` (هر دو کاملاً غایب بودند) اضافه شدند |
 | `ImageReference` | data class | type, localFilePath, description | ✅ (تفاوتش با `ReferenceImage` واحد ۰۶ — فیلد `type` اضافه — عمدی و مستند است، نه تناقض) |
 | `AmbientSound` | data class | type, intensity, description, source | ✅🔧 فیلد `source` اضافه شد — اکنون کاملاً هم‌ساختار با `AmbientSound` واحد ۱۰ |
 | `ActionSound` | data class | timestampSeconds, type, description | ✅ (یکسان با واحد ۱۰) |
