@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
@@ -38,7 +39,11 @@ import kotlinx.coroutines.launch
 // AppNavigationTest.kt فاز ۰ از قبل برای WorkflowViewModel استفاده می‌کرد.
 
 @Composable
-fun MainScaffold(workflowViewModel: WorkflowViewModel, projectListViewModel: ProjectListViewModel) {
+fun MainScaffold(
+    workflowViewModel: WorkflowViewModel,
+    projectListViewModel: ProjectListViewModel,
+    storyRepository: StoryRepository? = null
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -100,6 +105,7 @@ fun MainScaffold(workflowViewModel: WorkflowViewModel, projectListViewModel: Pro
                 projectListViewModel = projectListViewModel,
                 onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
                 onShowMessage = { message -> coroutineScope.launch { snackbarHostState.showSnackbar(message) } },
+                storyRepository = storyRepository,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

@@ -12,6 +12,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
@@ -81,7 +82,11 @@ class AppNavigationTest {
     private fun setContentUnderTest() {
         composeRule.setContent {
             CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
-                MainScaffold(workflowViewModel = workflowViewModel, projectListViewModel = projectListViewModel)
+                MainScaffold(
+                    workflowViewModel = workflowViewModel,
+                    projectListViewModel = projectListViewModel,
+                    storyRepository = StoryRepository(database.storyDao())
+                )
             }
         }
     }

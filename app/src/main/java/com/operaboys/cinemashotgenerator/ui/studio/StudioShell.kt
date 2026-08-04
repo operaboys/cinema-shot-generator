@@ -26,19 +26,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTopTabRow
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.story.StoryTabContent
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 
 // واحد ۱۶ فاز ۱ — Studio Shell طبق دستور کار بخش ج: Header (برگشت، عنوان، زیرعنوان
-// شمارش صحنه/شات، چیپ «ذخیره شد») + ۴ Tab (فاز ۰، اینجا واقعاً به محتوا وصل شدند) —
-// هرکدام فقط Placeholder («این بخش در فاز بعدی تکمیل می‌شود»)؛ محتوای واقعی هر Tab
-// در فازهای ۲ تا ۵ است.
+// شمارش صحنه/شات، چیپ «ذخیره شد») + ۴ Tab (فاز ۰، اینجا واقعاً به محتوا وصل شدند).
+// MIGRATED (واحد ۱۶ فاز ۲، قدم ۱): Tab «داستان» اکنون محتوای واقعی دارد
+// (StoryTabContent)؛ بقیه (DNA/صحنه‌ها/خروجی) همچنان Placeholder («این بخش در فاز
+// بعدی تکمیل می‌شود») — کار فازهای ۲ (ادامه) تا ۵.
 //
 // بازساختاردهی نسبت به فاز ۰ (مستند در ADR-044): StudioTopTabRow قبلاً در
 // MainScaffold (بیرون از Navigation Graph) رندر می‌شد، بدون این‌که به محتوای واقعی
@@ -56,7 +59,8 @@ fun StudioShell(
     workflowViewModel: WorkflowViewModel,
     projectListViewModel: ProjectListViewModel,
     onBack: () -> Unit,
-    onWarning: (String) -> Unit
+    onWarning: (String) -> Unit,
+    storyRepository: StoryRepository? = null
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
@@ -90,7 +94,17 @@ fun StudioShell(
             onTabSelected = { selectedTab = it },
             onWarning = onWarning
         )
-        StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())
+        if (selectedTab == StudioTab.STORY) {
+            StoryTabContent(
+                projectId = projectId,
+                projectListViewModel = projectListViewModel,
+                language = language,
+                storyRepository = storyRepository,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 

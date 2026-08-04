@@ -6,6 +6,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.assets.AssetsScreen
 import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
@@ -25,6 +26,7 @@ fun AppNavHost(
     projectListViewModel: ProjectListViewModel,
     onOpenDrawer: () -> Unit,
     onShowMessage: (String) -> Unit,
+    storyRepository: StoryRepository? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -56,7 +58,8 @@ fun AppNavHost(
                     val target = resolveContextualBackTarget(Studio::class.qualifiedName) ?: Home
                     navController.navigate(target) { launchSingleTop = true }
                 },
-                onWarning = onShowMessage
+                onWarning = onShowMessage,
+                storyRepository = storyRepository
             )
         }
         composable<Assets> {

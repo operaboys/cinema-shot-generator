@@ -18,6 +18,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -71,6 +72,14 @@ import java.util.UUID
 // Viewport فعلی باشد. `ProjectListSection` (در Home/Projects) همچنین
 // `Modifier.weight(1f)` گرفت تا صریحاً فضای باقی‌مانده‌ی Column میزبان را بگیرد —
 // یک بهبود درست و Idiomatic مستقل، هرچند علت اصلی شکست تست نبود.
+//
+// یافته‌ی چهارم (واحد ۱۶ فاز ۲، قدم ۱): از وقتی Tab «داستان» محتوای واقعی گرفت،
+// فیلد عنوان آن (StoryTabContent) هم نام پروژه را نشان می‌دهد — یعنی بلافاصله بعد
+// از ایجاد سریع (وقتی هنوز داخل Studio با Tab داستان پیش‌فرض هستیم)، هم Header
+// استودیو و هم این فیلد عنوان نام یکسانی دارند؛ `waitUntilExactlyOneExists` در این
+// لحظه هرگز به «دقیقاً یک» نمی‌رسد. رفع شد با `waitUntilAtLeastOneExists` (همان
+// راه‌حلی که در StoryTabFlowTest.kt هم استفاده شده) — اینجا فقط «داده بارگذاری شده»
+// مهم است، نه شمارش دقیق گره‌ها.
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -106,7 +115,11 @@ class HomeProjectsStudioFlowTest {
 
         composeRule.setContent {
             CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
-                MainScaffold(workflowViewModel = workflowViewModel, projectListViewModel = projectListViewModel)
+                MainScaffold(
+                    workflowViewModel = workflowViewModel,
+                    projectListViewModel = projectListViewModel,
+                    storyRepository = StoryRepository(database.storyDao())
+                )
             }
         }
     }
@@ -122,7 +135,7 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
         composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("My First Movie")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilExactlyOneExists(hasText("My First Movie"), timeoutMillis = 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasText("My First Movie"), timeoutMillis = 5_000)
 
         // ایجاد سریع خودکار وارد Studio همان پروژه می‌شود — برای بازدید Home/Projects
         // اول باید با نوار پایین برگردیم.
@@ -138,7 +151,7 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
         composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("Studio Test Project")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilExactlyOneExists(hasText("Studio Test Project"), timeoutMillis = 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasText("Studio Test Project"), timeoutMillis = 5_000)
 
         // برای تست واقعی «ورود به Studio از یک کارت پروژه» (نه از خودِ ایجاد سریع)،
         // اول به Home برمی‌گردیم و بعد صریحاً روی کارت کلیک می‌کنیم.
@@ -159,7 +172,7 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
         composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("To Be Deleted")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilExactlyOneExists(hasText("To Be Deleted"), timeoutMillis = 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasText("To Be Deleted"), timeoutMillis = 5_000)
 
         composeRule.onNodeWithTag(BOTTOM_NAV_HOME_TAG).performClick()
         composeRule.onNodeWithText("To Be Deleted").assertIsDisplayed()

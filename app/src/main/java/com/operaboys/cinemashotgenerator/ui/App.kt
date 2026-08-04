@@ -4,11 +4,14 @@ import android.app.Application
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
@@ -35,6 +38,11 @@ fun App() {
     val application = LocalContext.current.applicationContext as Application
     val workflowViewModel: WorkflowViewModel = viewModel(factory = WorkflowViewModel.factory(application))
     val projectListViewModel: ProjectListViewModel = viewModel(factory = ProjectListViewModel.factory(application))
+    // واحد ۱۶ فاز ۲ — قدم ۱: هم‌الگو با workflowViewModel/projectListViewModel — یک
+    // نمونه‌ی مشترک ساخته و به کل درخت تزریق می‌شود (نه هر Composable مصرف‌کننده
+    // خودش از AppDatabase.getInstance بسازد)، دقیقاً برای همان دلیل تست‌پذیری —
+    // جزئیات کامل در docs/adr/045-unit16-phase2-step1-story-tab.md.
+    val storyRepository = remember { StoryRepository(AppDatabase.getInstance(application).storyDao()) }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -43,7 +51,11 @@ fun App() {
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
         CinemaShotGeneratorTheme(darkTheme = theme == AppTheme.DARK, language = language) {
-            MainScaffold(workflowViewModel = workflowViewModel, projectListViewModel = projectListViewModel)
+            MainScaffold(
+                workflowViewModel = workflowViewModel,
+                projectListViewModel = projectListViewModel,
+                storyRepository = storyRepository
+            )
         }
     }
 }

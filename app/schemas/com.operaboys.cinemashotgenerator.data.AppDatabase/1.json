@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "ee68ad1d289586e48177b9b44567317d",
+    "identityHash": "8fdbae7d90815d3513359ad252ce60d8",
     "entities": [
       {
         "tableName": "projects",
@@ -652,11 +652,89 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "story_context",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`projectId` TEXT NOT NULL, `storyType` TEXT NOT NULL, `genre` TEXT NOT NULL, `moodPrimary` TEXT NOT NULL, `moodSecondary` TEXT, `narrativeIntensity` TEXT NOT NULL, `visualIntent` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `completionStatus` TEXT NOT NULL, PRIMARY KEY(`projectId`), FOREIGN KEY(`projectId`) REFERENCES `projects`(`projectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyType",
+            "columnName": "storyType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "genre",
+            "columnName": "genre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moodPrimary",
+            "columnName": "moodPrimary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moodSecondary",
+            "columnName": "moodSecondary",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "narrativeIntensity",
+            "columnName": "narrativeIntensity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visualIntent",
+            "columnName": "visualIntent",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completionStatus",
+            "columnName": "completionStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "projectId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "projects",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "projectId"
+            ],
+            "referencedColumns": [
+              "projectId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ee68ad1d289586e48177b9b44567317d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8fdbae7d90815d3513359ad252ce60d8')"
     ]
   }
 }

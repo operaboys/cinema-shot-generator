@@ -16,6 +16,7 @@ import com.operaboys.cinemashotgenerator.data.dao.PromptBlueprintDao
 import com.operaboys.cinemashotgenerator.data.dao.RenderedOutputDao
 import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.dao.ShotDao
+import com.operaboys.cinemashotgenerator.data.dao.StoryDao
 import com.operaboys.cinemashotgenerator.data.dao.VersionDao
 import com.operaboys.cinemashotgenerator.data.entity.AssetEntity
 import com.operaboys.cinemashotgenerator.data.entity.AudioContextEntity
@@ -28,6 +29,7 @@ import com.operaboys.cinemashotgenerator.data.entity.PromptBlueprintEntity
 import com.operaboys.cinemashotgenerator.data.entity.RenderedOutputEntity
 import com.operaboys.cinemashotgenerator.data.entity.SceneEntity
 import com.operaboys.cinemashotgenerator.data.entity.ShotEntity
+import com.operaboys.cinemashotgenerator.data.entity.StoryContextEntity
 import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 
 // واحد ۱۵ — Project Storage System (قدم ۱: Entity/DAO/Database — بدون اتصال به دامنه)
@@ -45,6 +47,9 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 // فهرست نکرده بود — جزئیات در docs/adr/019-unit15-step3a-dna-asset-deviations.md.
 // AudioContextEntity (قدم ۳، زیرقدم ۲): همان دلیل، برای AudioContext — جزئیات در
 // docs/adr/020-unit15-step3b-audio-collectdata-deviations.md.
+// StoryContextEntity (واحد ۱۶ فاز ۲، قدم ۱): همان الگو، برای StoryContext واحد ۰۱
+// که تا این قدم اصلاً هیچ مسیر ذخیره‌سازی‌ای نداشت — جزئیات در
+// docs/adr/045-unit16-phase2-step1-story-tab.md.
 
 @Database(
     entities = [
@@ -59,7 +64,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         DependencyEdgeEntity::class,
         EventLogEntity::class,
         ProjectDnaEntity::class,
-        AudioContextEntity::class
+        AudioContextEntity::class,
+        StoryContextEntity::class
     ],
     version = 1,
     exportSchema = true
@@ -77,6 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eventLogDao(): EventLogDao
     abstract fun projectDnaDao(): ProjectDnaDao
     abstract fun audioContextDao(): AudioContextDao
+    abstract fun storyDao(): StoryDao
     abstract fun projectTransactionDao(): ProjectTransactionDao
 
     companion object {

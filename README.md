@@ -454,6 +454,42 @@ Viewport دیده‌شونده‌ی یک لیست اسکرول‌شونده بد
 **فاز ۱ واحد ۱۶ (App Shell) کامل شد. فاز ۲ (Story→DNA — محتوای واقعی اولین دو Tab
 Studio) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۲، قدم ۱ — لایه‌ی ذخیره‌سازی StoryContext + Story Tab واقعی
+
+قبل از این قدم، `StoryContext` (واحد ۰۱) هیچ مسیر ذخیره‌سازی‌ای نداشت — داستانی
+که کاربر در Story Wizard می‌ساخت با بستن اپ گم می‌شد (همان کلاس باگ قبلاً
+کشف/رفع‌شده در ADR-036/044). این قدم اول رفعش کرد، سپس Tab «داستان» (Placeholder
+فاز ۱) را با محتوای واقعی جایگزین کرد.
+
+- **لایه‌ی داده (جدید):** `data/entity/StoryContextEntity.kt` (فیلدهای مسطح، نه
+  JSON — چون `StoryContext` ساختار تودرتو ندارد؛ `genre: List<Genre>` به‌صورت
+  رشته‌ی جداشده با کاما؛ `projectId` مستقیماً `@PrimaryKey` چون رابطه یک‌به‌یک
+  است و خودِ StoryContext فیلد id ندارد)؛ `data/dao/StoryDao.kt`؛
+  `data/repository/StoryRepository.kt`/`StoryMappers.kt`.
+- **Story Tab:** فیلد عنوان (بازاستفاده از `Project.projectName` موجود، نه فیلد
+  جدید)، فرم StoryType/Genre (چندانتخابی)/MoodPrimary/MoodSecondary/
+  NarrativeIntensity/VisualIntent (Dropdown با enum واقعی دامنه، نه Textarea/سه
+  گزینه طبق یادداشت قدیمی‌تر بلوپرینت که با نوع Kotlin واقعی در تناقض بود)،
+  Auto-Save کاملاً خودکار روی هر تغییر فیلد (بدون دکمه‌ی Submit)، نمایش واقعی
+  اعتبارسنجی‌های `StoryValidation.kt` (Blocking/Warning). Stepper های «هدف تعداد
+  شات»/«ثانیه به‌ازای شات» — State محلی این صفحه (نه Room)، چون واقعاً متعلق به
+  `StoryBreakdownRequest` واحد ۰۱ب هستند، آماده‌ی پاس‌شدن به فاز AI Breakdown.
+- **دو باگ واقعی کشف‌شده حین تست** (نه فرضی): (۱) `StoryViewModel` (ساخته‌شده با
+  `viewModel(factory=...)` داخل یک Composable) بدون تزریق صریح، از
+  `AppDatabase.getInstance()` (Singleton واقعی دستگاه) استفاده می‌کرد، نه
+  دیتابیس In-Memory تست — رفع با تزریق `storyRepository` در کل زنجیره
+  `App.kt`→`MainScaffold`→`AppNavHost`→`StudioShell`→`StoryTabContent` (هم‌الگو
+  با `workflowViewModel`/`projectListViewModel`). (۲) `performClick()` روی
+  `FilterChip`/آیتم‌های `ExposedDropdownMenu` این صفحه «موفق» گزارش می‌شد اما
+  وضعیت واقعی هرگز تغییر نمی‌کرد — رفع با `performSemanticsAction` (API رسمی
+  Compose Testing). جزئیات کامل هر دو در
+  `docs/adr/045-unit16-phase2-step1-story-tab.md`.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۸۱ تست
+(۵۷۵→۵۸۱، ۶ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم ۲ فاز ۲ (AI Story Breakdown + DNA Tab) آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -468,10 +504,10 @@ Studio) آماده‌ی شروع است.**
 
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
-├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵ + ProjectRepository فاز ۱ واحد ۱۶)
-│   ├── entity/ → ۱۲ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext) — ProjectEntity فیلد state گرفت (فاز ۱ واحد ۱۶)
-│   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)؛ ProjectDao.getAllProjectsWithCounts با Correlated Subquery شمارش صحنه/شات
-│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext/Project Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
+├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵ + Project/Story Repository واحد ۱۶)
+│   ├── entity/ → ۱۳ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext/StoryContext) — ProjectEntity فیلد state گرفت (فاز ۱)؛ StoryContextEntity جدید (فاز ۲ قدم ۱، فیلدهای مسطح)
+│   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)؛ ProjectDao.getAllProjectsWithCounts با Correlated Subquery شمارش صحنه/شات؛ StoryDao جدید
+│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext/Project/Story Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
@@ -492,16 +528,17 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── outputdelivery/ → واحد ۱۴: Output Delivery System (Model Profile + Renderer + Composer + Bilingual)
 │   ├── promptfinalization/ → واحد ۱۳: Prompt Finalization Pipeline (Cleaner + Token Calculator)
 │   └── storage/ → واحد ۱۵ (منطق خالص): validateReferentialIntegrity + قوانین جدول
-├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) + فاز ۱ (App Shell) تکمیل‌شده
+├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) + فاز ۱ (App Shell) + فاز ۲ قدم ۱ (Story Tab) تکمیل‌شده
 │   ├── theme/     → Design Tokens واقعی (Color/ExtendedColors/Type/Theme) طبق docs/design/README.md
 │   ├── navigation/ → Navigation دو‌لایه‌ی DDR-002 (MainScaffold/AppNavHost/BottomNavBar/StudioTopTabRow/BackNavigation/NavDrawer)
 │   ├── workflow/  → WorkflowViewModel (language/theme/layout picks با DataStore Preferences، WorkflowState)
 │   ├── project/   → واحد ۱۶ فاز ۱: ProjectListViewModel مشترک Home/Projects + ProjectCard/ProjectListSection
 │   ├── home/      → واحد ۱۶ فاز ۱: HomeScreen (Header/Greeting/Quick-Create/Recent Projects)
-│   ├── studio/    → واحد ۱۶ فاز ۱: StudioShell (Container خالی، ۴ Tab — محتوای واقعی هر Tab کار فازهای ۲ تا ۵)
+│   ├── studio/    → واحد ۱۶ فاز ۱: StudioShell (Header/۴ Tab) — Tab «داستان» فاز ۲ قدم ۱ محتوای واقعی گرفت، بقیه هنوز Placeholder (فازهای ۲ ادامه تا ۵)
+│   ├── story/     → واحد ۱۶ فاز ۲ قدم ۱: StoryViewModel/StoryTabContent/StoryLabels (Tab «داستان» واقعی)
 │   ├── assets/    → واحد ۱۶ فاز ۱: AssetsScreen (Placeholder — فرم‌های واقعی کار فاز ۳)
 │   ├── i18n/      → UiStrings (fa/en با domain.outputdelivery.t() واقعی) + BidiUtils (زیرساخت RTL)
-│   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold)
+│   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold؛ storyRepository مشترک اینجا ساخته می‌شود)
 └── di/      → (خالی، برای بعد)
 
 docs/blueprints/  → بلوپرینت‌های معماری (منبع حقیقت) — قبل از پیاده‌سازی هر واحد بخوانید
