@@ -36,13 +36,19 @@ import kotlinx.serialization.json.Json
 // می‌دارد؛ اینجا همان جداسازی بین Entity Room (که Room/KSP آن را می‌خواند) و DTO
 // سریالایز (که فقط برای فایل Backup لازم است) اعمال شد.
 
+// MIGRATED (واحد ۱۶ فاز ۱، docs/adr/044-unit16-phase1-app-shell.md): فیلد state
+// اضافه شد — بدون این تغییر، وضعیت پروژه (DRAFT/.../ARCHIVED) حین هر Backup/Export/
+// Restore/Duplicate بی‌صدا به پیش‌فرض بازنشانی می‌شد؛ همان الگوی باگ خاموشی که
+// ADR-036/ADR-038 قبلاً پیدا کردند. پیش‌فرض محافظه‌کارانه "DRAFT" (هم‌راستا با
+// ProjectEntity) برای فایل‌های Backup قدیمی‌تر که این فیلد را نداشتند.
 @Serializable
 data class ProjectEntityDto(
     val projectId: String,
     val projectName: String,
     val createdAt: String,
     val lastModified: String,
-    val uiLanguage: String
+    val uiLanguage: String,
+    val state: String = "DRAFT"
 )
 
 @Serializable
@@ -146,8 +152,8 @@ suspend fun restoreProjectFromSnapshot(
     snapshot.projectDna?.let { projectDnaDao.saveProjectDna(it.toEntity()) }
 }
 
-private fun ProjectEntity.toDto() = ProjectEntityDto(projectId, projectName, createdAt, lastModified, uiLanguage)
-private fun ProjectEntityDto.toEntity() = ProjectEntity(projectId, projectName, createdAt, lastModified, uiLanguage)
+private fun ProjectEntity.toDto() = ProjectEntityDto(projectId, projectName, createdAt, lastModified, uiLanguage, state)
+private fun ProjectEntityDto.toEntity() = ProjectEntity(projectId, projectName, createdAt, lastModified, uiLanguage, state)
 
 private fun SceneEntity.toDto() = SceneEntityDto(sceneId, projectId, sceneDataJson)
 private fun SceneEntityDto.toEntity() = SceneEntity(sceneId, projectId, sceneDataJson)

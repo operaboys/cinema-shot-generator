@@ -225,6 +225,29 @@ class BackupManagerTest {
     }
 
     @Test
+    fun `restoreFromBackup preserves a non-default project state (regression for ADR-044's state field)`() = runBlocking {
+        database.projectDao().saveProject(
+            ProjectEntity(projectId, "My Movie", "2026-07-01T00:00:00Z", "2026-07-01T00:00:00Z", "fa", "FINAL")
+        )
+        val createResult = backupManager.createBackup()
+        assertTrue(createResult.isSuccess)
+
+        val freshDatabase = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDatabase::class.java
+        ).allowMainThreadQueries().build()
+        try {
+            val restoreManager = buildManager(freshDatabase, fakeStorage, maxBackupsToKeep = 10, backupId = "fixed_backup_01")
+            assertTrue(restoreManager.restoreFromBackup("fixed_backup_01").isSuccess)
+
+            val restoredProject = freshDatabase.projectDao().loadProject(projectId)
+            assertEquals("FINAL", restoredProject?.state)
+        } finally {
+            freshDatabase.close()
+        }
+    }
+
+    @Test
     fun `restoreFromBackup with an unknown backupId fails`() = runBlocking {
         seedFullProject(database)
         backupManager.createBackup()

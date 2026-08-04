@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -39,6 +40,18 @@ import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 // وابسته به واحد ۱۵) وجود نداشته باشد، هیچ projectId واقعی برای انتخاب نیست.
 internal const val PLACEHOLDER_ACTIVE_PROJECT_ID = "placeholder_active_project"
 
+// یافته‌ی فاز ۱ (docs/adr/044-...md): ModalNavigationDrawer محتوای drawerContent را
+// همیشه در درخت Composition نگه می‌دارد (حتی وقتی بسته است، فقط بیرون از دید
+// Translate می‌شود) — یعنی متن آیتم‌های Drawer (مثل «استودیو»/«دارایی‌ها» که دقیقاً
+// همان برچسب این نوار پایین‌اند) هم‌زمان با این نوار در Semantics Tree حاضرند.
+// جستجوی صرفاً متنی (onNodeWithText) در تست برای چنین برچسب‌های تکراری‌ای Ambiguous
+// می‌شود («۲ گره یافت شد»). راه‌حل استاندارد Compose برای این کلاس مشکل، testTag
+// است، نه تغییر محتوای ترجمه فقط برای فرار از تصادف تست.
+const val BOTTOM_NAV_HOME_TAG = "bottomNav.home"
+const val BOTTOM_NAV_PROJECTS_TAG = "bottomNav.projects"
+const val BOTTOM_NAV_STUDIO_TAG = "bottomNav.studio"
+const val BOTTOM_NAV_ASSETS_TAG = "bottomNav.assets"
+
 @Composable
 fun AppBottomNavBar(
     currentDestination: NavDestination?,
@@ -53,13 +66,15 @@ fun AppBottomNavBar(
                 selected = currentDestination.matches<Home>(),
                 onClick = { onNavigate(Home) },
                 icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                label = { Text(uiString("nav.home", language)) }
+                label = { Text(uiString("nav.home", language)) },
+                modifier = Modifier.testTag(BOTTOM_NAV_HOME_TAG)
             )
             NavigationBarItem(
                 selected = currentDestination.matches<Projects>(),
                 onClick = { onNavigate(Projects) },
                 icon = { Icon(Icons.Filled.Folder, contentDescription = null) },
-                label = { Text(uiString("nav.projects", language)) }
+                label = { Text(uiString("nav.projects", language)) },
+                modifier = Modifier.testTag(BOTTOM_NAV_PROJECTS_TAG)
             )
             // جای خالی زیر FAB مرکزی — خودِ FAB به‌صورت یک لایه‌ی جدا روی این نوار قرار می‌گیرد.
             NavigationBarItem(
@@ -73,13 +88,15 @@ fun AppBottomNavBar(
                 selected = currentDestination.matches<Studio>(),
                 onClick = { onNavigate(Studio(PLACEHOLDER_ACTIVE_PROJECT_ID)) },
                 icon = { Icon(Icons.Filled.Movie, contentDescription = null) },
-                label = { Text(uiString("nav.studio", language)) }
+                label = { Text(uiString("nav.studio", language)) },
+                modifier = Modifier.testTag(BOTTOM_NAV_STUDIO_TAG)
             )
             NavigationBarItem(
                 selected = currentDestination.matches<Assets>(),
                 onClick = { onNavigate(Assets) },
                 icon = { Icon(Icons.Filled.Apps, contentDescription = null) },
-                label = { Text(uiString("nav.assets", language)) }
+                label = { Text(uiString("nav.assets", language)) },
+                modifier = Modifier.testTag(BOTTOM_NAV_ASSETS_TAG)
             )
         }
         FloatingActionButton(

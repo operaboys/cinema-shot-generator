@@ -4,9 +4,9 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence اکنون کامل و به‌طور واقعی به دامنه وصل است؛ هنوز بدون UI واقعی.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک) و فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) کامل شده‌اند، فاز ۲ (Story→DNA) در پیش است.**
 
-Scaffold پروژه (یک صفحه‌ی تست «Hello World») برقرار است. تاکنون لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room و بدون UI) این واحدها پیاده‌سازی شده:
+Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
 - **واحد ۰۱ — Story & Override (تأییدشده هم‌راستا با بلوپرینت نسخه ۴):** `domain/story/` — مدل‌های Story Wizard، قوانین اعتبارسنجی، مدل‌های Human Override. بازبینی این قدم تأیید کرد کد از قبل کاملاً با `docs/blueprints/01-story-and-override-v2.md` (نسخه ۴) هم‌راستا بود (فیلدهای مسطح `moodPrimary`/`moodSecondary`، بدون فرمت تودرتوی قدیمی؛ `Mood` از `domain.dna` طبق ADR-027) — فقط کامنت هدر ۳ فایل (`HumanOverride.kt`, `OverrideActions.kt`, `StoryValidation.kt`) که هنوز به بلوپرینت بدون `-v2` اشاره می‌کردند اصلاح شد.
 - **واحد ۰۱ب — AI Story Breakdown (واحد کاملاً جدید، منطق دامنه کامل شد):** `domain/storybreakdown/` — تجزیه‌ی داستان آزاد کاربر با کمک یک AI متنی بیرونی: `PromptBuilder.kt` (ساخت پرامپت درخواست)، `ChunkCombiner.kt` (چسباندن پاسخ‌های چندبخشی)، `JsonDoctor.kt` (تشخیص/تعمیر خودکار خطای JSON)، `StoryToDomainMapper.kt` (تبدیل خروجی ساده‌ی AI به `CharacterAsset`/`LocationAsset`/`ObjectAsset`/`Scene`/`Shot` واقعی)، `AiConnector.kt` (قرارداد مسیر ارسال مستقیم API — HTTP واقعی کار آینده است). جزئیات کامل در `docs/adr/032` تا `docs/adr/035`.
@@ -407,6 +407,53 @@ Fallback نمی‌کند. جزئیات کامل در `docs/adr/043-unit16-phase0
 **فاز ۰ واحد ۱۶ اکنون کاملاً بدون محدودیت شناخته‌شده است. فاز ۱ (پوسته‌ی برنامه —
 محتوای واقعی صفحه‌های Home/Projects/Assets/Studio Shell) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۱ (App Shell) کامل شد — اولین صفحات واقعی محصول
+
+فاز ۰ فقط زیرساخت مشترک را ساخته بود؛ این فاز اولین صفحات واقعی را می‌سازد: Home،
+Projects، Studio Shell (Container خالی)، Assets Container، و منوی همبرگری —
+طبق منبع حقیقت دوگانه‌ی بلوپرینت ۱۶ نسخه ۷ و `docs/design/README.md`.
+
+- **لایه‌ی داده‌ی Project واقعی (جدید این فاز):** `domain/project/` (`Project`،
+  `ProjectSummary`، `archiveProject` با اجرای واقعی State Machine واحد ۱۲)؛
+  `data/repository/ProjectRepository.kt` (CRUD کامل: create/rename/archive/
+  duplicate/delete + `observeProjectSummaries`)؛ `ProjectEntity` فیلد واقعی و
+  Persist‌شده‌ی `state` گرفت (نه Placeholder سطح UI)؛ `ProjectDao` شمارش صحنه/شات
+  را با Correlated Subquery محاسبه می‌کند (نه فیلد Denormalized). دلیل کامل هر دو
+  تصمیم (به‌همراه یافته‌ی جانبی: طبق قوانین رسمی State Machine، یک پروژه‌ی تازه‌ساز
+  DRAFT واقعاً نمی‌تواند آرشیو شود) در `docs/adr/044-unit16-phase1-app-shell.md`.
+- **Home:** Header با همبرگر/Logo/Toggle زبان و تم (واقعاً به `WorkflowViewModel`
+  فاز ۰ وصل)، خوش‌آمدگویی، ردیف «ایجاد سریع»، «پروژه‌های اخیر» + لینک «همه»، کارت
+  پروژه با Thumbnail/چیپ وضعیت/خط Meta/منوی Overflow (تغییر نام، تکثیر، آرشیو،
+  خروجی گرفتن — با بازاستفاده از `exportProject` واحد ۱۵، حذف).
+- **Projects:** همان فهرست کامل کارت‌ها بدون Hero Image، با زیرعنوان تعداد پویا.
+- **Studio Shell:** Header با Back Navigation Contextual فاز ۰، عنوان/Meta پروژه،
+  چیپ «ذخیره شد»؛ ۴ Tab فاز ۰ (`StudioTopTabRow`) از `MainScaffold` به داخل این
+  Shell منتقل شدند — هر Tab فعلاً یک Placeholder ساده نشان می‌دهد (محتوای واقعی هر
+  Tab کار فازهای ۲ تا ۵ است).
+- **Assets Container:** Placeholder («در فاز ۳ تکمیل می‌شود») طبق دستور کار.
+- **منوی همبرگری:** گروه‌های STUDIO/TOOLS/SYSTEM طبق سند طراحی؛ فقط لینک
+  «دارایی‌ها» واقعاً Navigate می‌کند (چون تنها مقصدی است که صفحه‌ی واقعی دارد)،
+  بقیه یک Snackbar «به‌زودی» نشان می‌دهند — تصمیم مستند در ADR-044 (نه ظاهر
+  Disabled/خاکستری، چون آن در تست دستی به چشم «خراب» می‌آید).
+
+**یافته‌های تست (فراتر از منطق دامنه، این‌بار درباره‌ی خودِ Compose Testing):**
+`ModalNavigationDrawer` محتوایش را همیشه در درخت Composition نگه می‌دارد (حتی
+بسته)، پس برچسب‌های متنی تکراری بین Drawer و نوار پایین/Tab با `onNodeWithText`
+Ambiguous می‌شوند — رفع شد با `Modifier.testTag(...)` (نه تغییر متن ترجمه صرفاً
+برای فرار از تصادف تست). `ProjectListViewModel.projectSummaries` از یک Flow واقعی
+Room می‌آید که روی Executor داخلی خودش (نه Dispatcher تزریق‌شده) دوباره Query
+می‌شود — `waitUntilExactlyOneExists`/`waitUntilDoesNotExist` واقعی جایگزین تکیه‌ی
+ضمنی به idle خودکار شدند. همچنین کشف شد `performClick()` روی عنصری بیرون از
+Viewport دیده‌شونده‌ی یک لیست اسکرول‌شونده بدون خطا «موفق» گزارش می‌شود اما لمس
+واقعی هرگز به View نمی‌رسد — رفع با `performScrollTo()` قبل از کلیک. جزئیات کامل
+هر سه یافته در ADR-044 و کامنت‌های `HomeProjectsStudioFlowTest.kt`.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۷۵ تست
+(۵۵۷→۵۷۵، ۱۸ تست جدید)، ۰ Failure، ۰ Error.
+
+**فاز ۱ واحد ۱۶ (App Shell) کامل شد. فاز ۲ (Story→DNA — محتوای واقعی اولین دو Tab
+Studio) آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -421,10 +468,10 @@ Fallback نمی‌کند. جزئیات کامل در `docs/adr/043-unit16-phase0
 
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
-├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵)
-│   ├── entity/ → ۱۲ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext)
-│   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)
-│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
+├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵ + ProjectRepository فاز ۱ واحد ۱۶)
+│   ├── entity/ → ۱۲ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext) — ProjectEntity فیلد state گرفت (فاز ۱ واحد ۱۶)
+│   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)؛ ProjectDao.getAllProjectsWithCounts با Correlated Subquery شمارش صحنه/شات
+│   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext/Project Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
 ├── domain/  → مدل‌های دامنه و منطق کسب‌وکار
 │   ├── story/  → واحد ۰۱: Story Wizard + Human Override
@@ -437,6 +484,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── scene/  → واحد ۰۴: Scene Engine (صاحب اصلی inheritOrOverride)
 │   ├── camera/ → واحد ۰۹: Camera & Motion
 │   ├── sceneconditions/ → واحد ۰۸: Scene Conditions (Lighting + Environment)
+│   ├── project/ → واحد ۱۶ فاز ۱: Project/ProjectSummary + archiveProject (اجرای واقعی State Machine واحد ۱۲)
 │   ├── workflow/ → واحد ۱۶: User Workflow (WorkflowState/canJumpToStep/QualityScore — رفع یافته‌ی F1 ممیزی pre-Unit 16؛ AppTheme/HomeLayoutVariant/ComposerLayoutVariant برای فاز ۰ UI اضافه شدند)
 │   ├── audio/  → واحد ۱۰: Audio Context Generator
 │   ├── promptengine/ → واحد ۱۱: Prompt Engineering Core (قلب سیستم — تجمیع همه‌ی واحدها)
@@ -444,10 +492,14 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── outputdelivery/ → واحد ۱۴: Output Delivery System (Model Profile + Renderer + Composer + Bilingual)
 │   ├── promptfinalization/ → واحد ۱۳: Prompt Finalization Pipeline (Cleaner + Token Calculator)
 │   └── storage/ → واحد ۱۵ (منطق خالص): validateReferentialIntegrity + قوانین جدول
-├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) تکمیل‌شده
+├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) + فاز ۱ (App Shell) تکمیل‌شده
 │   ├── theme/     → Design Tokens واقعی (Color/ExtendedColors/Type/Theme) طبق docs/design/README.md
-│   ├── navigation/ → Navigation دو‌لایه‌ی DDR-002 (MainScaffold/AppNavHost/BottomNavBar/StudioTopTabRow/BackNavigation)
+│   ├── navigation/ → Navigation دو‌لایه‌ی DDR-002 (MainScaffold/AppNavHost/BottomNavBar/StudioTopTabRow/BackNavigation/NavDrawer)
 │   ├── workflow/  → WorkflowViewModel (language/theme/layout picks با DataStore Preferences، WorkflowState)
+│   ├── project/   → واحد ۱۶ فاز ۱: ProjectListViewModel مشترک Home/Projects + ProjectCard/ProjectListSection
+│   ├── home/      → واحد ۱۶ فاز ۱: HomeScreen (Header/Greeting/Quick-Create/Recent Projects)
+│   ├── studio/    → واحد ۱۶ فاز ۱: StudioShell (Container خالی، ۴ Tab — محتوای واقعی هر Tab کار فازهای ۲ تا ۵)
+│   ├── assets/    → واحد ۱۶ فاز ۱: AssetsScreen (Placeholder — فرم‌های واقعی کار فاز ۳)
 │   ├── i18n/      → UiStrings (fa/en با domain.outputdelivery.t() واقعی) + BidiUtils (زیرساخت RTL)
 │   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold)
 └── di/      → (خالی، برای بعد)

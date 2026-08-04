@@ -1,38 +1,66 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.ui.assets.AssetsScreen
+import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
+import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
+import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
+import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 
-// واحد ۱۶ — فاز ۰: Navigation Graph با ۴ مسیر ریشه‌ی خالی (Container) — طبق دستور
-// کار: «مسیرهای داخلی Studio در فازهای بعدی اضافه می‌شوند، الان فقط Container های
-// خالی کافی است». محتوای واقعی هر صفحه (Home/Projects/Assets/Studio Shell با ۴
-// Tab) کار فازهای ۱ به بعد است.
+// واحد ۱۶ — فاز ۱: Navigation Graph با محتوای واقعی هر ۴ مسیر ریشه (فاز ۰ فقط
+// Container خالی داشت). ProjectListViewModel یک نمونه‌ی مشترک است (نه یکی به‌ازای
+// هر صفحه) — Home/Projects/StudioShell هر سه به همان یک فهرست پروژه‌ی زنده نیاز
+// دارند؛ جزئیات در docs/adr/044-unit16-phase1-app-shell.md.
 
 @Composable
-fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
+fun AppNavHost(
+    navController: NavHostController,
+    workflowViewModel: WorkflowViewModel,
+    projectListViewModel: ProjectListViewModel,
+    onOpenDrawer: () -> Unit,
+    onShowMessage: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
-        composable<Home> { EmptyRouteContainer(label = "Home") }
-        composable<Projects> { EmptyRouteContainer(label = "Projects") }
+        composable<Home> {
+            HomeScreen(
+                workflowViewModel = workflowViewModel,
+                projectListViewModel = projectListViewModel,
+                onOpenDrawer = onOpenDrawer,
+                onOpenProject = { projectId -> navController.navigate(Studio(projectId)) },
+                onViewAllProjects = { navController.navigate(Projects) { launchSingleTop = true } },
+                onShowMessage = onShowMessage
+            )
+        }
+        composable<Projects> {
+            ProjectsScreen(
+                workflowViewModel = workflowViewModel,
+                projectListViewModel = projectListViewModel,
+                onOpenProject = { projectId -> navController.navigate(Studio(projectId)) },
+                onShowMessage = onShowMessage
+            )
+        }
         composable<Studio> { backStackEntry ->
             val studio: Studio = backStackEntry.toRoute()
-            EmptyRouteContainer(label = "Studio (projectId=${studio.projectId})")
+            StudioShell(
+                projectId = studio.projectId,
+                workflowViewModel = workflowViewModel,
+                projectListViewModel = projectListViewModel,
+                onBack = {
+                    val target = resolveContextualBackTarget(Studio::class.qualifiedName) ?: Home
+                    navController.navigate(target) { launchSingleTop = true }
+                },
+                onWarning = onShowMessage
+            )
         }
-        composable<Assets> { EmptyRouteContainer(label = "Assets") }
-    }
-}
-
-@Composable
-private fun EmptyRouteContainer(label: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = label, style = MaterialTheme.typography.titleMedium)
+        composable<Assets> {
+            AssetsScreen(workflowViewModel = workflowViewModel)
+        }
     }
 }

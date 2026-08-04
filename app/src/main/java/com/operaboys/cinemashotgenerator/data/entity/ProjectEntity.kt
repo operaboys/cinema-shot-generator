@@ -12,5 +12,11 @@ data class ProjectEntity(
     val projectName: String,
     val createdAt: String,
     val lastModified: String,
-    val uiLanguage: String = "fa" // زبان UI، مستقل از prompt_language
+    val uiLanguage: String = "fa", // زبان UI، مستقل از prompt_language
+    // MIGRATED (واحد ۱۶ فاز ۱، docs/adr/044-unit16-phase1-app-shell.md): وضعیت
+    // EntityState (واحد ۱۲) — رشته‌ی خام (هم‌الگو با narrativeRole و مشابه در
+    // SceneDto)؛ در انتهای لیست فیلدها اضافه شد تا هر سازنده‌ی Positional موجود
+    // (تست‌ها) بدون تغییر کامپایل شود. version دیتابیس هنوز ۱ است (منتشرنشده) —
+    // نیازی به Migration نیست.
+    val state: String = "DRAFT"
 )

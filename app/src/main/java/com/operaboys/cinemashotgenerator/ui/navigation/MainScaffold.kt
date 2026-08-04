@@ -1,36 +1,49 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import kotlinx.coroutines.launch
 
-// واحد ۱۶ — فاز ۰: نقطه‌ی اتصال ساختار Navigation دو‌لایه — Scaffold بالاترین سطح
-// اپ که هم نوار پایین ثابت (لایه‌ی ۱) و هم Top Tab Row شرطی درون‌Studio (لایه‌ی ۲) و
-// هم Back Navigation Contextual را به هم وصل می‌کند. طبق دستور کار بند ۴: منطق Back
-// اینجا مرکزی است (نه پراکنده در هر صفحه).
+// واحد ۱۶ — فاز ۰/۱: نقطه‌ی اتصال ساختار Navigation دو‌لایه — Scaffold بالاترین سطح
+// اپ که نوار پایین ثابت (لایه‌ی ۱)، Back Navigation Contextual، Drawer (بخش ه فاز ۱)،
+// و SnackbarHost مشترک (برای پیام‌های واقعی/«به‌زودی») را به هم وصل می‌کند.
+//
+// MIGRATED (فاز ۱، docs/adr/044-unit16-phase1-app-shell.md): StudioTopTabRow/
+// selectedStudioTab که در فاز ۰ اینجا بودند به داخل StudioShell (مسیر Studio واقعی)
+// منتقل شدند — چون این فاز باید هر Tab را به یک بدنه‌ی واقعی وصل کند، نه فقط
+// نمایش/عدم‌نمایش تب‌ها؛ جزئیات کامل در ADR-044.
+//
+// ProjectListViewModel اکنون پارامتر ورودی است (نه ساخته‌شده‌ی داخلی با
+// viewModel(factory=...)) — هم‌الگو با WorkflowViewModel موجود از فاز ۰؛ این
+// یکدستی دقیقاً همان چیزی است که تست‌پذیری این Composable را (بدون نیاز به
+// چرخه‌ی واقعی ViewModelStore در تست) ممکن می‌کند — طبق همان الگویی که
+// AppNavigationTest.kt فاز ۰ از قبل برای WorkflowViewModel استفاده می‌کرد.
 
 @Composable
-fun MainScaffold(workflowViewModel: WorkflowViewModel) {
+fun MainScaffold(workflowViewModel: WorkflowViewModel, projectListViewModel: ProjectListViewModel) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
-    val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
 
     val backTarget = resolveContextualBackTarget(currentDestination?.route)
     BackHandler(enabled = backTarget != null) {
@@ -40,44 +53,57 @@ fun MainScaffold(workflowViewModel: WorkflowViewModel) {
         }
     }
 
-    val isInStudio = currentDestination?.hierarchy?.any { it.hasRoute<Studio>() } == true
-    var selectedStudioTab by rememberSaveable { mutableStateOf(StudioTab.STORY) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val comingSoonMessage = uiString("drawer.comingSoon", language)
 
-    Scaffold(
-        bottomBar = {
-            AppBottomNavBar(
-                currentDestination = currentDestination,
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NavDrawerContent(
                 language = language,
-                onNavigate = { route ->
-                    navController.navigate(route) { launchSingleTop = true }
+                onNavigateAssets = {
+                    coroutineScope.launch { drawerState.close() }
+                    navController.navigate(Assets) { launchSingleTop = true }
                 },
-                onQuickCreate = {
-                    // MIGRATED (فاز بعدی): رفتار «ایجاد سریع» Context-aware (کدام نوع
-                    // Entity، بسته به صفحه‌ی فعلی) نیازمند تصمیم‌گیری UI/UX جداگانه است؛
-                    // این فاز فقط دکمه را ساختاری/کلیک‌پذیر نگه می‌دارد.
+                onComingSoon = {
+                    coroutineScope.launch {
+                        drawerState.close()
+                        snackbarHostState.showSnackbar(comingSoonMessage)
+                    }
                 }
             )
         }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isInStudio) {
-                StudioTopTabRow(
-                    selectedTab = selectedStudioTab,
-                    workflowState = workflowState,
+    ) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = {
+                AppBottomNavBar(
+                    currentDestination = currentDestination,
                     language = language,
-                    onTabSelected = { selectedStudioTab = it },
-                    onWarning = {
-                        // MIGRATED (فاز بعدی): نمایش واقعی هشدار (Snackbar/Toast طبق
-                        // docs/design/README.md بخش Interactions) — این فاز فقط قلاب
-                        // (callback) آن را فراهم می‌کند.
+                    onNavigate = { route ->
+                        navController.navigate(route) { launchSingleTop = true }
+                    },
+                    onQuickCreate = {
+                        // MIGRATED (فاز بعدی): رفتار «ایجاد سریع» Context-aware (کدام نوع
+                        // Entity، بسته به صفحه‌ی فعلی) نیازمند تصمیم‌گیری UI/UX جداگانه است؛
+                        // «ایجاد سریع» پروژه از داخل Home (ردیف Quick-create) در همین فاز
+                        // پیاده شد — این FAB سراسری به همان جریان آینده موکول است.
                     }
                 )
             }
-            AppNavHost(navController = navController, modifier = Modifier.fillMaxSize())
+        ) { innerPadding ->
+            AppNavHost(
+                navController = navController,
+                workflowViewModel = workflowViewModel,
+                projectListViewModel = projectListViewModel,
+                onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
+                onShowMessage = { message -> coroutineScope.launch { snackbarHostState.showSnackbar(message) } },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            )
         }
     }
 }

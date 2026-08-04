@@ -4,6 +4,8 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.WorkflowState
 import com.operaboys.cinemashotgenerator.domain.workflow.WorkflowStep
@@ -68,7 +70,8 @@ fun StudioTopTabRow(
                         onTabSelected(tab)
                     }
                 },
-                text = { Text(uiString(studioTabLabelKey(tab), language)) }
+                text = { Text(uiString(studioTabLabelKey(tab), language)) },
+                modifier = Modifier.testTag(studioTabTestTag(tab))
             )
         }
     }
@@ -80,3 +83,11 @@ private fun studioTabLabelKey(tab: StudioTab): String = when (tab) {
     StudioTab.SCENES -> "studioTab.scenes"
     StudioTab.OUTPUT -> "studioTab.output"
 }
+
+/**
+ * testTag (نه onNodeWithText در تست) — چون برچسب برخی Tab ها (مثلاً «صحنه‌ها»/
+ * «Scenes») دقیقاً با متن آیتم متناظرشان در Nav Drawer یکسان است، و Drawer همیشه در
+ * Composition حاضر است (BottomNavBar.kt توضیح کامل داده). fun (نه val Map) چون این
+ * فایل از قبل الگوی «تابع به‌جای Map برای تبدیل enum» را با studioTabLabelKey دارد.
+ */
+fun studioTabTestTag(tab: StudioTab): String = "studioTab.${tab.name.lowercase()}"
