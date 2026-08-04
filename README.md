@@ -348,11 +348,55 @@ F1 تا F4 و F7 تا F12 رفع شدند؛ F5 (Outfit) و F6 (Location fields) 
 (کد واقعی) از قبل مستقل از تعداد آیکون/تب بود (۹ مقدار، یکی به‌ازای هر مرحله‌ی
 Workflow، نه ساختار Navigation) — نیازی به تغییر کد نداشت.
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۰ (پایه‌ی مشترک) کامل شد — اولین کد Compose واقعی پروژه
+
+پیش از این قدم، تنها UI موجود یک `MainScreen.kt` «Hello World» و یک `Theme.kt`
+موقت با رنگ‌های پیش‌فرض M3 بود. این فاز طبق منبع حقیقت دوگانه (`docs/blueprints/16-user-workflow-v2.md`
+نسخه ۷/DDR-002 + `docs/design/README.md`/`Cinema Studio.html`) سه بخش را کامل
+کرد:
+
+- **Design Tokens واقعی:** `ui/theme/Color.kt`/`ExtendedColors.kt`/`Type.kt`/`Theme.kt`
+  — رنگ‌های Dark/Light، مقیاس تایپوگرافی، Spacing/Radius دقیقاً طبق جدول‌های سند
+  طراحی. توکن‌های بدون معادل مستقیم در `ColorScheme` استاندارد M3
+  (fg2/fg3/fg4/success/warning/orange/hairline/...) از طریق یک `CompositionLocal`
+  جداگانه (`CinemaTheme.extendedColors`) در دسترس‌اند.
+- **Navigation دو‌لایه (DDR-002):** `ui/navigation/` — `MainScaffold` با نوار
+  پایین ثابت (`AppBottomNavBar`: Home/Projects/FAB/Studio/Assets) + Top Tab Row
+  شرطی درون‌Studio (`StudioTopTabRow`: داستان/DNA/صحنه‌ها/خروجی، با `canJumpToStep`
+  واقعی برای هشدار غیرمسدودکننده)؛ Navigation Graph با مسیرهای Type-Safe
+  (`@Serializable`)؛ Back Navigation Contextual (نه Stack Pop ساده) با یک Map
+  قابل‌گسترش (`resolveContextualBackTarget`).
+- **`WorkflowViewModel`:** language/theme/layout A-B picks واقعی و
+  Persist‌شده با DataStore Preferences (نه Room — این‌ها Preference سبک UI
+  هستند، نه Entity دامنه)؛ `WorkflowState` (nullable تا Session واقعی شروع شود).
+
+**یافته‌ی مهم:** `domain.outputdelivery.Language`/`t()` (واحد ۱۴، از قبل موجود
+اما بدون هیچ مصرف‌کننده‌ی UI واقعی) مستقیماً بازاستفاده شد — به‌جای تعریف یک
+`AppLanguage` جدید و تکراری؛ `validateTranslationCoverage` (هم قبلاً بدون مصرف‌کننده‌ی
+واقعی) روی کلیدهای Navigation/Tab این فاز سیم‌کشی شد.
+
+الزام سخت‌گیرانه‌ی RTL (fa/RTL ↔ en/LTR، از همان ابتدا نه یک قدم بعدی) با
+Override کردن `LocalLayoutDirection` بر اساس زبان انتخابی کاربر (نه Locale
+سیستم) در `App.kt` برقرار شد؛ زیرساخت Unicode Bidi Isolate برای توکن‌های فنی
+لاتین/عددی (`String.asLtrToken()`) هم آماده شد، برای مصرف در فازهای بعدی.
+
+جزئیات کامل هر تصمیم مستقل (مکانیزم Persistence، طراحی `ioScopeOverride`
+تزریق‌پذیر برای تست‌پذیری بدون قفل‌شدگی Robolectric، محدودیت شناخته‌شده‌ی فونت
+واقعی/Liquid Glass) در `docs/adr/042-unit16-phase0-shared-foundation.md`.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۵۴
+تست (۵۳۴→۵۵۴، ۲۰ تست جدید شامل اولین Compose UI Test پروژه)، ۰ Failure، ۰ Error.
+
+**فاز ۱ (پوسته‌ی برنامه — محتوای واقعی صفحه‌های Home/Projects/Assets/Studio Shell)
+آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
 - **UI:** Jetpack Compose (Material 3)
 - **معماری:** MVVM ساده (ViewModel + StateFlow) — بدون فریمورک DI در فاز اول
+- **Navigation:** Navigation Compose (مسیرهای Type-Safe با `@Serializable`) — ساختار دو‌لایه طبق DDR-002 (واحد ۱۶ فاز ۰)
+- **Preference سبک UI (زبان/تم/Layout A-B):** DataStore Preferences — جدا از Room (که فقط برای Entity های دامنه است)
 - **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) + kotlinx.serialization (برای فیلدهای `*DataJson`) — پشتیبانی از چند پروژه‌ی همزمان؛ کاملاً پیاده‌سازی و به دامنه وصل شده (واحد ۱۵ تکمیل‌شده)
 - **اتصال AI (اختیاری):** Ktor Client — فقط وقتی کاربر کلید API شخصی وارد کند
 
@@ -376,14 +420,19 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── scene/  → واحد ۰۴: Scene Engine (صاحب اصلی inheritOrOverride)
 │   ├── camera/ → واحد ۰۹: Camera & Motion
 │   ├── sceneconditions/ → واحد ۰۸: Scene Conditions (Lighting + Environment)
-│   ├── workflow/ → واحد ۱۶: User Workflow (WorkflowState/canJumpToStep/QualityScore — رفع یافته‌ی F1 ممیزی pre-Unit 16)
+│   ├── workflow/ → واحد ۱۶: User Workflow (WorkflowState/canJumpToStep/QualityScore — رفع یافته‌ی F1 ممیزی pre-Unit 16؛ AppTheme/HomeLayoutVariant/ComposerLayoutVariant برای فاز ۰ UI اضافه شدند)
 │   ├── audio/  → واحد ۱۰: Audio Context Generator
 │   ├── promptengine/ → واحد ۱۱: Prompt Engineering Core (قلب سیستم — تجمیع همه‌ی واحدها)
 │   ├── stateversioning/ → واحد ۱۲: State & Versioning (State Machine + Lock + Versioning + Impact Analysis)
 │   ├── outputdelivery/ → واحد ۱۴: Output Delivery System (Model Profile + Renderer + Composer + Bilingual)
 │   ├── promptfinalization/ → واحد ۱۳: Prompt Finalization Pipeline (Cleaner + Token Calculator)
 │   └── storage/ → واحد ۱۵ (منطق خالص): validateReferentialIntegrity + قوانین جدول
-├── ui/      → صفحه‌های Compose (فعلاً فقط صفحه‌ی تست)
+├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) تکمیل‌شده
+│   ├── theme/     → Design Tokens واقعی (Color/ExtendedColors/Type/Theme) طبق docs/design/README.md
+│   ├── navigation/ → Navigation دو‌لایه‌ی DDR-002 (MainScaffold/AppNavHost/BottomNavBar/StudioTopTabRow/BackNavigation)
+│   ├── workflow/  → WorkflowViewModel (language/theme/layout picks با DataStore Preferences، WorkflowState)
+│   ├── i18n/      → UiStrings (fa/en با domain.outputdelivery.t() واقعی) + BidiUtils (زیرساخت RTL)
+│   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold)
 └── di/      → (خالی، برای بعد)
 
 docs/blueprints/  → بلوپرینت‌های معماری (منبع حقیقت) — قبل از پیاده‌سازی هر واحد بخوانید

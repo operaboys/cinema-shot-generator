@@ -37,6 +37,27 @@ enum class FeedbackType {
     TRANSIENT_SUCCESS
 }
 
+// MIGRATED (docs/adr/042-unit16-phase0-shared-foundation.md، فاز ۰ واحد ۱۶):
+// AppTheme/HomeLayoutVariant/ComposerLayoutVariant سه enum سبک UI هستند که فقط توسط
+// لایه‌ی Compose مصرف می‌شوند (هیچ Rule کسب‌وکاری به آن‌ها وابسته نیست) — طبق همان
+// اصل جانمایی ShotListViewMode/FeedbackType بالا (اینجا نگه داشته شدند، نه در ui/،
+// چون domain/workflow دقیقاً پکیج «وضعیت گردش کار/UI» این پروژه است).
+//
+// عمداً هیچ AppLanguage جدیدی اینجا تعریف نشد — domain.outputdelivery.Language
+// (FA/EN، از قبل موجود در Bilingual.kt واحد ۱۴) مستقیماً بازاستفاده می‌شود، چون این
+// enum دقیقاً همان دو مقدار را با همان معنا دارد؛ افزودن یک enum زبان دوم و موازی
+// همان الگوی «فیلد/نوع تکراری» بود که این پروژه بارها (ADR-036، ADR-038) از آن
+// پرهیز کرده است.
+
+/** تم بصری اپ — مستقل از زبان (docs/design/README.md: «Dark/Light theme toggle is independent of language»). */
+enum class AppTheme { DARK, LIGHT }
+
+/** واریانت A/B صفحه‌ی Home (Hero/Resume) — فقط انتخاب کاربر؛ محتوای هرکدام کار فاز ساخت خودِ صفحه‌ی Home است. */
+enum class HomeLayoutVariant { HERO, RESUME }
+
+/** واریانت A/B فرم Shot Composer (۴ Tab/Accordion) — فقط انتخاب کاربر؛ محتوای هرکدام کار فاز ساخت خودِ Shot Composer است. */
+enum class ComposerLayoutVariant { TABS, ACCORDION }
+
 data class WorkflowState(
     val sessionId: String,
     val projectId: String,

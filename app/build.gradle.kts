@@ -65,13 +65,27 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // material-icons-extended (نه -core): -core فقط ~۲۴ آیکون اصلی دارد و آیکون‌های
+    // لازم برای نوار پایین (Folder/Movie/Apps) را ندارد. افزایش حجم APK ناشی از این
+    // کتابخانه (چند هزار Vector Icon) شناخته‌شده است؛ isMinifyEnabled این پروژه فعلاً
+    // false است (build.gradle.kts:۲۵)، پس این افزایش حجم فعلاً در Release هم اعمال
+    // می‌شود — فعال‌کردن R8/Minify (که خودش خارج از Scope این فاز است) در آینده این
+    // اندازه را به آیکون‌های واقعاً استفاده‌شده کوچک خواهد کرد.
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.datastore.preferences)
     ksp(libs.androidx.room.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 }
