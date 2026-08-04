@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -53,6 +54,9 @@ fun App() {
     val assetRepository = remember { AssetRepository(database.assetDao()) }
     val sceneRepository = remember { SceneRepository(database.sceneDao()) }
     val shotRepository = remember { ShotRepository(database.shotDao()) }
+    // واحد ۱۶ فاز ۲ — قدم ۳ (آخرین قدم فاز ۲): همان الگو، برای Tab «DNA» — جزئیات در
+    // docs/adr/047-unit16-phase2-step3-dna-tab.md.
+    val projectDnaRepository = remember { ProjectDnaRepository(database.projectDnaDao()) }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -67,7 +71,8 @@ fun App() {
                 storyRepository = storyRepository,
                 assetRepository = assetRepository,
                 sceneRepository = sceneRepository,
-                shotRepository = shotRepository
+                shotRepository = shotRepository,
+                projectDnaRepository = projectDnaRepository
             )
         }
     }

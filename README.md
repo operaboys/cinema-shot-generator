@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک) و فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) کامل شده‌اند، فاز ۲ (Story→DNA) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) و فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab — هر سه قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۳ (Asset Library) در پیش است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -535,6 +535,46 @@ SceneRepository/ShotRepository جدید) وصل شد. طبق دستور کار،
 
 **قدم ۳ فاز ۲ (DNA Tab) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۲، قدم ۳ (آخرین قدم) — Tab «DNA» واقعی؛ فاز ۲ کامل شد
+
+`domain.dna.ProjectDna` (واحد ۰۲) و `ProjectDnaRepository` (واحد ۱۵) قبل از این
+قدم کامل و تست‌شده بودند اما به هیچ UI ای وصل نبودند — این قدم اولین اتصال است، و
+آخرین قدم فاز ۲ (بعد از Story Tab و AI Story Breakdown). با تکمیل این قدم، **فاز
+۲ واحد ۱۶ به‌طور کامل تکمیل شد.**
+
+- **بنر Soft Lock:** نارنجی/Bold/حاشیه‌ی واضح بالای صفحه — نمایش بصری فلسفه‌ی
+  Soft Lock پروژه (تغییر DNA هرگز کاربر را Block نمی‌کند، فقط هشدار می‌دهد).
+- **۶ گروه Collapsible** (پیش‌فرض باز) روی فیلدهای واقعی: هویت اصلی (VisualStyle
+  ۳۴ مقدار/۵ دسته، RealismLevel، StyleConsistency)، پالت اصلی (۵ Swatch رنگ +
+  ColorTemperature/Saturation/Contrast/پریست)، پایه‌ی احساسی کلی (Mood ۲۵
+  مقدار/۵ دسته، Intensity، Consistency)، ترجیح نور (LightingStyle ۲۲ مقدار/۴
+  دسته، nullable با گزینه‌ی صریح «بدون ترجیح»)، محدودیت‌های خروجی (AspectRatio ۱۱
+  مقدار)، دستورالعمل‌های کیفیت (qualityTags/negativePrompt).
+- **فهرست‌های گروه‌بندی‌شده بر اساس دسته** (نه Dropdown تخت) برای VisualStyle/
+  Mood/LightingStyle — طبق تصریح صریح سند طراحی.
+- **اعتبارسنجی زنده:** `validateColorPalette` (تنها تابع `DnaValidation.kt` که
+  واقعاً روی ویرایش زنده‌ی یک فیلد این فرم قابل‌اعمال است — بقیه‌ی قوانین آن فایل
+  یک Shot را در برابر DNA اعتبارسنجی می‌کنند) — Hex نامعتبر بلافاصله Blocking
+  نشان می‌دهد، بدون جلوگیری از ادامه‌ی ویرایش فیلدهای دیگر.
+- **Auto-Save بی‌صدا** روی هر تغییر فیلد (هم‌الگو با Story Tab).
+- **یافته‌ی واقعی تست:** `performClick()` (لمس مبتنی بر مختصات) روی کارت پروژه
+  (`ProjectCard.kt`) در سناریوی «بازگشت به Home از عمق یک Tab غیر-پیش‌فرض
+  استودیو» هیچ ناوبری‌ای Trigger نمی‌کند — تأییدشده با شمارش مستقیم گره‌های
+  Semantics؛ همان کلاس مشکل تثبیت‌شده در ADR-045 برای FilterChip/
+  DropdownMenuItem، این‌بار روی یک Card؛ رفع با `performSemanticsAction`. جزئیات
+  کامل همه‌ی تصمیمات در `docs/adr/047-unit16-phase2-step3-dna-tab.md`.
+
+`DnaTabFlowTest.kt` (۳ تست End-to-End با `MainScaffold` کامل + Room واقعی
+In-Memory): Round-Trip واقعی (تغییر Visual Style → بستن/بازکردن Studio → مقدار
+باقی می‌ماند)؛ اعتبارسنجی زنده (Hex نامعتبر → Blocking فوری، بدون مسدودشدن
+فیلدهای دیگر)؛ انتخاب گروه‌بندی‌شده‌ی Mood/LightingStyle.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۸۸ تست
+(۵۸۵→۵۸۸، ۳ تست جدید)، ۰ Failure، ۰ Error.
+
+**فاز ۲ واحد ۱۶ (Story Tab + AI Story Breakdown + DNA Tab) به‌طور کامل تکمیل
+شد. فاز ۳ (Asset Library) آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -611,3 +651,10 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   «داستان» Studio است، نه Tab «صحنه‌ها»**: چون هنوز هیچ صفحه‌ی فهرست Scene/Shot
   مستقلی ساخته نشده و `selectedTab` در `StudioShell` یک State محلی است، نه
   پارامتر ورودی. جزئیات در `docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md`.
+- **Tab «DNA»: فیلدهای `forbiddenElements`/`mandatoryElements`/
+  `maxShotDurationSeconds` (بخشی از `OutputConstraints`) هنوز UI ندارند** — فقط
+  `AspectRatio` قابل‌ویرایش است؛ آن سه فیلد با مقدار پیش‌فرض ثابت باقی می‌مانند.
+  همچنین Rule 1 (`DnaValidation.updateCoreIdentity`، هشدار Soft Lock هنگام تغییر
+  سبک با شات‌های وابسته) هنوز به شمار واقعی شات‌ها وصل نیست — هیچ Repository ای
+  هنوز «همه‌ی شات‌های یک پروژه» را نمی‌شمارد. جزئیات در
+  `docs/adr/047-unit16-phase2-step3-dna-tab.md`.

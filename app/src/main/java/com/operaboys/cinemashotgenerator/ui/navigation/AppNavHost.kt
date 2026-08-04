@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -36,6 +37,7 @@ fun AppNavHost(
     assetRepository: AssetRepository? = null,
     sceneRepository: SceneRepository? = null,
     shotRepository: ShotRepository? = null,
+    projectDnaRepository: ProjectDnaRepository? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -69,6 +71,7 @@ fun AppNavHost(
                 },
                 onWarning = onShowMessage,
                 storyRepository = storyRepository,
+                projectDnaRepository = projectDnaRepository,
                 onNavigateToAiBreakdown = { targetProjectId ->
                     navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
                 }

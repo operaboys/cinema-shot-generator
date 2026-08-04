@@ -26,8 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.ui.dna.DnaTabContent
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
@@ -61,6 +63,7 @@ fun StudioShell(
     onBack: () -> Unit,
     onWarning: (String) -> Unit,
     storyRepository: StoryRepository? = null,
+    projectDnaRepository: ProjectDnaRepository? = null,
     onNavigateToAiBreakdown: (String) -> Unit = {}
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
@@ -95,8 +98,8 @@ fun StudioShell(
             onTabSelected = { selectedTab = it },
             onWarning = onWarning
         )
-        if (selectedTab == StudioTab.STORY) {
-            StoryTabContent(
+        when (selectedTab) {
+            StudioTab.STORY -> StoryTabContent(
                 projectId = projectId,
                 projectListViewModel = projectListViewModel,
                 language = language,
@@ -104,8 +107,13 @@ fun StudioShell(
                 onNavigateToAiBreakdown = { onNavigateToAiBreakdown(projectId) },
                 modifier = Modifier.fillMaxSize()
             )
-        } else {
-            StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())
+            StudioTab.DNA -> DnaTabContent(
+                projectId = projectId,
+                language = language,
+                projectDnaRepository = projectDnaRepository,
+                modifier = Modifier.fillMaxSize()
+            )
+            else -> StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())
         }
     }
 }

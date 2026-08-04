@@ -17,6 +17,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -118,7 +119,8 @@ class HomeProjectsStudioFlowTest {
                 MainScaffold(
                     workflowViewModel = workflowViewModel,
                     projectListViewModel = projectListViewModel,
-                    storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao())
+                    storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao()),
+                    projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
                 )
             }
         }
@@ -163,7 +165,13 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.SCENES)).assertIsDisplayed()
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.OUTPUT)).assertIsDisplayed()
 
+        // واحد ۱۶ فاز ۲ قدم ۳: Tab «DNA» دیگر Placeholder نیست (محتوای واقعی
+        // DnaTabContent دارد) — طبق docs/adr/047-unit16-phase2-step3-dna-tab.md؛
+        // این تست حالا Tab «صحنه‌ها» را برای اثبات «هنوز Placeholder» بررسی می‌کند.
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.DNA)).performClick()
+        composeRule.onNodeWithText(uiString("dna.group.coreIdentity", Language.FA)).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(studioTabTestTag(StudioTab.SCENES)).performClick()
         composeRule.onNodeWithText(uiString("studio.tabPlaceholder", Language.FA)).assertIsDisplayed()
     }
 

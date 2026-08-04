@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -85,7 +86,8 @@ class AppNavigationTest {
                 MainScaffold(
                     workflowViewModel = workflowViewModel,
                     projectListViewModel = projectListViewModel,
-                    storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao())
+                    storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao()),
+                    projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
                 )
             }
         }

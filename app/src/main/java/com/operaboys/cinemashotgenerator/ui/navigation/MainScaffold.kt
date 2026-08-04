@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -50,7 +51,8 @@ fun MainScaffold(
     storyRepository: StoryRepository? = null,
     assetRepository: AssetRepository? = null,
     sceneRepository: SceneRepository? = null,
-    shotRepository: ShotRepository? = null
+    shotRepository: ShotRepository? = null,
+    projectDnaRepository: ProjectDnaRepository? = null
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -126,6 +128,7 @@ fun MainScaffold(
                 assetRepository = assetRepository,
                 sceneRepository = sceneRepository,
                 shotRepository = shotRepository,
+                projectDnaRepository = projectDnaRepository,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
