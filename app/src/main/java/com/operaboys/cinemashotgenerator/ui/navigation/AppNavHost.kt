@@ -78,7 +78,11 @@ fun AppNavHost(
             )
         }
         composable<Assets> {
-            AssetsScreen(workflowViewModel = workflowViewModel)
+            AssetsScreen(
+                workflowViewModel = workflowViewModel,
+                onShowMessage = onShowMessage,
+                assetRepository = assetRepository
+            )
         }
         composable<AiStoryBreakdown> { backStackEntry ->
             val route: AiStoryBreakdown = backStackEntry.toRoute()

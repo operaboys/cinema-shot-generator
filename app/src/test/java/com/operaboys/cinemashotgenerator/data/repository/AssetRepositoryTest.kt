@@ -19,6 +19,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.Prop
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -153,5 +154,57 @@ class AssetRepositoryTest {
         val loaded = repository.loadCharacterAssets(listOf("loc_001", "char_missing"))
         assertTrue(loaded.isSuccess)
         assertTrue(loaded.getOrThrow().isEmpty())
+    }
+
+    // واحد ۱۶ فاز ۳ — قدم ۱: تست کوئری‌های جدید «همه‌ی Asset های یک نوع در یک پروژه»
+    // (برخلاف load*(ids) بالا که شناسه‌ها را از قبل معلوم فرض می‌کنند) — دقیقاً چیزی
+    // که صفحه‌ی Asset Library به آن نیاز دارد.
+
+    @Test
+    fun `loadAllCharacterAssets returns an empty list for a project with no characters`() = runBlocking {
+        val loaded = repository.loadAllCharacterAssets("proj_empty").first()
+        assertTrue(loaded.isEmpty())
+    }
+
+    @Test
+    fun `loadAllCharacterAssets returns every saved character for the project, ignoring other types and other projects`() = runBlocking {
+        val secondCharacter = fullCharacter.copy(assetId = "char_002", name = "Sidekick", characterTier = CharacterTier.SECONDARY)
+        repository.saveCharacterAsset("proj_001", fullCharacter)
+        repository.saveCharacterAsset("proj_001", secondCharacter)
+        repository.saveLocationAsset("proj_001", fullLocation)
+        repository.saveCharacterAsset("proj_other", fullCharacter.copy(assetId = "char_other"))
+
+        val loaded = repository.loadAllCharacterAssets("proj_001").first()
+        assertEquals(setOf(fullCharacter, secondCharacter), loaded.toSet())
+    }
+
+    @Test
+    fun `loadAllLocationAssets returns an empty list for a project with no locations`() = runBlocking {
+        val loaded = repository.loadAllLocationAssets("proj_empty").first()
+        assertTrue(loaded.isEmpty())
+    }
+
+    @Test
+    fun `loadAllLocationAssets returns every saved location for the project, ignoring other types`() = runBlocking {
+        repository.saveLocationAsset("proj_001", fullLocation)
+        repository.saveCharacterAsset("proj_001", fullCharacter)
+
+        val loaded = repository.loadAllLocationAssets("proj_001").first()
+        assertEquals(listOf(fullLocation), loaded)
+    }
+
+    @Test
+    fun `loadAllObjectAssets returns an empty list for a project with no objects`() = runBlocking {
+        val loaded = repository.loadAllObjectAssets("proj_empty").first()
+        assertTrue(loaded.isEmpty())
+    }
+
+    @Test
+    fun `loadAllObjectAssets returns every saved object for the project, ignoring other types`() = runBlocking {
+        repository.saveObjectAsset("proj_001", fullObject)
+        repository.saveCharacterAsset("proj_001", fullCharacter)
+
+        val loaded = repository.loadAllObjectAssets("proj_001").first()
+        assertEquals(listOf(fullObject), loaded)
     }
 }

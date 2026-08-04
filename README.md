@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) و فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab — هر سه قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۳ (Asset Library) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) و فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab — هر سه قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۳ (Asset Library) آغاز شده — قدم ۱ (صفحه‌ی لیست + فیلتر) کامل، قدم ۲ (فرم‌های ساخت/ویرایش) در پیش است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -575,6 +575,52 @@ In-Memory): Round-Trip واقعی (تغییر Visual Style → بستن/بازک
 **فاز ۲ واحد ۱۶ (Story Tab + AI Story Breakdown + DNA Tab) به‌طور کامل تکمیل
 شد. فاز ۳ (Asset Library) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۳، قدم ۱ — صفحه‌ی Asset Library (لیست + فیلتر)
+
+اولین قدم فاز ۳؛ منابع حقیقت: `docs/blueprints/16-user-workflow-v2.md` بخش
+«مرحله ۳» و `docs/design/README.md` بخش «۸. Assets Library».
+
+- **کمبود Repository رفع شد:** `AssetRepository` قبل از این قدم فقط
+  `load*(ids: List<String>)` داشت (برای زمانی که ID ها از قبل معلوم‌اند)، نه
+  «همه‌ی Asset های یک نوع در یک پروژه» که صفحه‌ی Library نیاز دارد. یک `@Query`
+  پارامتری‌شده‌ی جدید در `AssetDao` (`getAssetsForProjectByType`، فیلتر روی
+  `projectId` و `assetType`) به‌علاوه‌ی سه تابع نوع‌محور واقعی در سطح Repository
+  (`loadAllCharacterAssets`/`loadAllLocationAssets`/`loadAllObjectAssets`)
+  اضافه شد.
+- **یافته‌ی معماری واقعی (نه فقط جزئیات محلی):** برخلاف `CharacterAsset`
+  (`characterTier`) و `ObjectAsset` (`subtype`)، مدل دامنه‌ی `LocationAsset`
+  اصلاً فیلد نوع‌دار نداشت — با اینکه هم سند طراحی و هم دستور کار این قدم صریحاً
+  یک زیرفیلتر `LocationType` (INDOOR/OUTDOOR/MIXED/CUSTOM) برایش فرض کرده
+  بودند. تنها `enum` مشابه از قبل در `domain.scene` بود، اما برای مفهومی کاملاً
+  متفاوت (دسته‌بندی یک Scene، نه یک Asset دائمی کتابخانه). یک `enum` تازه و
+  مستقل در `domain.asset` ساخته شد (هم‌راستا با اصل مستندشده‌ی
+  `AssetContinuity.kt`: «هرگز یک enum مشترک» برای مفاهیمی که فقط شباهت اسمی
+  دارند) و فیلد `locationType: LocationType = LocationType.CUSTOM` با مقدار
+  پیش‌فرض (Backward Compatible، هر ۴ محل ساخت واقعی بررسی شد) به `LocationAsset`
+  اضافه شد.
+- **صفحه‌ی Asset Library واقعی** جای Placeholder فاز ۱ را گرفت: فیلتر Segmented
+  بالا (کاراکترها/مکان‌ها/اشیاء)، ردیف زیرفیلتر متناظر با نوع فعال
+  (CharacterTier/LocationType/ObjectSubtype)، کارت Asset (Thumbnail جای‌گیر،
+  نام، Badge نارنجی سطح، توضیح، خط سطح تداوم مطابق نوع دقیق آن Asset)، و دکمه‌ی
+  شناور «افزودن Asset جدید» (فعلاً فقط Snackbar «به‌زودی» — بدنه‌ی فرم کار قدم
+  بعدی است).
+- **رعایت دقیق دو باگ Contrast مستندشده‌ی سند طراحی:** فیلتر Segmented و همه‌ی
+  Badge/Chip این صفحه کاملاً Opaque‌اند (بدون `alpha` روی رنگ زمینه) با حاشیه‌ی
+  ۲dp واضح — دقیقاً همان دستورالعمل Implementation Notes سند طراحی، هم‌الگو با
+  `PhaseCircle` (ADR-046).
+
+`AssetRepositoryTest.kt` (۶ تست جدید: لیست خالی/پر برای هر سه نوع Asset،
+نادیده‌گرفتن انواع دیگر و پروژه‌های دیگر) و `AssetsScreenFlowTest.kt` (۳ تست
+End-to-End با `MainScaffold` کامل + Room واقعی In-Memory: فیلتر پیش‌فرض
+Characters + زیرفیلتر صحیح، سوییچ به Locations، سوییچ به Objects). جزئیات کامل
+همه‌ی تصمیمات در `docs/adr/048-unit16-phase3-step1-asset-library.md`.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۹۷
+تست (۵۸۸→۵۹۷، ۹ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم ۲ فاز ۳ (فرم‌های ساخت/ویرایش Asset — شامل تصمیمات F5/F6) آماده‌ی شروع
+است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -658,3 +704,8 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   سبک با شات‌های وابسته) هنوز به شمار واقعی شات‌ها وصل نیست — هیچ Repository ای
   هنوز «همه‌ی شات‌های یک پروژه» را نمی‌شمارد. جزئیات در
   `docs/adr/047-unit16-phase2-step3-dna-tab.md`.
+- **صفحه‌ی Asset Library: دکمه‌ی شناور «افزودن Asset جدید» هنوز فقط Snackbar
+  «به‌زودی» نشان می‌دهد** — فرم ساخت/ویرایش واقعی (تصمیمات F5/F6) کار قدم بعدی
+  فاز ۳ است. همچنین `locationType` تازه‌اضافه‌شده روی `LocationAsset` فعلاً فقط
+  نمایش/فیلتر می‌شود، هنوز از هیچ UI ای قابل‌ویرایش نیست. جزئیات در
+  `docs/adr/048-unit16-phase3-step1-asset-library.md`.

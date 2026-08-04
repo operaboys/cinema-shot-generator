@@ -12,6 +12,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
+import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
@@ -188,6 +189,7 @@ fun LocationAssetDto.toDomain(): LocationAsset = LocationAsset(
     name = name,
     description = description,
     environment = Environment(environment.type, environment.size, environment.lightingCondition),
+    locationType = LocationType.valueOf(locationType),
     timeCompatibility = timeCompatibility,
     weatherCompatibility = weatherCompatibility,
     keyElements = keyElements,
@@ -200,6 +202,7 @@ fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
     name = name,
     description = description,
     environment = EnvironmentDto(environment.type, environment.size, environment.lightingCondition),
+    locationType = locationType.name,
     timeCompatibility = timeCompatibility,
     weatherCompatibility = weatherCompatibility,
     keyElements = keyElements,

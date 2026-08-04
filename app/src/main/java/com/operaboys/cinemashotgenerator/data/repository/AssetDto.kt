@@ -118,6 +118,7 @@ data class LocationAssetDto(
     val name: String,
     val description: String,
     val environment: EnvironmentDto,
+    val locationType: String = "CUSTOM",
     val timeCompatibility: List<String> = emptyList(),
     val weatherCompatibility: List<String> = emptyList(),
     val keyElements: List<String> = emptyList(),

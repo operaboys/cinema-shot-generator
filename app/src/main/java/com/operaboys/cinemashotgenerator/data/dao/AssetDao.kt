@@ -16,6 +16,17 @@ interface AssetDao {
     @Query("SELECT * FROM assets WHERE projectId = :projectId")
     fun getAssetsForProject(projectId: String): Flow<List<AssetEntity>>
 
+    // واحد ۱۶ فاز ۳ — قدم ۱: صفحه‌ی Asset Library به «همه‌ی Asset های یک نوع در یک
+    // پروژه» نیاز دارد (نه فقط load(ids) که شناسه‌ها را از قبل معلوم فرض می‌کند).
+    // یک Query پارامتری‌شده روی assetType (نه سه متد جدا برای هر نوع) چون جدول assets
+    // یک جدول عمومی واحد است (بدون جدول جدا به‌ازای هر نوع) — سه متد جدا فقط سه نسخه‌ی
+    // تقریباً یکسان از همین Query تولیدشده‌ی Room می‌بودند؛ تفکیک نوع‌محور واقعی در
+    // سطح Repository (AssetRepository.loadAllCharacterAssets/loadAllLocationAssets/
+    // loadAllObjectAssets) انجام می‌شود، جایی که خروجی به نوع Kotlin واقعی هم Map
+    // می‌شود. جزئیات در docs/adr/048-unit16-phase3-step1-asset-library.md.
+    @Query("SELECT * FROM assets WHERE projectId = :projectId AND assetType = :assetType")
+    fun getAssetsForProjectByType(projectId: String, assetType: String): Flow<List<AssetEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveAsset(asset: AssetEntity)
 

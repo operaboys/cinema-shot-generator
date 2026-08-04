@@ -128,6 +128,37 @@ val faStrings: Map<String, String> = mapOf(
     // فاز ۱ — Assets Container
     "assets.placeholder" to "در فاز ۳ تکمیل می‌شود",
 
+    // فاز ۳ — قدم ۱: صفحه‌ی Asset Library
+    "assetLibrary.title" to "کتابخانه‌ی دارایی‌ها",
+    "assetLibrary.subtitle" to "کاراکترها، مکان‌ها و اشیای پروژه",
+    "assetLibrary.filter.characters" to "کاراکترها",
+    "assetLibrary.filter.locations" to "مکان‌ها",
+    "assetLibrary.filter.objects" to "اشیا",
+    "assetLibrary.subfilter.all" to "همه",
+    "assetLibrary.emptyState" to "هنوز هیچ Asset ای در این دسته ساخته نشده است.",
+    "assetLibrary.continuityMetaTemplate" to "سطح تداوم: {level}",
+    "assetLibrary.addAsset" to "افزودن Asset جدید",
+    "assetLibrary.addAssetComingSoon" to "فرم افزودن Asset به‌زودی در دسترس خواهد بود",
+
+    "characterTier.main" to "کاراکتر اصلی",
+    "characterTier.secondary" to "کاراکتر فرعی",
+    "characterTier.background" to "کاراکتر پس‌زمینه",
+
+    "locationType.indoor" to "داخلی",
+    "locationType.outdoor" to "بیرونی",
+    "locationType.mixed" to "ترکیبی",
+    "locationType.custom" to "سفارشی",
+
+    "objectSubtype.personalProp" to "وسیله‌ی شخصی",
+    "objectSubtype.generalProp" to "وسیله‌ی عمومی",
+    "objectSubtype.costume" to "لباس/کاستوم",
+
+    "characterContinuityLevel.full" to "کامل",
+    "characterContinuityLevel.medium" to "متوسط",
+    "characterContinuityLevel.none" to "بدون قفل",
+    "locationContinuityLevel.style" to "سبک",
+    "propContinuityLevel.form" to "فرم",
+
     // فاز ۲ — قدم ۲: صفحه‌ی AI Story Breakdown
     "aiBreakdown.subtitle" to "داستان را به شات‌های سینمایی تقسیم کنید",
     "aiBreakdown.storyLabel" to "داستان آزاد",
@@ -415,6 +446,37 @@ val enStrings: Map<String, String> = mapOf(
 
     // Phase 1 — Assets Container
     "assets.placeholder" to "Completed in Phase 3",
+
+    // Phase 3 — Step 1: Asset Library screen
+    "assetLibrary.title" to "Asset Library",
+    "assetLibrary.subtitle" to "Characters, locations, and objects for the project",
+    "assetLibrary.filter.characters" to "Characters",
+    "assetLibrary.filter.locations" to "Locations",
+    "assetLibrary.filter.objects" to "Objects",
+    "assetLibrary.subfilter.all" to "All",
+    "assetLibrary.emptyState" to "No assets created in this category yet.",
+    "assetLibrary.continuityMetaTemplate" to "Continuity level: {level}",
+    "assetLibrary.addAsset" to "Add New Asset",
+    "assetLibrary.addAssetComingSoon" to "The asset creation form will be available soon",
+
+    "characterTier.main" to "Main Character",
+    "characterTier.secondary" to "Secondary Character",
+    "characterTier.background" to "Background Character",
+
+    "locationType.indoor" to "Indoor",
+    "locationType.outdoor" to "Outdoor",
+    "locationType.mixed" to "Mixed",
+    "locationType.custom" to "Custom",
+
+    "objectSubtype.personalProp" to "Personal Prop",
+    "objectSubtype.generalProp" to "General Prop",
+    "objectSubtype.costume" to "Costume",
+
+    "characterContinuityLevel.full" to "Full",
+    "characterContinuityLevel.medium" to "Medium",
+    "characterContinuityLevel.none" to "None",
+    "locationContinuityLevel.style" to "Style",
+    "propContinuityLevel.form" to "Form",
 
     // Phase 2 — Step 2: AI Story Breakdown screen
     "aiBreakdown.subtitle" to "Turn your story into cinematic shots",

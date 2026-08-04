@@ -200,17 +200,37 @@ data class Environment(
 )
 
 /**
+ * واحد ۱۶ فاز ۳ — قدم ۱: نوع مستقل «دسته‌ی مکان» برای زیرفیلتر صفحه‌ی Asset
+ * Library — طبق docs/design/README.md بخش «۸. Assets Library» («Sub-filter row
+ * ... INDOOR/OUTDOOR/MIXED for locations») و تکرار همان مقادیر در دستور کار این
+ * قدم. عمداً یک enum مستقل و تازه است، نه بازاستفاده‌ی مستقیم
+ * `domain.scene.LocationType` (که با همین ۴ مقدار از قبل وجود دارد، ولی مفهوم
+ * کاملاً متفاوتی را نمایندگی می‌کند — دسته‌بندی یک Scene، نه یک LocationAsset
+ * دائمی در کتابخانه) — هم‌راستا با اصل صریح مستندشده در AssetContinuity.kt
+ * («هرگز یک enum مشترک» برای مفاهیم Character/Location/Prop که فقط شباهت اسمی
+ * دارند؛ همین اصل اینجا هم برای Asset در برابر Scene اعمال شد). جزئیات کامل در
+ * docs/adr/048-unit16-phase3-step1-asset-library.md.
+ */
+enum class LocationType { INDOOR, OUTDOOR, MIXED, CUSTOM }
+
+/**
  * MIGRATED (Option A — طبق تصمیم مستند در ADR-029): تا این قدم LocationAsset هر دو
  * AssetType.LOCATION و AssetType.OBJECT را پوشش می‌داد (یک assetType فیلد تفکیک‌کننده
  * داشت). از این قدم به بعد، LocationAsset فقط مکان است — ObjectAsset (پایین‌تر)
  * ساختار کاملاً مستقل خودش را دارد؛ فیلد assetType دیگر لازم نیست چون نوع Kotlin
  * خودش تفکیک‌کننده است (دقیقاً هم‌شکل با data class LocationAsset بلوپرینت).
+ *
+ * MIGRATED (واحد ۱۶ فاز ۳ قدم ۱): `locationType` اضافه شد — فیلد بدون پیش‌فرض قبلاً
+ * روی این نوع وجود نداشت (نه در بلوپرینت ۰۶، نه در type-registry.md)؛ افزودنش با
+ * مقدار پیش‌فرض `CUSTOM` (محافظه‌کارانه‌ترین گزینه — بدون فرض غلط داخلی/بیرونی)
+ * Backward Compatible است و هیچ‌کدام از ۴ محل ساخت واقعی موجود این نوع را نمی‌شکند.
  */
 data class LocationAsset(
     val assetId: String,
     val name: String,
     val description: String,
     val environment: Environment,
+    val locationType: LocationType = LocationType.CUSTOM,
     val timeCompatibility: List<String> = emptyList(),
     val weatherCompatibility: List<String> = emptyList(),
     val keyElements: List<String> = emptyList(),

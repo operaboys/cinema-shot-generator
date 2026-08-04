@@ -6,6 +6,8 @@ import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۱): اتصال واقعی CharacterAsset/LocationAsset (واحد ۰۶) به
@@ -79,4 +81,25 @@ class AssetRepository(private val assetDao: AssetDao) {
             json.decodeFromString(ObjectAssetDto.serializer(), entity.assetDataJson).toDomain()
         }
     }
+
+    // واحد ۱۶ فاز ۳ — قدم ۱: برخلاف load*(ids) بالا (که شناسه‌ها را از قبل معلوم فرض
+    // می‌کنند — مثلاً یک Shot به character هایش ارجاع می‌دهد)، این سه تابع «همه‌ی
+    // Asset های یک نوع در یک پروژه» را برمی‌گردانند — دقیقاً چیزی که صفحه‌ی Asset
+    // Library (که هیچ شناسه‌ی از‌پیش‌معلومی ندارد) به آن نیاز دارد. Flow (نه suspend
+    // Result) چون UI باید با تغییرات زنده‌ی دیتابیس (بعد از ذخیره‌ی Asset جدید) خودکار
+    // به‌روز شود — هم‌الگو با AssetDao.getAssetsForProject موجود که از قبل Flow است.
+    fun loadAllCharacterAssets(projectId: String): Flow<List<CharacterAsset>> =
+        assetDao.getAssetsForProjectByType(projectId, AssetType.CHARACTER.name).map { entities ->
+            entities.map { json.decodeFromString(CharacterAssetDto.serializer(), it.assetDataJson).toDomain() }
+        }
+
+    fun loadAllLocationAssets(projectId: String): Flow<List<LocationAsset>> =
+        assetDao.getAssetsForProjectByType(projectId, AssetType.LOCATION.name).map { entities ->
+            entities.map { json.decodeFromString(LocationAssetDto.serializer(), it.assetDataJson).toDomain() }
+        }
+
+    fun loadAllObjectAssets(projectId: String): Flow<List<ObjectAsset>> =
+        assetDao.getAssetsForProjectByType(projectId, AssetType.OBJECT.name).map { entities ->
+            entities.map { json.decodeFromString(ObjectAssetDto.serializer(), it.assetDataJson).toDomain() }
+        }
 }
