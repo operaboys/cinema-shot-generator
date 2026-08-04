@@ -387,8 +387,25 @@ Override کردن `LocalLayoutDirection` بر اساس زبان انتخابی �
 `gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۵۴
 تست (۵۳۴→۵۵۴، ۲۰ تست جدید شامل اولین Compose UI Test پروژه)، ۰ Failure، ۰ Error.
 
-**فاز ۱ (پوسته‌ی برنامه — محتوای واقعی صفحه‌های Home/Projects/Assets/Studio Shell)
-آماده‌ی شروع است.**
+### 🎯 نقطه‌ی عطف: فونت‌های واقعی Inter/Vazirmatn متصل شدند — تکمیل فاز ۰ واحد ۱۶
+
+محدودیت شناخته‌شده‌ی فاز ۰ (`FontFamily.Default` به‌جای Inter/Vazirmatn واقعی، چون
+هیچ فایل فونتی ضمیمه نشده بود) رفع شد — ۸ فایل واقعی
+(`inter_regular/medium/semibold/bold.ttf`، `vazirmatn_regular/medium/semibold/bold.ttf`،
+تأییدشده با `file` که واقعاً TrueType معتبرند) اکنون در `app/src/main/res/font/`
+موجودند. `ui/theme/Type.kt` دو `FontFamily` واقعی ساخت
+(`InterFontFamily`/`VazirmatnFontFamily`) و تابع `cinemaFontFamily(language)` که
+طبق `docs/design/README.md` («Vazirmatn — used automatically whenever lang = fa»)
+خودکار بین این دو سوییچ می‌کند؛ `CinemaShotGeneratorTheme` اکنون `language` را
+مستقیماً از `WorkflowViewModel` می‌گیرد (هم‌الگو با `darkTheme` موجود). `CinemaFontFamily`
+قدیمی (فونت سیستم) کاملاً حذف شد — هیچ Composable ای دیگر به فونت سیستم
+Fallback نمی‌کند. جزئیات کامل در `docs/adr/043-unit16-phase0-real-fonts.md`.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۵۷ تست
+(۵۵۴→۵۵۷، ۳ تست جدید: سوییچ واقعی FontFamily با تغییر زبان)، ۰ Failure، ۰ Error.
+
+**فاز ۰ واحد ۱۶ اکنون کاملاً بدون محدودیت شناخته‌شده است. فاز ۱ (پوسته‌ی برنامه —
+محتوای واقعی صفحه‌های Home/Projects/Assets/Studio Shell) آماده‌ی شروع است.**
 
 ## Stack
 

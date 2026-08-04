@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 
 // واحد ۱۶ — فاز ۰ (پایه‌ی مشترک): Theme.kt واقعی طبق Design Tokens
 // docs/design/README.md — جایگزین تم موقت M3 پیش‌فرض قدم‌های قبلی.
@@ -44,16 +45,27 @@ private val LightColorScheme = lightColorScheme(
     onError = LightTokens.Bg
 )
 
+/**
+ * MIGRATED (docs/adr/043-unit16-phase0-real-fonts.md): پارامتر `language` اضافه شد
+ * تا `typography` بتواند طبق docs/design/README.md («Vazirmatn — used automatically
+ * whenever lang = fa») بین Inter/Vazirmatn سوییچ کند — تصمیم مستند: تزریق مستقیم
+ * `language` به این تابع (به‌جای خواندن آن از یک CompositionLocal جداگانه)، چون
+ * فراخوان همیشه‌اش (`App.kt`) از قبل `language` را از `WorkflowViewModel` دارد و
+ * مستقیماً همان الگوی موجود `darkTheme: Boolean` (که همان‌طور مستقیماً تزریق
+ * می‌شود، نه از CompositionLocal) را دنبال می‌کند — بدون نیاز به یک لایه‌ی
+ * انتزاعی جدید.
+ */
 @Composable
 fun CinemaShotGeneratorTheme(
     darkTheme: Boolean,
+    language: Language,
     content: @Composable () -> Unit
 ) {
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
     ProvideExtendedColors(colors = extendedColors) {
         MaterialTheme(
             colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-            typography = CinemaTypography,
+            typography = cinemaTypography(language),
             content = content
         )
     }

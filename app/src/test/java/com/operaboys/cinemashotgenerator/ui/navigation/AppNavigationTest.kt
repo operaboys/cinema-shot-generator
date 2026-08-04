@@ -64,7 +64,7 @@ class AppNavigationTest {
 
     private fun setContentUnderTest() {
         composeRule.setContent {
-            CinemaShotGeneratorTheme(darkTheme = true) {
+            CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
                 MainScaffold(workflowViewModel = workflowViewModel)
             }
         }

@@ -35,7 +35,7 @@ fun App() {
     val layoutDirection = if (language == Language.FA) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        CinemaShotGeneratorTheme(darkTheme = theme == AppTheme.DARK) {
+        CinemaShotGeneratorTheme(darkTheme = theme == AppTheme.DARK, language = language) {
             MainScaffold(workflowViewModel = workflowViewModel)
         }
     }
