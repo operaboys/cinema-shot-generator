@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -80,6 +82,9 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 //   نداشت — نوشتن‌ها بی‌صدا موفق می‌شدند اما به دیتابیس اشتباهی می‌رفتند. جزئیات
 //   کامل در docs/adr/045-unit16-phase2-step1-story-tab.md.
 
+/** طبق یادداشت BottomNavBar.kt: محتوای Drawer همیشه در Composition زنده می‌ماند، پس متن «drawer.aiBreakdown» به‌تنهایی برای onNodeWithText در تست Ambiguous است — این دکمه به testTag جدا نیاز دارد. */
+const val STORY_TAB_AI_BREAKDOWN_BUTTON_TAG = "story.aiBreakdownButton"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StoryTabContent(
@@ -87,6 +92,7 @@ fun StoryTabContent(
     projectListViewModel: ProjectListViewModel,
     language: Language,
     storyRepository: StoryRepository? = null,
+    onNavigateToAiBreakdown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -176,6 +182,15 @@ fun StoryTabContent(
             style = MaterialTheme.typography.bodyMedium,
             color = CinemaTheme.extendedColors.fg3
         )
+
+        Button(
+            onClick = onNavigateToAiBreakdown,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(STORY_TAB_AI_BREAKDOWN_BUTTON_TAG)
+        ) {
+            Text(uiString("drawer.aiBreakdown", language))
+        }
 
         StepperField(
             label = uiString("story.targetShotsLabel", language),

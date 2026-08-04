@@ -16,6 +16,7 @@ import com.operaboys.cinemashotgenerator.data.dao.PromptBlueprintDao
 import com.operaboys.cinemashotgenerator.data.dao.RenderedOutputDao
 import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.dao.ShotDao
+import com.operaboys.cinemashotgenerator.data.dao.StoryBreakdownSessionDao
 import com.operaboys.cinemashotgenerator.data.dao.StoryDao
 import com.operaboys.cinemashotgenerator.data.dao.VersionDao
 import com.operaboys.cinemashotgenerator.data.entity.AssetEntity
@@ -29,6 +30,7 @@ import com.operaboys.cinemashotgenerator.data.entity.PromptBlueprintEntity
 import com.operaboys.cinemashotgenerator.data.entity.RenderedOutputEntity
 import com.operaboys.cinemashotgenerator.data.entity.SceneEntity
 import com.operaboys.cinemashotgenerator.data.entity.ShotEntity
+import com.operaboys.cinemashotgenerator.data.entity.StoryBreakdownSessionEntity
 import com.operaboys.cinemashotgenerator.data.entity.StoryContextEntity
 import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 
@@ -50,6 +52,9 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 // StoryContextEntity (واحد ۱۶ فاز ۲، قدم ۱): همان الگو، برای StoryContext واحد ۰۱
 // که تا این قدم اصلاً هیچ مسیر ذخیره‌سازی‌ای نداشت — جزئیات در
 // docs/adr/045-unit16-phase2-step1-story-tab.md.
+// StoryBreakdownSessionEntity (واحد ۱۶ فاز ۲، قدم ۲): پیش‌نویس در‌حال‌کار AI Story
+// Breakdown (واحد ۰۱ب فاز ۱) — جزئیات در
+// docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
 
 @Database(
     entities = [
@@ -65,7 +70,8 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         EventLogEntity::class,
         ProjectDnaEntity::class,
         AudioContextEntity::class,
-        StoryContextEntity::class
+        StoryContextEntity::class,
+        StoryBreakdownSessionEntity::class
     ],
     version = 1,
     exportSchema = true
@@ -84,6 +90,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDnaDao(): ProjectDnaDao
     abstract fun audioContextDao(): AudioContextDao
     abstract fun storyDao(): StoryDao
+    abstract fun storyBreakdownSessionDao(): StoryBreakdownSessionDao
     abstract fun projectTransactionDao(): ProjectTransactionDao
 
     companion object {

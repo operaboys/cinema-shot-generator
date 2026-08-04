@@ -17,6 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
@@ -42,7 +47,10 @@ import kotlinx.coroutines.launch
 fun MainScaffold(
     workflowViewModel: WorkflowViewModel,
     projectListViewModel: ProjectListViewModel,
-    storyRepository: StoryRepository? = null
+    storyRepository: StoryRepository? = null,
+    assetRepository: AssetRepository? = null,
+    sceneRepository: SceneRepository? = null,
+    shotRepository: ShotRepository? = null
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -50,7 +58,16 @@ fun MainScaffold(
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
 
-    val backTarget = resolveContextualBackTarget(currentDestination?.route)
+    // AiStoryBreakdown نمی‌تواند در backTargetsByRouteKey (ui/navigation/BackNavigation.kt)
+    // بیاید چون مقصدش (Studio(projectId)) به یک آرگومان Runtime نیاز دارد، در حالی که آن Map
+    // فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق تصمیم مستند، این یک مورد استثنا اینجا
+    // (محل واقعی navController) مدیریت می‌شود، بدون تغییر امضای تابع خالص تست‌شده‌ی
+    // resolveContextualBackTarget. جزئیات کامل در docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
+    val backTarget = if (currentDestination?.hasRoute<AiStoryBreakdown>() == true) {
+        backStackEntry?.toRoute<AiStoryBreakdown>()?.projectId?.let { Studio(it) }
+    } else {
+        resolveContextualBackTarget(currentDestination?.route)
+    }
     BackHandler(enabled = backTarget != null) {
         val target = backTarget
         if (target != null) {
@@ -106,6 +123,9 @@ fun MainScaffold(
                 onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
                 onShowMessage = { message -> coroutineScope.launch { snackbarHostState.showSnackbar(message) } },
                 storyRepository = storyRepository,
+                assetRepository = assetRepository,
+                sceneRepository = sceneRepository,
+                shotRepository = shotRepository,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

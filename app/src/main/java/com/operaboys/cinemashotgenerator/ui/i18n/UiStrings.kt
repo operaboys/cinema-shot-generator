@@ -128,6 +128,32 @@ val faStrings: Map<String, String> = mapOf(
     // فاز ۱ — Assets Container
     "assets.placeholder" to "در فاز ۳ تکمیل می‌شود",
 
+    // فاز ۲ — قدم ۲: صفحه‌ی AI Story Breakdown
+    "aiBreakdown.subtitle" to "داستان را به شات‌های سینمایی تقسیم کنید",
+    "aiBreakdown.storyLabel" to "داستان آزاد",
+    "aiBreakdown.storyPlaceholder" to "داستان خود را اینجا بنویسید...",
+    "aiBreakdown.generatePromptButton" to "تولید پرامپت",
+    "aiBreakdown.promptCardHint" to "این متن را کپی کن و به یک AI بیرونی (مثل ChatGPT یا Claude) بده؛ ارسال خودکار هنوز پیاده نشده است.",
+    "aiBreakdown.copyButton" to "کپی",
+    "aiBreakdown.proceedToPhase2Button" to "بعدی: چسباندن پاسخ",
+    "aiBreakdown.pasteLabel" to "پاسخ AI را اینجا بچسبان",
+    "aiBreakdown.pastePlaceholder" to "پاسخ JSON دریافتی از AI را اینجا بچسبانید...",
+    "aiBreakdown.newChunkButton" to "تکه‌ی جدید",
+    "aiBreakdown.chunksCountTemplate" to "{count} تکه ثبت‌شده",
+    "aiBreakdown.continueButton" to "ادامه",
+    "aiBreakdown.dismissButton" to "متوجه شدم",
+    "aiBreakdown.repairModalTitle" to "خطای JSON",
+    "aiBreakdown.repairAutoButton" to "تعمیر خودکار",
+    "aiBreakdown.repairManualButton" to "ویرایش دستی",
+    "aiBreakdown.reviewTitle" to "بازبینی نهایی",
+    "aiBreakdown.reviewCharacters" to "کاراکتر",
+    "aiBreakdown.reviewLocations" to "مکان",
+    "aiBreakdown.reviewObjects" to "شیء",
+    "aiBreakdown.reviewScenes" to "صحنه",
+    "aiBreakdown.reviewShots" to "شات",
+    "aiBreakdown.warningsHeader" to "هشدارها",
+    "aiBreakdown.confirmButton" to "تأیید و ادامه",
+
     // فاز ۱ — منوی همبرگری (Nav Drawer)
     "drawer.groupStudio" to "استودیو",
     "drawer.groupTools" to "ابزارها",
@@ -265,6 +291,32 @@ val enStrings: Map<String, String> = mapOf(
 
     // Phase 1 — Assets Container
     "assets.placeholder" to "Completed in Phase 3",
+
+    // Phase 2 — Step 2: AI Story Breakdown screen
+    "aiBreakdown.subtitle" to "Turn your story into cinematic shots",
+    "aiBreakdown.storyLabel" to "Free-form story",
+    "aiBreakdown.storyPlaceholder" to "Write your story here...",
+    "aiBreakdown.generatePromptButton" to "Generate Prompt",
+    "aiBreakdown.promptCardHint" to "Copy this text and give it to an external AI (e.g. ChatGPT or Claude); automatic sending isn't implemented yet.",
+    "aiBreakdown.copyButton" to "Copy",
+    "aiBreakdown.proceedToPhase2Button" to "Next: Paste response",
+    "aiBreakdown.pasteLabel" to "Paste the AI response here",
+    "aiBreakdown.pastePlaceholder" to "Paste the JSON response you received from the AI...",
+    "aiBreakdown.newChunkButton" to "New chunk",
+    "aiBreakdown.chunksCountTemplate" to "{count} chunks recorded",
+    "aiBreakdown.continueButton" to "Continue",
+    "aiBreakdown.dismissButton" to "Got it",
+    "aiBreakdown.repairModalTitle" to "JSON error",
+    "aiBreakdown.repairAutoButton" to "Auto-repair",
+    "aiBreakdown.repairManualButton" to "Edit manually",
+    "aiBreakdown.reviewTitle" to "Final Review",
+    "aiBreakdown.reviewCharacters" to "Characters",
+    "aiBreakdown.reviewLocations" to "Locations",
+    "aiBreakdown.reviewObjects" to "Objects",
+    "aiBreakdown.reviewScenes" to "Scenes",
+    "aiBreakdown.reviewShots" to "Shots",
+    "aiBreakdown.warningsHeader" to "Warnings",
+    "aiBreakdown.confirmButton" to "Confirm and continue",
 
     // Phase 1 — Nav Drawer
     "drawer.groupStudio" to "STUDIO",

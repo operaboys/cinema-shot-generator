@@ -490,6 +490,51 @@ Studio) آماده‌ی شروع است.**
 
 **قدم ۲ فاز ۲ (AI Story Breakdown + DNA Tab) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۲، قدم ۲ — صفحه‌ی AI Story Breakdown (اولین اتصال UI کل زنجیره‌ی واحد ۰۱ب)
+
+اولین بار که زنجیره‌ی کامل واحد ۰۱ب (PromptBuilder→ChunkCombiner→JsonDoctor→
+StoryToDomainMapper، همه از قدم‌های قبلی موجود و تست‌شده بودند اما به هیچ UI ای
+وصل نبودند) از UI واقعی تا ذخیره‌سازی Room واقعی (AssetRepository/
+SceneRepository/ShotRepository جدید) وصل شد. طبق دستور کار، فقط این صفحه ساخته
+شد؛ DNA Tab به قدم بعدی موکول شد.
+
+- **مسیر مستقل جدید:** `AiStoryBreakdown(projectId)` — هم‌رده با ۴ مسیر ریشه‌ی
+  موجود (Header/Back مستقل خودش، نه Sub-view داخل Tab «داستان»)، طبق
+  `docs/design/README.md` بخش «۴. AI Story Breakdown». Back Navigation
+  Contextual برای این مسیر (که به یک آرگومان Runtime نیاز دارد) در
+  `MainScaffold.kt` Special-case شد، بدون تغییر امضای تابع خالص تست‌شده‌ی
+  `resolveContextualBackTarget`.
+- **سه فاز صفحه:** فاز ۱ (نوشتن داستان آزاد + Stepper های هدف‌شات/ثانیه‌به‌شات +
+  «تولید پرامپت» واقعی + کارت فقط‌خواندنی + دکمه‌ی کپی — چون `sendToAiConnector`
+  هنوز `TODO()` است طبق تصمیم قبلی معمار، ADR-035)؛ فاز ۲ (چسباندن پاسخ AI +
+  Chunk Combiner برای پاسخ‌های چندبخشی + Modal تعمیر JSON)؛ فاز ۳ (بازبینی
+  شمارش Asset/Scene/Shot + هشدارهای نام‌های یافت‌نشده + «تأیید و ادامه» که واقعاً
+  در سه Repository ذخیره می‌کند).
+- **لایه‌ی داده‌ی جدید:** `StoryBreakdownSessionEntity`/`StoryBreakdownSessionDao`
+  (مجزا از `StoryContextEntity` — دو نوع دامنه‌ی مستقل)؛ `ShotRepository` (اولین
+  Repository مستقل برای ذخیره‌ی یک `Shot` از صفر — قبلاً فقط از داخل
+  `ProjectTransactionDao`/فقط‌خواندنی وجود داشت).
+- **یافته‌ی واقعی دامنه‌ی از قبل تثبیت‌شده (نه باگ این قدم):** `repairJson`
+  خطاهای `autoFixable=true` (مثل کاما اضافه) را همان‌جا بی‌صدا تعمیر می‌کند؛
+  Modal تعمیر دستی UI فقط برای خطاهای واقعاً غیرقابل‌تعمیر خودکار Trigger
+  می‌شود.
+- **دو یافته‌ی واقعی تست:** (۱) تصادف متنی «تولید پرامپت» با کلید موجود
+  `drawer.promptGenerator` (چون محتوای Drawer همیشه در Composition زنده
+  می‌ماند) — رفع با `testTag` مجزا؛ (۲) `performScrollTo()` روی عناصر بدون والد
+  Scrollable (دکمه‌های Home/Dialog/AlertDialog) با `AssertionError` شکست
+  می‌خورد — این عناصر با `performClick()` ساده (بدون Scroll) تعامل گرفتند.
+  جزئیات کامل همه‌ی تصمیمات در
+  `docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md`.
+
+`AiStoryBreakdownFlowTest.kt` (۴ تست End-to-End با `MainScaffold` کامل + Room
+واقعی In-Memory): پاسخ معتبر ساده → ذخیره‌ی واقعی؛ کاما اضافه → تعمیر خودکار
+بی‌صدا؛ Chunk Combiner (دو تکه با `[CONTINUE]`)؛ هشدار نام یافت‌نشده (Rule 9).
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۸۵ تست
+(۵۸۱→۵۸۵، ۴ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم ۳ فاز ۲ (DNA Tab) آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -557,4 +602,12 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
 
 ## محدودیت‌های شناخته‌شده
 
-(فعلاً خالی — طبق قانون پروژه، این بخش باید هر بار که محدودیتی اضافه یا رفع شد به‌روزرسانی شود.)
+- **ارسال خودکار پرامپت به AI بیرونی (`sendToAiConnector`) هنوز `TODO()` است**
+  (تصمیم مستند قبلی معمار، ADR-035): کاربر باید متن Prompt تولیدشده در فاز ۱
+  صفحه‌ی AI Story Breakdown را دستی کپی و به یک ابزار AI بیرونی (مثل
+  ChatGPT/Claude) بدهد، سپس پاسخ را دستی در فاز ۲ بچسباند. پیاده‌سازی واقعی
+  HTTP (Ktor) به یک قدم بعدی موکول شده.
+- **مقصد Navigation بعد از تأیید فاز ۳ صفحه‌ی AI Story Breakdown همیشه Tab
+  «داستان» Studio است، نه Tab «صحنه‌ها»**: چون هنوز هیچ صفحه‌ی فهرست Scene/Shot
+  مستقلی ساخته نشده و `selectedTab` در `StudioShell` یک State محلی است، نه
+  پارامتر ورودی. جزئیات در `docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md`.

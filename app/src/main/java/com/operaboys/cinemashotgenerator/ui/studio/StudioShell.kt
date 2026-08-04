@@ -60,7 +60,8 @@ fun StudioShell(
     projectListViewModel: ProjectListViewModel,
     onBack: () -> Unit,
     onWarning: (String) -> Unit,
-    storyRepository: StoryRepository? = null
+    storyRepository: StoryRepository? = null,
+    onNavigateToAiBreakdown: (String) -> Unit = {}
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
@@ -100,6 +101,7 @@ fun StudioShell(
                 projectListViewModel = projectListViewModel,
                 language = language,
                 storyRepository = storyRepository,
+                onNavigateToAiBreakdown = { onNavigateToAiBreakdown(projectId) },
                 modifier = Modifier.fillMaxSize()
             )
         } else {

@@ -11,6 +11,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
@@ -42,7 +45,14 @@ fun App() {
     // نمونه‌ی مشترک ساخته و به کل درخت تزریق می‌شود (نه هر Composable مصرف‌کننده
     // خودش از AppDatabase.getInstance بسازد)، دقیقاً برای همان دلیل تست‌پذیری —
     // جزئیات کامل در docs/adr/045-unit16-phase2-step1-story-tab.md.
-    val storyRepository = remember { StoryRepository(AppDatabase.getInstance(application).storyDao()) }
+    val database = remember { AppDatabase.getInstance(application) }
+    val storyRepository = remember { StoryRepository(database.storyDao(), database.storyBreakdownSessionDao()) }
+    // واحد ۱۶ فاز ۲ — قدم ۲: همان الگو، برای ذخیره‌ی واقعی خروجی AI Story Breakdown
+    // (Character/Location/Object Asset + Scene + Shot) — جزئیات در
+    // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
+    val assetRepository = remember { AssetRepository(database.assetDao()) }
+    val sceneRepository = remember { SceneRepository(database.sceneDao()) }
+    val shotRepository = remember { ShotRepository(database.shotDao()) }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -54,7 +64,10 @@ fun App() {
             MainScaffold(
                 workflowViewModel = workflowViewModel,
                 projectListViewModel = projectListViewModel,
-                storyRepository = storyRepository
+                storyRepository = storyRepository,
+                assetRepository = assetRepository,
+                sceneRepository = sceneRepository,
+                shotRepository = shotRepository
             )
         }
     }

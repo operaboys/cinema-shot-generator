@@ -22,3 +22,12 @@ data class Studio(val projectId: String)
 
 @Serializable
 data object Assets
+
+// واحد ۱۶ فاز ۲ — قدم ۲: مسیر مستقل سطح‌بالا (نه یک Sub-view داخل Tab «داستان») —
+// طبق docs/design/README.md بخش «۴. AI Story Breakdown»، این صفحه Header/Back
+// مستقل خودش را دارد (دقیقاً مثل ۴ مسیر ریشه‌ی بالا)، نه یک بخش اسکرول‌شونده‌ی
+// دیگر داخل Story Tab. از Story Tab (دکمه‌ی «برو به تفکیک داستان با AI») و در
+// آینده از Nav Drawer (فعلاً «به‌زودی») در دسترس است. جزئیات کامل در
+// docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
+@Serializable
+data class AiStoryBreakdown(val projectId: String)

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "8fdbae7d90815d3513359ad252ce60d8",
+    "identityHash": "91ff4c82d3cd323f658f7560db59a967",
     "entities": [
       {
         "tableName": "projects",
@@ -730,11 +730,60 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "story_breakdown_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`projectId` TEXT NOT NULL, `freeformStory` TEXT NOT NULL, `targetShotCount` INTEGER NOT NULL, `defaultShotDurationSeconds` REAL NOT NULL, PRIMARY KEY(`projectId`), FOREIGN KEY(`projectId`) REFERENCES `projects`(`projectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "freeformStory",
+            "columnName": "freeformStory",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetShotCount",
+            "columnName": "targetShotCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultShotDurationSeconds",
+            "columnName": "defaultShotDurationSeconds",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "projectId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "projects",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "projectId"
+            ],
+            "referencedColumns": [
+              "projectId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8fdbae7d90815d3513359ad252ce60d8')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '91ff4c82d3cd323f658f7560db59a967')"
     ]
   }
 }

@@ -85,7 +85,7 @@ class AppNavigationTest {
                 MainScaffold(
                     workflowViewModel = workflowViewModel,
                     projectListViewModel = projectListViewModel,
-                    storyRepository = StoryRepository(database.storyDao())
+                    storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao())
                 )
             }
         }

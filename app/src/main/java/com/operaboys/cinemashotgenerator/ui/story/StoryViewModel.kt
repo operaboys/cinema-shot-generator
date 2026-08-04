@@ -49,7 +49,10 @@ import java.time.Instant
 class StoryViewModel(
     application: Application,
     private val projectId: String,
-    private val repository: StoryRepository = StoryRepository(AppDatabase.getInstance(application).storyDao()),
+    private val repository: StoryRepository = StoryRepository(
+        AppDatabase.getInstance(application).storyDao(),
+        AppDatabase.getInstance(application).storyBreakdownSessionDao()
+    ),
     private val clock: () -> String = ::nowIso8601,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
@@ -109,7 +112,8 @@ class StoryViewModel(
     }
 }
 
-private fun defaultStoryContext(clock: () -> String): StoryContext {
+/** internal (نه private) — AiStoryBreakdownViewModel (واحد ۱۶ فاز ۲ قدم ۲) هم برای «هنوز StoryContext ای ذخیره نشده» از همین پیش‌فرض استفاده می‌کند. */
+internal fun defaultStoryContext(clock: () -> String): StoryContext {
     val context = StoryContext(
         storyType = StoryType.NARRATIVE,
         genre = emptyList(),

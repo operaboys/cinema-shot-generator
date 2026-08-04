@@ -1,16 +1,22 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.assets.AssetsScreen
 import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
+import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 
@@ -27,6 +33,9 @@ fun AppNavHost(
     onOpenDrawer: () -> Unit,
     onShowMessage: (String) -> Unit,
     storyRepository: StoryRepository? = null,
+    assetRepository: AssetRepository? = null,
+    sceneRepository: SceneRepository? = null,
+    shotRepository: ShotRepository? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -59,11 +68,28 @@ fun AppNavHost(
                     navController.navigate(target) { launchSingleTop = true }
                 },
                 onWarning = onShowMessage,
-                storyRepository = storyRepository
+                storyRepository = storyRepository,
+                onNavigateToAiBreakdown = { targetProjectId ->
+                    navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
+                }
             )
         }
         composable<Assets> {
             AssetsScreen(workflowViewModel = workflowViewModel)
+        }
+        composable<AiStoryBreakdown> { backStackEntry ->
+            val route: AiStoryBreakdown = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            AiStoryBreakdownScreen(
+                projectId = route.projectId,
+                language = language,
+                onBack = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
+                onConfirmedAndSaved = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
+                storyRepository = storyRepository,
+                assetRepository = assetRepository,
+                sceneRepository = sceneRepository,
+                shotRepository = shotRepository
+            )
         }
     }
 }

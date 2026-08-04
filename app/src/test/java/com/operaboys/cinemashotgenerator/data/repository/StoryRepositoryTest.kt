@@ -38,7 +38,7 @@ class StoryRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java
         ).allowMainThreadQueries().build()
-        repository = StoryRepository(database.storyDao())
+        repository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao())
         runBlocking {
             database.projectDao().saveProject(ProjectEntity("proj_story_test", "Test", "2026-08-04T10:00:00Z", "2026-08-04T10:00:00Z"))
         }
