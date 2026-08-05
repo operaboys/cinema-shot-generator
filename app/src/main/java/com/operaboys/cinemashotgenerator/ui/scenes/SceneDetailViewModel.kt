@@ -1,0 +1,150 @@
+package com.operaboys.cinemashotgenerator.ui.scenes
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
+import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.scene.lockScene as applyLockTransition
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+// واحد ۱۶ فاز ۴ — قدم ۱: ViewModel واقعی صفحه‌ی Scene Detail. هم‌الگو با
+// DnaViewModel (بارگذاری Async یک Entity تکی با idProvider تزریق‌پذیر) —
+// AssetLibraryViewModel اینجا کاربرد ندارد چون این صفحه یک Entity تکی را ویرایش
+// می‌کند، نه یک فهرست زنده‌ی Flow-محور.
+class SceneDetailViewModel(
+    application: Application,
+    private val projectId: String,
+    private val sceneId: String,
+    private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
+    private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    private val idProvider: () -> String = ::generateSceneId,
+    ioScopeOverride: CoroutineScope? = null
+) : AndroidViewModel(application) {
+
+    private val ioScope: CoroutineScope = ioScopeOverride ?: viewModelScope
+
+    private val _scene = MutableStateFlow<Scene?>(null)
+    val scene: StateFlow<Scene?> = _scene.asStateFlow()
+
+    private val _isLoaded = MutableStateFlow(false)
+    val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
+    private val _lastActionMessage = MutableStateFlow<String?>(null)
+    /** پیام نتیجه‌ی آخرین عملیات (Lock/Duplicate ناموفق) — طبق همان الگوی «فراخوان مسئول نمایش دلیل Blocking واقعی است» (ProjectLifecycle.kt). */
+    val lastActionMessage: StateFlow<String?> = _lastActionMessage.asStateFlow()
+
+    /** برای دکمه‌ی «اتصال به کتابخانه» — طبق فاز ۳ قدم ۱ (AssetRepository.loadAllLocationAssets). */
+    val locationAssets: StateFlow<List<LocationAsset>> = assetRepository.loadAllLocationAssets(projectId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        ioScope.launch {
+            _scene.value = sceneRepository.loadScene(sceneId).getOrNull()
+            _isLoaded.value = true
+        }
+    }
+
+    fun connectLocationAsset(locationAssetId: String) = updateAndSave { it.copy(locationAssetId = locationAssetId) }
+
+    /**
+     * طبق «مشخصات دقیق فیلدهای تنظیمات Scene» بلوپرینت ۱۶ — این فرم عمداً یک دکمه‌ی
+     * ذخیره‌ی صریح دارد (نه Auto-Save بی‌صدای Tab «DNA»)؛ همه‌ی فیلد‌ها یک‌جا با
+     * فراخوانی این تابع ذخیره می‌شوند.
+     */
+    fun saveSceneSettings(
+        sceneTitle: String?,
+        narrativeRole: NarrativeRole,
+        timeOfDay: TimeOfDay,
+        atmospherePrimary: Atmosphere,
+        atmosphereSecondary: Atmosphere?
+    ) = updateAndSave {
+        it.copy(
+            sceneTitle = sceneTitle,
+            narrativeRole = narrativeRole,
+            timeOfDay = timeOfDay,
+            atmospherePrimary = atmospherePrimary,
+            atmosphereSecondary = atmosphereSecondary
+        )
+    }
+
+    /** Rule واقعی State Machine واحد ۱۲ (domain.scene.lockScene) — true فقط اگر انتقال واقعاً مجاز بود. */
+    fun lockScene(): Boolean {
+        val current = _scene.value ?: return false
+        val result = applyLockTransition(current)
+        val locked = result.getOrNull()
+        if (locked == null) {
+            _lastActionMessage.value = result.exceptionOrNull()?.message
+            return false
+        }
+        _scene.value = locked
+        ioScope.launch { sceneRepository.saveScene(projectId, locked) }
+        return true
+    }
+
+    /**
+     * sceneNumber جدید از شمار فعلی صحنه‌های پروژه محاسبه می‌شود — این ViewModel
+     * (برخلاف ScenesListViewModel) فهرست کامل صحنه‌ها را از قبل بارگذاری‌شده ندارد،
+     * پس یک‌بار با `.first()` خوانده می‌شود (نه Flow زنده‌ی دائمی، چون فقط برای همین
+     * محاسبه‌ی یک‌باره لازم است).
+     */
+    fun duplicateScene(onDuplicated: (String) -> Unit) {
+        val current = _scene.value ?: return
+        ioScope.launch {
+            val allScenes = sceneRepository.loadAllScenes(projectId).first()
+            val duplicate = current.copy(
+                sceneId = idProvider(),
+                sceneNumber = allScenes.size + 1,
+                sceneTitle = null,
+                state = com.operaboys.cinemashotgenerator.domain.stateversioning.EntityState.DRAFT
+            )
+            sceneRepository.saveScene(projectId, duplicate)
+            onDuplicated(duplicate.sceneId)
+        }
+    }
+
+    fun clearLastActionMessage() { _lastActionMessage.value = null }
+
+    private fun updateAndSave(transform: (Scene) -> Scene) {
+        val current = _scene.value ?: return
+        val updated = transform(current)
+        _scene.value = updated
+        ioScope.launch { sceneRepository.saveScene(projectId, updated) }
+    }
+
+    companion object {
+        fun factory(
+            application: Application,
+            projectId: String,
+            sceneId: String,
+            sceneRepository: SceneRepository? = null,
+            assetRepository: AssetRepository? = null
+        ): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    (
+                        if (sceneRepository != null && assetRepository != null) {
+                            SceneDetailViewModel(application, projectId, sceneId, sceneRepository, assetRepository)
+                        } else {
+                            SceneDetailViewModel(application, projectId, sceneId)
+                        }
+                    ) as T
+            }
+    }
+}

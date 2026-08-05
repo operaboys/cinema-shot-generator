@@ -40,5 +40,8 @@ data class SceneDto(
     val atmosphereSecondary: String? = null,
     val globalVisualStyle: GlobalVisualStyleRefDto = GlobalVisualStyleRefDto(),
     val constraints: SceneConstraintsDto = SceneConstraintsDto(),
-    val shotCount: Int = 0
+    val shotCount: Int = 0,
+    // واحد ۱۶ فاز ۴ قدم ۱: هم‌الگو با ProjectEntity.state — رشته‌ی خام EntityState،
+    // پیش‌فرض «DRAFT».
+    val state: String = "DRAFT"
 )

@@ -43,3 +43,13 @@ data class AiStoryBreakdown(val projectId: String)
 // دکمه‌ی شناور لمس می‌شود.
 @Serializable
 data class AssetForm(val kind: AssetKind)
+
+// واحد ۱۶ فاز ۴ — قدم ۱: مسیر مستقل سطح‌بالا برای Scene Detail — دقیقاً هم‌الگو با
+// AiStoryBreakdown/AssetForm بالا (Header/Back مستقل خودش)، طبق تصریح صریح
+// docs/design/README.md بخش Interactions («Composer→Shots، Shots/Breakdown→Studio،
+// SceneDetail→Studio، همه‌جای دیگر→Home» — همان کامنت ui/navigation/BackNavigation.kt).
+// برخلاف AssetForm، اینجا `projectId` لازم است چون Scene Detail برای برگشت باید
+// دقیقاً به همان Studio(projectId) برود (نه یک PLACEHOLDER — این مسیر همیشه از
+// داخل Studio یک پروژه‌ی مشخص باز می‌شود).
+@Serializable
+data class SceneDetail(val projectId: String, val sceneId: String)

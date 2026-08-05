@@ -10,6 +10,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -74,5 +75,35 @@ class SceneRepositoryTest {
         val result = repository.loadScene("scene_missing")
         assertTrue(result.isSuccess)
         assertEquals(null, result.getOrThrow())
+    }
+
+    // واحد ۱۶ فاز ۴ — قدم ۱: تست‌های loadAllScenes (تازه اضافه‌شده — بخش الف دستور کار).
+
+    @Test
+    fun `loadAllScenes returns an empty list for a project with no scenes`() = runBlocking {
+        database.projectDao().saveProject(
+            ProjectEntity("proj_empty", "Empty", "2026-08-06T10:00:00Z", "2026-08-06T10:00:00Z")
+        )
+        val scenes = repository.loadAllScenes("proj_empty").first()
+        assertEquals(emptyList<Any>(), scenes)
+    }
+
+    @Test
+    fun `loadAllScenes returns every saved scene for the project, ignoring other projects`() = runBlocking {
+        database.projectDao().saveProject(
+            ProjectEntity("proj_001", "Test", "2026-07-20T10:00:00Z", "2026-07-20T10:00:00Z")
+        )
+        database.projectDao().saveProject(
+            ProjectEntity("proj_other", "Other", "2026-07-20T10:00:00Z", "2026-07-20T10:00:00Z")
+        )
+        val secondScene = fullScene.copy(sceneId = "scene_002", sceneNumber = 4)
+        val otherProjectScene = fullScene.copy(sceneId = "scene_other", sceneNumber = 1)
+
+        repository.saveScene("proj_001", fullScene)
+        repository.saveScene("proj_001", secondScene)
+        repository.saveScene("proj_other", otherProjectScene)
+
+        val scenes = repository.loadAllScenes("proj_001").first()
+        assertEquals(setOf(fullScene, secondScene), scenes.toSet())
     }
 }

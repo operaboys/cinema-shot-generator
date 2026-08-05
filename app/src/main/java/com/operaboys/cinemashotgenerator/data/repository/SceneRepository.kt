@@ -3,6 +3,8 @@ package com.operaboys.cinemashotgenerator.data.repository
 import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.entity.SceneEntity
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۲): اتصال واقعی Scene (واحد ۰۴) به SceneDao.
@@ -10,6 +12,15 @@ import kotlinx.serialization.json.Json
 // مستقیماً به Scene کامل نیاز نداشت؛ اما PromptGenerationInput.scene به آن نیاز دارد.
 class SceneRepository(private val sceneDao: SceneDao) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    // واحد ۱۶ فاز ۴ — قدم ۱: کمبود مستندشده‌ی صریح دستور کار — SceneDao.getScenesForProject
+    // از قبل موجود بود (واحد ۱۵)، اما هیچ معادل سطح دامنه‌ای برایش وجود نداشت. Flow
+    // (نه suspend Result) — دقیقاً هم‌الگو با AssetRepository.loadAllCharacterAssets/...
+    // (ADR-048): UI باید با ذخیره‌ی Scene جدید خودکار به‌روز شود.
+    fun loadAllScenes(projectId: String): Flow<List<Scene>> =
+        sceneDao.getScenesForProject(projectId).map { entities ->
+            entities.map { json.decodeFromString(SceneDto.serializer(), it.sceneDataJson).toDomain() }
+        }
 
     suspend fun saveScene(projectId: String, scene: Scene): Result<Unit> = runCatching {
         sceneDao.saveScene(

@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library: لیست+فیلتر + فرم‌های ساخت — هر دو قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail) کامل، قدم ۲ (Shot List + اسکلت Shot Composer) در پیش است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -655,6 +655,47 @@ Tier کاراکتر.
 **فاز ۳ واحد ۱۶ (Asset Library) به‌طور کامل تکمیل شد. فاز ۴ (Scene + Shot
 Composer) آماده‌ی شروع است.**
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۴، قدم ۱ — لیست صحنه‌ها + Scene Detail (اتصال Asset↔Scene نهایی شد)
+
+اولین قدم فاز ۴ (طبق پلن اجرایی، پیچیده‌ترین فاز). Tab «صحنه‌ها» (Placeholder از
+فاز ۱) جای خودش را به لیست واقعی صحنه‌ها داد؛ صفحه‌ی مستقل Scene Detail هم
+اولین‌بار ساخته شد.
+
+- **کمبود Repository رفع شد:** `SceneRepository.loadAllScenes(projectId):
+  Flow<List<Scene>>` — `SceneDao.getScenesForProject` از قبل موجود بود ولی هیچ
+  معادل سطح دامنه‌ای نداشت.
+- **اتصال Asset↔Scene نهایی شد (مورد ۶):** دکمه‌ی «اتصال به کتابخانه» در
+  Overview صفحه‌ی Scene Detail، `AssetRepository.loadAllLocationAssets` (فاز ۳)
+  را می‌خواند؛ انتخاب کاربر `Scene.locationAssetId` را واقعاً ذخیره می‌کند و
+  Overview نام همان Asset متصل را نمایش می‌دهد.
+- **یافته‌ی معماری واقعی:** `Scene` هیچ فیلد `EntityState` نداشت — با اینکه
+  بلوپرینت ۱۶ صریحاً می‌گوید «هر Entity یک وضعیت `EntityState` دارد» (همان اصلی
+  که `Project.state` را در فاز ۱ ساخت، ADR-044). `state: EntityState =
+  EntityState.DRAFT` به `Scene` اضافه شد؛ `domain/scene/SceneLifecycle.kt`
+  (تابع `lockScene`) قانون واقعی State Machine واحد ۱۲ را برای Quick Action
+  «Lock Scene» اجرا می‌کند.
+- **یافته‌ی واقعی (اصلاح دستور کار):** سند طراحی صریحاً ۳ Tab برای Scene Detail
+  مشخص کرده (Overview/Shots/Assets) — نه ۴ Tab با «Notes» که دستور کار فرض کرده
+  بود.
+- **Quick Actions:** Edit Scene (Dialog «تنظیمات صحنه» با دکمه‌ی ذخیره‌ی صریح،
+  طبق بلوپرینت ۱۶)، Add Shot (Snackbar «به‌زودی» — منتظر قدم بعدی)، Duplicate
+  (واقعاً پیاده شد، هم‌الگو با `ProjectRepository.duplicateProject`)، Lock
+  Scene.
+- **محدودیت شناخته‌شده‌ی پذیرفته‌شده:** بعد از بازگشت از Scene Detail، Tab
+  «صحنه‌ها» به‌طور خودکار انتخاب نمی‌ماند (همان محدودیت پذیرفته‌شده‌ی
+  مستندشده‌ی ADR-049 برای فیلتر صفحه‌ی Assets). جزئیات کامل همه‌ی تصمیمات در
+  `docs/adr/050-unit16-phase4-step1-scene-detail.md`.
+
+`SceneRepositoryTest.kt` (۲ تست جدید: خالی برای پروژه‌ی جدید، بازگرداندن صحیح با
+نادیده‌گرفتن پروژه‌های دیگر) و `ScenesFlowTest.kt` (۲ تست End-to-End با
+`MainScaffold` کامل + Room واقعی In-Memory: Navigation از لیست به Detail و
+برگشت؛ اتصال یک LocationAsset از کتابخانه تا نمایش صحیح در Overview).
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۰۶
+تست (۶۰۲→۶۰۶، ۴ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم ۲ فاز ۴ (Shot List + اسکلت Shot Composer) آماده‌ی شروع است.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -744,3 +785,10 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   بعد از ذخیره‌ی یک Asset تازه، فیلتر بالای صفحه‌ی Assets خودکار روی نوع
   تازه‌ساخته‌شده نمی‌ماند (همیشه به Characters بازمی‌گردد) — کاربر باید دستی فیلتر
   مربوطه را لمس کند. جزئیات کامل در `docs/adr/049-unit16-phase3-step2-asset-forms.md`.
+- **Scene Detail هنوز «ویرایش» ندارد، فقط «ساخت»** — Tab «شات‌ها»/«دارایی‌ها» این
+  صفحه فعلاً فقط پیام خالی نشان می‌دهند (منتظر Shot Composer، قدم بعدی فاز ۴).
+  دکمه‌ی Quick Action «افزودن شات» فقط Snackbar «به‌زودی» است. بعد از بازگشت از
+  Scene Detail، Tab «صحنه‌ها» خودکار انتخاب نمی‌ماند (کاربر باید دستی دوباره لمس
+  کند — همان محدودیت پذیرفته‌شده‌ی فیلتر Assets، ADR-049). حذف Scene («Delete»)
+  هنوز پیاده نشده — تصمیم مستند، خارج از Scope این قدم. جزئیات کامل در
+  `docs/adr/050-unit16-phase4-step1-scene-detail.md`.

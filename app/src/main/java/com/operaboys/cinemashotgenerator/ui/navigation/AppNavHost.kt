@@ -21,6 +21,7 @@ import com.operaboys.cinemashotgenerator.ui.assets.ObjectAssetFormScreen
 import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
+import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailScreen
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
@@ -76,8 +77,12 @@ fun AppNavHost(
                 onWarning = onShowMessage,
                 storyRepository = storyRepository,
                 projectDnaRepository = projectDnaRepository,
+                sceneRepository = sceneRepository,
                 onNavigateToAiBreakdown = { targetProjectId ->
                     navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
+                },
+                onNavigateToScene = { sceneId ->
+                    navController.navigate(SceneDetail(studio.projectId, sceneId)) { launchSingleTop = true }
                 }
             )
         }
@@ -126,6 +131,22 @@ fun AppNavHost(
                 assetRepository = assetRepository,
                 sceneRepository = sceneRepository,
                 shotRepository = shotRepository
+            )
+        }
+        composable<SceneDetail> { backStackEntry ->
+            val route: SceneDetail = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            SceneDetailScreen(
+                projectId = route.projectId,
+                sceneId = route.sceneId,
+                language = language,
+                onBack = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
+                onNavigateToScene = { newSceneId ->
+                    navController.navigate(SceneDetail(route.projectId, newSceneId)) { launchSingleTop = true }
+                },
+                onShowMessage = onShowMessage,
+                sceneRepository = sceneRepository,
+                assetRepository = assetRepository
             )
         }
     }

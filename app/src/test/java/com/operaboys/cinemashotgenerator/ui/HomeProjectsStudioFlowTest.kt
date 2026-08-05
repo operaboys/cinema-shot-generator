@@ -19,6 +19,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
@@ -120,7 +121,8 @@ class HomeProjectsStudioFlowTest {
                     workflowViewModel = workflowViewModel,
                     projectListViewModel = projectListViewModel,
                     storyRepository = StoryRepository(database.storyDao(), database.storyBreakdownSessionDao()),
-                    projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
+                    projectDnaRepository = ProjectDnaRepository(database.projectDnaDao()),
+                    sceneRepository = SceneRepository(database.sceneDao())
                 )
             }
         }
@@ -166,12 +168,18 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.OUTPUT)).assertIsDisplayed()
 
         // واحد ۱۶ فاز ۲ قدم ۳: Tab «DNA» دیگر Placeholder نیست (محتوای واقعی
-        // DnaTabContent دارد) — طبق docs/adr/047-unit16-phase2-step3-dna-tab.md؛
-        // این تست حالا Tab «صحنه‌ها» را برای اثبات «هنوز Placeholder» بررسی می‌کند.
+        // DnaTabContent دارد) — طبق docs/adr/047-unit16-phase2-step3-dna-tab.md.
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.DNA)).performClick()
         composeRule.onNodeWithText(uiString("dna.group.coreIdentity", Language.FA)).assertIsDisplayed()
 
+        // واحد ۱۶ فاز ۴ قدم ۱: Tab «صحنه‌ها» هم دیگر Placeholder نیست (محتوای واقعی
+        // ScenesListScreen دارد) — طبق docs/adr/050-unit16-phase4-step1-scene-detail.md؛
+        // این تست حالا Tab «خروجی» (تنها Tab باقی‌مانده‌ی واقعاً Placeholder) را برای
+        // اثبات «هنوز Placeholder» بررسی می‌کند.
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.SCENES)).performClick()
+        composeRule.onNodeWithText(uiString("scenesList.emptyState", Language.FA)).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(studioTabTestTag(StudioTab.OUTPUT)).performClick()
         composeRule.onNodeWithText(uiString("studio.tabPlaceholder", Language.FA)).assertIsDisplayed()
     }
 

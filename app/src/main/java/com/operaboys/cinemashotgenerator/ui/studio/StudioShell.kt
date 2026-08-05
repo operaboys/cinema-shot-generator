@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.dna.DnaTabContent
@@ -35,6 +36,7 @@ import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTopTabRow
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.scenes.ScenesListScreen
 import com.operaboys.cinemashotgenerator.ui.story.StoryTabContent
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
@@ -64,7 +66,9 @@ fun StudioShell(
     onWarning: (String) -> Unit,
     storyRepository: StoryRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
-    onNavigateToAiBreakdown: (String) -> Unit = {}
+    sceneRepository: SceneRepository? = null,
+    onNavigateToAiBreakdown: (String) -> Unit = {},
+    onNavigateToScene: (String) -> Unit = {}
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
@@ -111,6 +115,13 @@ fun StudioShell(
                 projectId = projectId,
                 language = language,
                 projectDnaRepository = projectDnaRepository,
+                modifier = Modifier.fillMaxSize()
+            )
+            StudioTab.SCENES -> ScenesListScreen(
+                projectId = projectId,
+                language = language,
+                onOpenScene = onNavigateToScene,
+                sceneRepository = sceneRepository,
                 modifier = Modifier.fillMaxSize()
             )
             else -> StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())

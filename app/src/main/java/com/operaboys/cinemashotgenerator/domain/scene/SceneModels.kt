@@ -1,5 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.scene
 
+import com.operaboys.cinemashotgenerator.domain.stateversioning.EntityState
+
 // واحد ۰۴ — Scene Engine (ساختار داده)
 // منبع حقیقت: docs/blueprints/04-scene-engine.md
 
@@ -36,6 +38,17 @@ data class GlobalVisualStyleRef(
  * واحد ۰۱ب که فقط توصیف متنی تولید می‌کند، نه یک Asset واقعی). null یعنی این Scene
  * هنوز به کتابخانه وصل نشده.
  */
+/**
+ * MIGRATED (واحد ۱۶ فاز ۴ قدم ۱): `state` اضافه شد — طبق تصریح صریح
+ * `docs/blueprints/16-user-workflow-v2.md` («هر Entity (Project/Scene/Shot/Asset) یک
+ * وضعیت EntityState دارد»)، همان اصلی که در فاز ۱ برای `domain.project.Project`
+ * اعمال شد (ADR-044). قبل از این قدم `Scene` هیچ فیلد وضعیتی نداشت — یک شکاف واقعی
+ * بین بلوپرینت و کد موجود، نه فرض من. `EntityState` مستقیم بازاستفاده شد (نه enum
+ * دوم/موازی)، دقیقاً هم‌الگو با `Project.state`؛ پیش‌فرض `DRAFT` (محافظه‌کارانه‌ترین
+ * مقدار، سازگار با تمام محل‌های ساخت واقعی این نوع — با grep تأیید شد هر دو محل
+ * ساخت واقعی main (`StoryToDomainMapper.kt`، `SceneMappers.kt`) و همه‌ی محل‌های
+ * تست فقط Named Argument دارند).
+ */
 data class Scene(
     val sceneId: String,
     val sceneTitle: String? = null,
@@ -48,5 +61,6 @@ data class Scene(
     val atmosphereSecondary: Atmosphere? = null,
     val globalVisualStyle: GlobalVisualStyleRef = GlobalVisualStyleRef(),
     val constraints: SceneConstraints = SceneConstraints(),
-    val shotCount: Int = 0
+    val shotCount: Int = 0,
+    val state: EntityState = EntityState.DRAFT
 )

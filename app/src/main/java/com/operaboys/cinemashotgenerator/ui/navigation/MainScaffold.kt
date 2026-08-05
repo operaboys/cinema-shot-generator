@@ -60,15 +60,20 @@ fun MainScaffold(
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
 
-    // AiStoryBreakdown نمی‌تواند در backTargetsByRouteKey (ui/navigation/BackNavigation.kt)
-    // بیاید چون مقصدش (Studio(projectId)) به یک آرگومان Runtime نیاز دارد، در حالی که آن Map
-    // فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق تصمیم مستند، این یک مورد استثنا اینجا
-    // (محل واقعی navController) مدیریت می‌شود، بدون تغییر امضای تابع خالص تست‌شده‌ی
-    // resolveContextualBackTarget. جزئیات کامل در docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
-    val backTarget = if (currentDestination?.hasRoute<AiStoryBreakdown>() == true) {
-        backStackEntry?.toRoute<AiStoryBreakdown>()?.projectId?.let { Studio(it) }
-    } else {
-        resolveContextualBackTarget(currentDestination?.route)
+    // AiStoryBreakdown/SceneDetail نمی‌توانند در backTargetsByRouteKey (ui/navigation/BackNavigation.kt)
+    // بیایند چون مقصدشان (Studio(projectId)) به یک آرگومان Runtime نیاز دارد، در حالی که آن Map
+    // فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق تصمیم مستند، این استثناها اینجا
+    // (محل واقعی navController) مدیریت می‌شوند، بدون تغییر امضای تابع خالص تست‌شده‌ی
+    // resolveContextualBackTarget. SceneDetail→Studio دقیقاً همان قانون صریح
+    // docs/design/README.md بخش Interactions است. جزئیات کامل در
+    // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md و
+    // docs/adr/050-unit16-phase4-step1-scene-detail.md.
+    val backTarget = when {
+        currentDestination?.hasRoute<AiStoryBreakdown>() == true ->
+            backStackEntry?.toRoute<AiStoryBreakdown>()?.projectId?.let { Studio(it) }
+        currentDestination?.hasRoute<SceneDetail>() == true ->
+            backStackEntry?.toRoute<SceneDetail>()?.projectId?.let { Studio(it) }
+        else -> resolveContextualBackTarget(currentDestination?.route)
     }
     BackHandler(enabled = backTarget != null) {
         val target = backTarget
