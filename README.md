@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container) و فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab — هر سه قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۳ (Asset Library) آغاز شده — قدم ۱ (صفحه‌ی لیست + فیلتر) کامل، قدم ۲ (فرم‌های ساخت/ویرایش) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library: لیست+فیلتر + فرم‌های ساخت — هر دو قدم کامل) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) در پیش است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -618,8 +618,42 @@ Characters + زیرفیلتر صحیح، سوییچ به Locations، سوییچ 
 `gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۵۹۷
 تست (۵۸۸→۵۹۷، ۹ تست جدید)، ۰ Failure، ۰ Error.
 
-**قدم ۲ فاز ۳ (فرم‌های ساخت/ویرایش Asset — شامل تصمیمات F5/F6) آماده‌ی شروع
-است.**
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۳، قدم ۲ (آخرین قدم) — فرم‌های ساخت Asset؛ فاز ۳ کامل شد
+
+دومین و آخرین قدم فاز ۳ — فرم ساخت واقعی هر سه نوع Asset، جایگزین دکمه‌ی شناور
+«به‌زودی» قدم قبل. با تکمیل این قدم، **فاز ۳ واحد ۱۶ (Asset Library) به‌طور کامل
+تکمیل شد.**
+
+- **سه فرم واقعی:** Character (Tier/PhysicalAppearance/Hair/FacialFeatures/Outfit
+  پیش‌فرض)، Location (Environment/LocationType اکنون قابل‌ویرایش/برچسب‌های آزاد
+  زمانی-آب‌وهوایی-عناصر کلیدی)، Object (Subtype/size/materialAndColor/specialTrait) —
+  هر سه با اعتبارسنجی زنده‌ی `domain/asset/AssetValidation.kt` (بدون نیاز به کلیک
+  «ذخیره») و دکمه‌ی ذخیره‌ای که تا رفع کامل موارد Blocking غیرفعال می‌ماند.
+- **یافته‌ی واقعی (تناقض دستور کار با کد موجود):** `timeCompatibility`/
+  `weatherCompatibility`/`keyElements` روی `LocationAsset` با grep تأیید شد از نوع
+  `List<String>` (واژگان باز) هستند، نه `List<Enum>` که دستور کار فرض کرده بود —
+  به‌جای چندانتخابی روی enum ثابت، یک ورودی «افزودن برچسب آزاد» ساخته شد.
+- **تصمیم F5 (نگهداری‌شده از ممیزی pre-unit16):** فرم Character فقط یک Outfit
+  پیش‌فرض ساده می‌سازد (نام+توضیح، هم‌الگو با `defaultOutfitPlaceholder` واحد
+  ۰۱ب)؛ مدیریت کامل چند-Outfit به یک بخش پیشرفته‌ی آینده موکول شد.
+- **مسیر Navigation مشترک:** `AssetForm(kind: AssetKind)` واحد به‌جای سه مسیر جدا —
+  دکمه‌ی شناور صفحه‌ی Assets بسته به فیلتر فعال به فرم درست Navigate می‌کند.
+- **محدودیت شناخته‌شده‌ی پذیرفته‌شده:** بعد از ذخیره، فیلتر صفحه‌ی Assets خودکار
+  روی نوع تازه‌ساخته‌شده نمی‌ماند (همیشه به Characters بازمی‌گردد) — چون مسیر
+  `Assets` بدون‌آرگومان است و رفعش نیازمند تغییری خارج از Scope این قدم بود؛ کاربر
+  باید دستی فیلتر مربوطه را لمس کند. جزئیات کامل همه‌ی تصمیمات در
+  `docs/adr/049-unit16-phase3-step2-asset-forms.md`.
+
+`AssetFormFlowTest.kt` (۵ تست End-to-End با `MainScaffold` کامل + Room واقعی
+In-Memory): ساخت هر سه نوع Asset از فرم واقعی تا ظاهرشدن در لیست، نمایش زنده‌ی یک
+Rule Blocking (size خالی روی Object)، تغییر خودکار سطح قفل تداوم پیش‌فرض با تغییر
+Tier کاراکتر.
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۰۲
+تست (۵۹۷→۶۰۲، ۵ تست جدید)، ۰ Failure، ۰ Error.
+
+**فاز ۳ واحد ۱۶ (Asset Library) به‌طور کامل تکمیل شد. فاز ۴ (Scene + Shot
+Composer) آماده‌ی شروع است.**
 
 ## Stack
 
@@ -704,8 +738,9 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   سبک با شات‌های وابسته) هنوز به شمار واقعی شات‌ها وصل نیست — هیچ Repository ای
   هنوز «همه‌ی شات‌های یک پروژه» را نمی‌شمارد. جزئیات در
   `docs/adr/047-unit16-phase2-step3-dna-tab.md`.
-- **صفحه‌ی Asset Library: دکمه‌ی شناور «افزودن Asset جدید» هنوز فقط Snackbar
-  «به‌زودی» نشان می‌دهد** — فرم ساخت/ویرایش واقعی (تصمیمات F5/F6) کار قدم بعدی
-  فاز ۳ است. همچنین `locationType` تازه‌اضافه‌شده روی `LocationAsset` فعلاً فقط
-  نمایش/فیلتر می‌شود، هنوز از هیچ UI ای قابل‌ویرایش نیست. جزئیات در
-  `docs/adr/048-unit16-phase3-step1-asset-library.md`.
+- **فرم‌های ساخت Asset فقط «ساخت» دارند، نه «ویرایش» Asset موجود** — لمس یک کارت
+  در صفحه‌ی Asset Library هنوز به فرم پیش‌پرشده وصل نیست؛ این کار قدم بعدی است.
+  همچنین مدیریت کامل چند-Outfit کاراکتر (تصمیم F5) فقط یک دکمه‌ی Placeholder دارد.
+  بعد از ذخیره‌ی یک Asset تازه، فیلتر بالای صفحه‌ی Assets خودکار روی نوع
+  تازه‌ساخته‌شده نمی‌ماند (همیشه به Characters بازمی‌گردد) — کاربر باید دستی فیلتر
+  مربوطه را لمس کند. جزئیات کامل در `docs/adr/049-unit16-phase3-step2-asset-forms.md`.

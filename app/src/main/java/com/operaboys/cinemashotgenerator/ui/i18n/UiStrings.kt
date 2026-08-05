@@ -138,7 +138,6 @@ val faStrings: Map<String, String> = mapOf(
     "assetLibrary.emptyState" to "هنوز هیچ Asset ای در این دسته ساخته نشده است.",
     "assetLibrary.continuityMetaTemplate" to "سطح تداوم: {level}",
     "assetLibrary.addAsset" to "افزودن Asset جدید",
-    "assetLibrary.addAssetComingSoon" to "فرم افزودن Asset به‌زودی در دسترس خواهد بود",
 
     "characterTier.main" to "کاراکتر اصلی",
     "characterTier.secondary" to "کاراکتر فرعی",
@@ -158,6 +157,62 @@ val faStrings: Map<String, String> = mapOf(
     "characterContinuityLevel.none" to "بدون قفل",
     "locationContinuityLevel.style" to "سبک",
     "propContinuityLevel.form" to "فرم",
+
+    "gender.female" to "زن",
+    "gender.male" to "مرد",
+    "gender.other" to "سایر",
+
+    // فاز ۳ — قدم ۲: فرم‌های ساخت Asset (مشترک سه فرم)
+    "assetForm.nameLabel" to "نام",
+    "assetForm.descriptionLabel" to "توضیح",
+    "assetForm.basePromptLabel" to "پرامپت پایه (اختیاری)",
+    "assetForm.saveButton" to "ذخیره",
+    "assetForm.addTagButton" to "افزودن",
+    "assetForm.continuityLockLevelFixedTemplate" to "سطح قفل تداوم (ثابت): {level}",
+
+    // فاز ۳ — قدم ۲ — بخش الف: فرم Character
+    "characterForm.title" to "کاراکتر جدید",
+    "characterForm.subtitle" to "ساخت یک Asset کاراکتر برای کتابخانه",
+    "characterForm.tierLabel" to "سطح کاراکتر",
+    "characterForm.ageRangeLabel" to "بازه‌ی سنی",
+    "characterForm.genderLabel" to "جنسیت",
+    "characterForm.heightLabel" to "قد (اختیاری)",
+    "characterForm.buildLabel" to "هیکل (اختیاری)",
+    "characterForm.hairSectionTitle" to "مو (اختیاری)",
+    "characterForm.hairColorLabel" to "رنگ مو",
+    "characterForm.hairStyleLabel" to "استایل مو",
+    "characterForm.hairLengthLabel" to "بلندی مو",
+    "characterForm.facialFeaturesSectionTitle" to "ویژگی‌های چهره (اختیاری)",
+    "characterForm.eyesLabel" to "چشم‌ها",
+    "characterForm.distinctiveMarksLabel" to "علائم متمایز (با ویرگول جدا کنید)",
+    "characterForm.physicalFeaturesLabel" to "ویژگی‌های جسمی تکمیلی (اختیاری)",
+    "characterForm.defaultMoodLabel" to "حال‌وهوای پیش‌فرض (اختیاری)",
+    "characterForm.outfitSectionTitle" to "لباس پیش‌فرض",
+    "characterForm.outfitNameLabel" to "نام لباس",
+    "characterForm.outfitDescriptionLabel" to "توضیح لباس",
+    "characterForm.manageOutfits" to "مدیریت لباس‌ها",
+    "characterForm.manageOutfitsComingSoon" to "مدیریت کامل چند-لباس به‌زودی در دسترس خواهد بود",
+    "characterForm.continuityLockLevelLabel" to "سطح قفل تداوم",
+
+    // فاز ۳ — قدم ۲ — بخش ب: فرم Location
+    "locationForm.title" to "مکان جدید",
+    "locationForm.subtitle" to "ساخت یک Asset مکان برای کتابخانه",
+    "locationForm.locationTypeLabel" to "نوع مکان",
+    "locationForm.environmentSectionTitle" to "محیط",
+    "locationForm.environmentTypeLabel" to "نوع محیط",
+    "locationForm.environmentSizeLabel" to "اندازه‌ی محیط",
+    "locationForm.environmentLightingLabel" to "شرایط نور محیط",
+    "locationForm.timeCompatibilityLabel" to "سازگاری زمانی (برچسب آزاد)",
+    "locationForm.weatherCompatibilityLabel" to "سازگاری آب‌وهوایی (برچسب آزاد)",
+    "locationForm.keyElementsLabel" to "عناصر کلیدی (برچسب آزاد)",
+
+    // فاز ۳ — قدم ۲ — بخش ج: فرم Object
+    "objectForm.title" to "شیء جدید",
+    "objectForm.subtitle" to "ساخت یک Asset شیء/وسیله برای کتابخانه",
+    "objectForm.subtypeLabel" to "زیرگروه",
+    "objectForm.sizeLabel" to "اندازه",
+    "objectForm.materialAndColorLabel" to "جنس و رنگ",
+    "objectForm.specialTraitLabel" to "ویژگی خاص (اختیاری)",
 
     // فاز ۲ — قدم ۲: صفحه‌ی AI Story Breakdown
     "aiBreakdown.subtitle" to "داستان را به شات‌های سینمایی تقسیم کنید",
@@ -457,7 +512,6 @@ val enStrings: Map<String, String> = mapOf(
     "assetLibrary.emptyState" to "No assets created in this category yet.",
     "assetLibrary.continuityMetaTemplate" to "Continuity level: {level}",
     "assetLibrary.addAsset" to "Add New Asset",
-    "assetLibrary.addAssetComingSoon" to "The asset creation form will be available soon",
 
     "characterTier.main" to "Main Character",
     "characterTier.secondary" to "Secondary Character",
@@ -477,6 +531,62 @@ val enStrings: Map<String, String> = mapOf(
     "characterContinuityLevel.none" to "None",
     "locationContinuityLevel.style" to "Style",
     "propContinuityLevel.form" to "Form",
+
+    "gender.female" to "Female",
+    "gender.male" to "Male",
+    "gender.other" to "Other",
+
+    // Phase 3 — Step 2: Asset creation forms (shared across all three forms)
+    "assetForm.nameLabel" to "Name",
+    "assetForm.descriptionLabel" to "Description",
+    "assetForm.basePromptLabel" to "Base prompt (optional)",
+    "assetForm.saveButton" to "Save",
+    "assetForm.addTagButton" to "Add",
+    "assetForm.continuityLockLevelFixedTemplate" to "Continuity lock level (fixed): {level}",
+
+    // Phase 3 — Step 2 — Part A: Character form
+    "characterForm.title" to "New Character",
+    "characterForm.subtitle" to "Create a character asset for the library",
+    "characterForm.tierLabel" to "Character tier",
+    "characterForm.ageRangeLabel" to "Age range",
+    "characterForm.genderLabel" to "Gender",
+    "characterForm.heightLabel" to "Height (optional)",
+    "characterForm.buildLabel" to "Build (optional)",
+    "characterForm.hairSectionTitle" to "Hair (optional)",
+    "characterForm.hairColorLabel" to "Hair color",
+    "characterForm.hairStyleLabel" to "Hair style",
+    "characterForm.hairLengthLabel" to "Hair length",
+    "characterForm.facialFeaturesSectionTitle" to "Facial features (optional)",
+    "characterForm.eyesLabel" to "Eyes",
+    "characterForm.distinctiveMarksLabel" to "Distinctive marks (comma-separated)",
+    "characterForm.physicalFeaturesLabel" to "Additional physical features (optional)",
+    "characterForm.defaultMoodLabel" to "Default mood (optional)",
+    "characterForm.outfitSectionTitle" to "Default outfit",
+    "characterForm.outfitNameLabel" to "Outfit name",
+    "characterForm.outfitDescriptionLabel" to "Outfit description",
+    "characterForm.manageOutfits" to "Manage outfits",
+    "characterForm.manageOutfitsComingSoon" to "Full multi-outfit management will be available soon",
+    "characterForm.continuityLockLevelLabel" to "Continuity lock level",
+
+    // Phase 3 — Step 2 — Part B: Location form
+    "locationForm.title" to "New Location",
+    "locationForm.subtitle" to "Create a location asset for the library",
+    "locationForm.locationTypeLabel" to "Location type",
+    "locationForm.environmentSectionTitle" to "Environment",
+    "locationForm.environmentTypeLabel" to "Environment type",
+    "locationForm.environmentSizeLabel" to "Environment size",
+    "locationForm.environmentLightingLabel" to "Environment lighting condition",
+    "locationForm.timeCompatibilityLabel" to "Time compatibility (free tags)",
+    "locationForm.weatherCompatibilityLabel" to "Weather compatibility (free tags)",
+    "locationForm.keyElementsLabel" to "Key elements (free tags)",
+
+    // Phase 3 — Step 2 — Part C: Object form
+    "objectForm.title" to "New Object",
+    "objectForm.subtitle" to "Create an object/prop asset for the library",
+    "objectForm.subtypeLabel" to "Subtype",
+    "objectForm.sizeLabel" to "Size",
+    "objectForm.materialAndColorLabel" to "Material and color",
+    "objectForm.specialTraitLabel" to "Special trait (optional)",
 
     // Phase 2 — Step 2: AI Story Breakdown screen
     "aiBreakdown.subtitle" to "Turn your story into cinematic shots",

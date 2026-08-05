@@ -62,8 +62,10 @@ import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 //   پایین از قبل استفاده می‌کرد (BottomNavBar.kt) — تا مفهوم «آخرین/فعال پروژه»
 //   واقعی ساخته شود (کار فاز بعدی)، این صفحه هم دقیقاً همان محدودیت شناخته‌شده‌ی
 //   موجود Studio را به ارث می‌برد، نه یک محدودیت تازه.
-// - دکمه‌ی شناور «افزودن Asset جدید» فقط Snackbar «به‌زودی» نشان می‌دهد — بدنه‌ی
-//   فرم واقعی کار قدم بعدی فاز ۳ است (طبق دستور کار صریح این قدم).
+// - واحد ۱۶ فاز ۳ — قدم ۲: دکمه‌ی شناور «افزودن Asset جدید» اکنون به فرم واقعی
+//   نوع فعال (Character/Location/Object) Navigate می‌کند — دیگر فقط Snackbar
+//   «به‌زودی» نیست (کار همین قدم بود). جزئیات کامل در
+//   docs/adr/049-unit16-phase3-step2-asset-forms.md.
 
 const val ASSET_FILTER_CHARACTERS_TAG = "assetLibrary.filter.characters"
 const val ASSET_FILTER_LOCATIONS_TAG = "assetLibrary.filter.locations"
@@ -73,8 +75,8 @@ const val ASSET_LIBRARY_FAB_TAG = "assetLibrary.fab"
 @Composable
 fun AssetsScreen(
     workflowViewModel: WorkflowViewModel,
-    onShowMessage: (String) -> Unit = {},
     assetRepository: AssetRepository? = null,
+    onAddAsset: (AssetKind) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -133,7 +135,7 @@ fun AssetsScreen(
         }
 
         FloatingActionButton(
-            onClick = { onShowMessage(uiString("assetLibrary.addAssetComingSoon", language)) },
+            onClick = { onAddAsset(selectedKind) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp)
@@ -203,7 +205,7 @@ private fun OpaqueSegmentedButton(label: String, selected: Boolean, onClick: () 
  * برای تست Ambiguous می‌شود؛ testTag این ابهام را رفع می‌کند.
  */
 @Composable
-private fun OpaqueChip(label: String, selected: Boolean, onClick: (() -> Unit)?, modifier: Modifier = Modifier, testTag: String? = null) {
+internal fun OpaqueChip(label: String, selected: Boolean, onClick: (() -> Unit)?, modifier: Modifier = Modifier, testTag: String? = null) {
     val background = if (selected) MaterialTheme.colorScheme.primary else CinemaTheme.extendedColors.solidSurface
     val contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else CinemaTheme.extendedColors.fg2
     val borderColor = if (selected) MaterialTheme.colorScheme.primary else CinemaTheme.extendedColors.cardBorder

@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
+import kotlinx.serialization.Serializable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,10 @@ import kotlinx.coroutines.flow.stateIn
 // به‌کار می‌برد — چون منبع این‌جا هم یک Flow واقعی Room است، نه یک بار بارگذاری‌شونده).
 // جزئیات کامل تصمیمات در docs/adr/048-unit16-phase3-step1-asset-library.md.
 
+// واحد ۱۶ فاز ۳ — قدم ۲: @Serializable اضافه شد تا AssetKind مستقیماً به‌عنوان
+// آرگومان مسیر Navigation نوع‌ایمن AssetForm (ui/navigation/AppDestinations.kt)
+// قابل‌استفاده باشد — بدون نیاز به تبدیل رفت‌وبرگشتی به String.
+@Serializable
 enum class AssetKind { CHARACTER, LOCATION, OBJECT }
 
 class AssetLibraryViewModel(

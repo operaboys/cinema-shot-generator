@@ -2,6 +2,7 @@ package com.operaboys.cinemashotgenerator.ui.assets
 
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
@@ -61,6 +62,16 @@ fun locationContinuityLevelLabel(level: LocationContinuityLevel, language: Langu
 fun propContinuityLevelLabel(level: PropContinuityLevel, language: Language): String = uiString(
     when (level) {
         PropContinuityLevel.FORM -> "propContinuityLevel.form"
+    },
+    language
+)
+
+/** واحد ۱۶ فاز ۳ — قدم ۲: فرم Character اولین مصرف‌کننده‌ی [Gender] در UI است. */
+fun genderLabel(gender: Gender, language: Language): String = uiString(
+    when (gender) {
+        Gender.FEMALE -> "gender.female"
+        Gender.MALE -> "gender.male"
+        Gender.OTHER -> "gender.other"
     },
     language
 )

@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
+import com.operaboys.cinemashotgenerator.ui.assets.AssetKind
 import kotlinx.serialization.Serializable
 
 // واحد ۱۶ — فاز ۰: مسیرهای ریشه‌ی Navigation Graph طبق بخش «مکانیزم Navigation
@@ -31,3 +32,14 @@ data object Assets
 // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
 @Serializable
 data class AiStoryBreakdown(val projectId: String)
+
+// واحد ۱۶ فاز ۳ — قدم ۲: مسیر مستقل سطح‌بالا برای فرم ساخت Asset — دقیقاً هم‌الگو
+// با AiStoryBreakdown بالا (Header/Back مستقل خودش، نه یک Sub-view داخل صفحه‌ی
+// Assets). `projectId` عمداً در این مسیر نیامده — خودِ صفحه‌ی Assets هم آرگومان
+// projectId ندارد و از PLACEHOLDER_ACTIVE_PROJECT_ID استفاده می‌کند
+// (docs/adr/048)؛ فرم هم دقیقاً همان الگو را ادامه می‌دهد تا محدودیت شناخته‌شده‌ی
+// موجود دوباره تکرار نشود، نه یک محدودیت تازه. `kind` مشخص می‌کند کدام‌یک از سه
+// فرم (Character/Location/Object) باز شود — طبق فیلتر فعال صفحه‌ی Assets وقتی
+// دکمه‌ی شناور لمس می‌شود.
+@Serializable
+data class AssetForm(val kind: AssetKind)

@@ -13,7 +13,11 @@ import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
+import com.operaboys.cinemashotgenerator.ui.assets.AssetKind
 import com.operaboys.cinemashotgenerator.ui.assets.AssetsScreen
+import com.operaboys.cinemashotgenerator.ui.assets.CharacterAssetFormScreen
+import com.operaboys.cinemashotgenerator.ui.assets.LocationAssetFormScreen
+import com.operaboys.cinemashotgenerator.ui.assets.ObjectAssetFormScreen
 import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
@@ -80,9 +84,35 @@ fun AppNavHost(
         composable<Assets> {
             AssetsScreen(
                 workflowViewModel = workflowViewModel,
-                onShowMessage = onShowMessage,
-                assetRepository = assetRepository
+                assetRepository = assetRepository,
+                onAddAsset = { kind -> navController.navigate(AssetForm(kind)) { launchSingleTop = true } }
             )
+        }
+        composable<AssetForm> { backStackEntry ->
+            val route: AssetForm = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val onFormBack = { navController.navigate(Assets) { launchSingleTop = true } }
+            when (route.kind) {
+                AssetKind.CHARACTER -> CharacterAssetFormScreen(
+                    language = language,
+                    onBack = onFormBack,
+                    onSaved = onFormBack,
+                    onShowMessage = onShowMessage,
+                    assetRepository = assetRepository
+                )
+                AssetKind.LOCATION -> LocationAssetFormScreen(
+                    language = language,
+                    onBack = onFormBack,
+                    onSaved = onFormBack,
+                    assetRepository = assetRepository
+                )
+                AssetKind.OBJECT -> ObjectAssetFormScreen(
+                    language = language,
+                    onBack = onFormBack,
+                    onSaved = onFormBack,
+                    assetRepository = assetRepository
+                )
+            }
         }
         composable<AiStoryBreakdown> { backStackEntry ->
             val route: AiStoryBreakdown = backStackEntry.toRoute()
