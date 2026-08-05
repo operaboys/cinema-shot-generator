@@ -12,6 +12,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
 import com.operaboys.cinemashotgenerator.domain.workflow.HomeLayoutVariant
+import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.domain.workflow.WorkflowState
 import com.operaboys.cinemashotgenerator.domain.workflow.WorkflowStep
 import kotlinx.coroutines.CoroutineScope
@@ -111,6 +112,21 @@ class WorkflowViewModel(
     fun setComposerLayoutVariant(variant: ComposerLayoutVariant): Job {
         _composerLayoutVariant.value = variant
         return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.COMPOSER_LAYOUT_VARIANT] = variant.name } }
+    }
+
+    /**
+     * واحد ۱۶ فاز ۴ قدم ۲: سوییچ Grid/Timeline فهرست شات‌ها — طبق 🆕 بلوپرینت ۱۶
+     * («انتخاب کاربر باید در طول یک نشست حفظ شود، نه هر بار بازنشانی به پیش‌فرض»).
+     * `WorkflowState.shotListViewMode` از فاز ۰ موجود بود ولی هیچ Setter ای نداشت.
+     * عمداً در همین ViewModel سراسری (نه `rememberSaveable` محلی Scene Detail) —
+     * چون `workflowState` خودش دقیقاً «طول یک نشست Studio» را نمایندگی می‌کند (یک‌بار
+     * در ورود به Studio ساخته می‌شود، نه به‌ازای هر بازدید Scene Detail/Shot Composer)؛
+     * این انتخاب یک اثر جانبی مفید هم دارد: بین رفت‌وبرگشت Shot List↔Shot Composer هم
+     * حفظ می‌ماند، بدون نیاز به راه‌حل جداگانه. بدون نوشتن در DataStore — این فیلد
+     * Preference بلندمدت نیست، دقیقاً هم‌جنس بقیه‌ی WorkflowState.
+     */
+    fun setShotListViewMode(mode: ShotListViewMode) {
+        _workflowState.value = _workflowState.value?.copy(shotListViewMode = mode)
     }
 
     /** شروع یک Session گردش کار واقعی برای یک projectId مشخص — فراخوان واقعی این تابع (هنگام ورود به Studio) کار فاز بعدی است. */

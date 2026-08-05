@@ -49,15 +49,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.shots.ShotListScreen
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
 // واحد ۱۶ فاز ۴ — قدم ۱ — بخش ب: صفحه‌ی Scene Detail. طبق docs/design/README.md
@@ -69,7 +72,11 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 // (فاز ۳ قدم ۲) بازاستفاده شدند — همان الگوی بازاستفاده‌ی Cross-Feature تأییدشده‌ی
 // OpaqueChip در همان قدم؛ این دو تابع کاملاً عمومی‌اند (نه مختص Asset).
 
-private enum class SceneDetailTab { OVERVIEW, SHOTS, ASSETS }
+// واحد ۱۶ فاز ۴ — قدم ۲: internal (نه private) شد — AppNavHost.kt هنگام برگشت از
+// Shot Composer باید بتواند صریحاً Tab «شات‌ها» را انتخاب کند («Composer→Shots»،
+// طبق کامنت BackNavigation.kt/docs/design/README.md بخش Interactions)، نه همیشه
+// بازنشانی به OVERVIEW. جزئیات کامل در docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md.
+internal enum class SceneDetailTab { OVERVIEW, SHOTS, ASSETS }
 
 const val SCENE_DETAIL_CONNECT_LOCATION_BUTTON_TAG = "sceneDetail.connectLocationButton"
 const val SCENE_DETAIL_EDIT_BUTTON_TAG = "sceneDetail.editButton"
@@ -91,9 +98,16 @@ fun SceneDetailScreen(
     language: Language,
     onBack: () -> Unit,
     onNavigateToScene: (String) -> Unit,
+    /** (shotId، سطر null یعنی «شات جدید»، sceneNumber، عنوان نمایشی صحنه) — این دو مقدار آخر مستقیماً از اینجا منتقل می‌شوند تا Shot Composer نیازی به بارگذاری مجدد Scene نداشته باشد. */
+    onNavigateToShot: (String?, Int, String) -> Unit = { _, _, _ -> },
     onShowMessage: (String) -> Unit = {},
+    /** نام `SceneDetailTab` (پیش‌فرض «OVERVIEW») — عمداً String در امضای public، نه خودِ enum internal، طبق قانون Kotlin («public function نمی‌تواند نوع internal را افشا کند»). */
+    initialTab: String = SceneDetailTab.OVERVIEW.name,
+    shotListViewMode: ShotListViewMode = ShotListViewMode.GRID,
+    onShotListViewModeChange: (ShotListViewMode) -> Unit = {},
     sceneRepository: SceneRepository? = null,
     assetRepository: AssetRepository? = null,
+    shotRepository: ShotRepository? = null,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -109,7 +123,7 @@ fun SceneDetailScreen(
         lastActionMessage?.let { onShowMessage(it); viewModel.clearLastActionMessage() }
     }
 
-    var selectedTab by remember { mutableStateOf(SceneDetailTab.OVERVIEW) }
+    var selectedTab by remember { mutableStateOf(SceneDetailTab.entries.find { it.name == initialTab } ?: SceneDetailTab.OVERVIEW) }
     var showLocationPicker by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -157,14 +171,24 @@ fun SceneDetailScreen(
                     locationAssets = locationAssets,
                     onConnectLocationClick = { showLocationPicker = true },
                     onEditClick = { showSettingsDialog = true },
-                    onAddShotClick = { onShowMessage(uiString("sceneDetail.addShotComingSoon", language)) },
+                    onAddShotClick = { onNavigateToShot(null, currentScene.sceneNumber, sceneDisplayTitle(currentScene.sceneTitle, currentScene.sceneNumber, language)) },
                     onDuplicateClick = { viewModel.duplicateScene(onNavigateToScene) },
                     onLockClick = {
                         val locked = viewModel.lockScene()
                         if (locked) onShowMessage(uiString("sceneDetail.lockSuccess", language))
                     }
                 )
-                SceneDetailTab.SHOTS -> EmptyTabState(uiString("sceneDetail.shotsEmptyState", language))
+                SceneDetailTab.SHOTS -> ShotListScreen(
+                    sceneId = sceneId,
+                    sceneNumber = currentScene.sceneNumber,
+                    viewMode = shotListViewMode,
+                    language = language,
+                    onViewModeChange = onShotListViewModeChange,
+                    onOpenShot = { shotId -> onNavigateToShot(shotId, currentScene.sceneNumber, sceneDisplayTitle(currentScene.sceneTitle, currentScene.sceneNumber, language)) },
+                    onAddShot = { onNavigateToShot(null, currentScene.sceneNumber, sceneDisplayTitle(currentScene.sceneTitle, currentScene.sceneNumber, language)) },
+                    shotRepository = shotRepository,
+                    modifier = Modifier.fillMaxSize()
+                )
                 SceneDetailTab.ASSETS -> EmptyTabState(uiString("sceneDetail.assetsEmptyState", language))
             }
         }

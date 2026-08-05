@@ -139,8 +139,22 @@ class SceneDetailViewModel(
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (sceneRepository != null && assetRepository != null) {
-                            SceneDetailViewModel(application, projectId, sceneId, sceneRepository, assetRepository)
+                        // واحد ۱۶ فاز ۴ — قدم ۲: کمبود واقعی کشف‌شده — این شرط قبلاً هر دو
+                        // Repository را با «&&» به‌هم‌بسته بود؛ یعنی اگر فقط یکی از دو
+                        // Repository تزریق می‌شد (مثلاً فقط sceneRepository، بدون
+                        // assetRepository)، به‌طور بی‌صدا هر دو به دیتابیس Production
+                        // (AppDatabase.getInstance) برمی‌گشتند — در تست، یعنی SceneDetailViewModel
+                        // با یک دیتابیس کاملاً متفاوت و خالی کار می‌کرد، بدون هیچ خطای
+                        // قابل‌مشاهده (loadScene همیشه null برمی‌گرداند). رفع شد: هرکدام
+                        // مستقل بررسی می‌شود، هم‌راستا با پیش‌فرض‌های خودِ سازنده‌ی کلاس.
+                        if (sceneRepository != null || assetRepository != null) {
+                            SceneDetailViewModel(
+                                application = application,
+                                projectId = projectId,
+                                sceneId = sceneId,
+                                sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
+                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao())
+                            )
                         } else {
                             SceneDetailViewModel(application, projectId, sceneId)
                         }

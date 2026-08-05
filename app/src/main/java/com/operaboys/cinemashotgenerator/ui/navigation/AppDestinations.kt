@@ -51,5 +51,26 @@ data class AssetForm(val kind: AssetKind)
 // برخلاف AssetForm، اینجا `projectId` لازم است چون Scene Detail برای برگشت باید
 // دقیقاً به همان Studio(projectId) برود (نه یک PLACEHOLDER — این مسیر همیشه از
 // داخل Studio یک پروژه‌ی مشخص باز می‌شود).
+//
+// MIGRATED (واحد ۱۶ فاز ۴ قدم ۲): `initialTab` اضافه شد — رشته‌ی نام
+// `SceneDetailTab` (پیش‌فرض «OVERVIEW»، Backward Compatible). لازم برای رعایت
+// دقیق «Composer→Shots» (طبق کامنت بالا)؛ بدون آن، بازگشت از Shot Composer همیشه
+// Tab «کلیات» را نشان می‌داد، نه Tab «شات‌ها» که کاربر واقعاً از آن آمده بود.
 @Serializable
-data class SceneDetail(val projectId: String, val sceneId: String)
+data class SceneDetail(val projectId: String, val sceneId: String, val initialTab: String = "OVERVIEW")
+
+// واحد ۱۶ فاز ۴ — قدم ۲ — بخش ب: مسیر مستقل سطح‌بالا برای Shot Composer — دقیقاً
+// هم‌الگو با SceneDetail بالا. `shotId` عمداً nullable است: null یعنی «شات جدید»
+// (طبق بخش ب دستور کار: «دکمه‌ی شات جدید → Navigate به Shot Composer خالی/جدید» —
+// برخلاف Scene که بدون فرم بلافاصله ساخته می‌شود، Shot طبق بلوپرینت یک فرم/Panel
+// مستقل خودش را دارد). `sceneNumber`/`sceneDisplayTitle` به‌جای بارگذاری مجدد Scene
+// از این مسیر مستقیماً منتقل می‌شوند — Scene Detail از قبل این دو مقدار را دارد،
+// یک fetch تکراری لازم نیست.
+@Serializable
+data class ShotComposer(
+    val projectId: String,
+    val sceneId: String,
+    val sceneNumber: Int,
+    val sceneDisplayTitle: String,
+    val shotId: String? = null
+)

@@ -45,13 +45,21 @@ import java.util.UUID
 
 internal fun generateAssetFormId(prefix: String): String = "${prefix}_" + UUID.randomUUID().toString().replace("-", "").take(12)
 
+/**
+ * `backTestTag` اختیاری (واحد ۱۶ فاز ۴ قدم ۲) — پیش‌فرض null، رفتار موجود سه فرم
+ * Asset را بدون تغییر نگه می‌دارد؛ Shot Composer (اولین مصرف‌کننده‌ی جدید این
+ * پارامتر) برای هدف‌گیری قابل‌اعتماد دکمه‌ی برگشت در تست نیاز دارد.
+ */
 @Composable
-internal fun AssetFormHeader(title: String, subtitle: String, onBack: () -> Unit) {
+internal fun AssetFormHeader(title: String, subtitle: String, onBack: () -> Unit, backTestTag: String? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(
+            onClick = onBack,
+            modifier = if (backTestTag != null) Modifier.testTag(backTestTag) else Modifier
+        ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
         Column(modifier = Modifier.padding(start = 4.dp)) {

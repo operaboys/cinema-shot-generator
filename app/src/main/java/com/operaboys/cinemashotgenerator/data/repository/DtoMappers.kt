@@ -148,6 +148,7 @@ fun ShotDto.toDomain(): Shot = Shot(
         actionSounds = soundProfile.actionSounds.map { ActionSound(it.timestampSeconds, it.type, it.description) },
         characterSounds = soundProfile.characterSounds.map { CharacterSound(it.characterId, it.type, it.description) }
     ),
+    negativePromptOverride = negativePromptOverride,
     characterIds = characterIds,
     objectIds = objectIds,
     locationIds = locationIds,
@@ -176,6 +177,7 @@ fun Shot.toDto(): ShotDto = ShotDto(
         actionSounds = soundProfile.actionSounds.map { ActionSoundDto(it.timestampSeconds, it.type, it.description) },
         characterSounds = soundProfile.characterSounds.map { CharacterSoundDto(it.characterId, it.type, it.description) }
     ),
+    negativePromptOverride = negativePromptOverride,
     characterIds = characterIds,
     objectIds = objectIds,
     locationIds = locationIds,

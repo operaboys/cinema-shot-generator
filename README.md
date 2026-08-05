@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail) کامل، قدم ۲ (Shot List + اسکلت Shot Composer) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail) و قدم ۲ (Shot List + اسکلت Shot Composer) کامل، قدم ۳ (محتوای کامل ۴ Tab شات Composer) در پیش است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -694,7 +694,48 @@ Composer) آماده‌ی شروع است.**
 `gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۰۶
 تست (۶۰۲→۶۰۶، ۴ تست جدید)، ۰ Failure، ۰ Error.
 
-**قدم ۲ فاز ۴ (Shot List + اسکلت Shot Composer) آماده‌ی شروع است.**
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۴، قدم ۲ — Shot List + اسکلت Shot Composer
+
+دومین قدم فاز ۴. Tab «شات‌ها»ی Scene Detail (خالی از قدم قبل) جای خودش را به
+لیست واقعی شات‌های صحنه داد؛ صفحه‌ی مستقل Shot Composer هم اولین‌بار ساخته شد
+(فقط اسکلت — محتوای کامل هر Tab کار قدم ۳ است).
+
+- **کمبود Repository رفع شد:** `ShotRepository.loadAllShots(sceneId):
+  Flow<List<Shot>>` و `loadShot(shotId): Result<Shot?>` — تا این قدم
+  `ShotRepository` فقط `saveShot` داشت، هیچ متد خواندنی.
+- **باگ واقعی کشف و رفع شد:** `ShotDto` فیلد `negativePromptOverride` را
+  نداشت — با اینکه `Shot` (دامنه) این فیلد را از ADR-028 دارد؛ یعنی هر Shot که
+  از Repository/DAO Round-Trip می‌کرد، این فیلد را بی‌صدا گم می‌کرد. رفع شد و
+  با تست Round-Trip صریح پوشش داده شد.
+- **Shot List:** سوییچ Grid/Timeline (`WorkflowState.shotListViewMode` —
+  Session-Scoped، نه DataStore)، کارت هر شات (شماره، عنوان/توصیف کوتاه‌شده،
+  نوع نما، مدت، نشانگر Override تنظیمات صحنه)، دکمه‌ی «شات جدید».
+  Shot Composer: هدر با شماره‌ی شات، فیلدهای سطح‌بالای کامل و واقعی (عنوان،
+  توصیف با اعتبارسنجی زنده، هدف، نوع نما، مدت، سطح حرکت) با Auto-Save بی‌صدا،
+  و ۴ Tab اسکلتی (اصلی/دوربین/نور و محیط/صدا) — محتوای هر Tab کار قدم بعد.
+- **باگ Production واقعی کشف و رفع شد:** `SceneDetailViewModel.factory` دو
+  Repository اختیاری‌اش را با `&&` به‌هم بسته بود — یعنی اگر فقط یکی تزریق
+  می‌شد، هر دو بی‌صدا به دیتابیس Production Singleton برمی‌گشتند (نه فقط آن
+  یکی که واقعاً `null` بود). هر دو حالا مستقل بررسی می‌شوند.
+- **تصمیم ناوبری:** بازگشت از Shot Composer دقیقاً به Tab «شات‌ها» برمی‌گردد
+  (نه بازنشانی به Overview) — چون این مسیر صراحتاً در سند طراحی نام برده شده،
+  برخلاف دو نمونه‌ی محدودیت پذیرفته‌شده‌ی قبلی (ADR-049/050). جزئیات کامل همه‌ی
+  تصمیمات (شامل یافته‌های Repository/باگ Production بالا) در
+  `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`.
+
+`ShotRepositoryTest.kt` (۴ تست جدید: Round-Trip کامل شامل
+`negativePromptOverride`، شات ناموجود، خالی برای صحنه‌ی بدون شات، بازگرداندن
+صحیح مرتب‌شده بر اساس `shotNumber` با نادیده‌گرفتن صحنه‌های دیگر) و
+`ShotsFlowTest.kt` (۲ تست End-to-End با `MainScaffold` کامل + Room واقعی
+In-Memory: نمایش صحیح شات‌های صحنه + سوییچ Grid/Timeline؛ ساخت شات جدید با
+فیلدهای سطح‌بالا → ذخیره‌ی واقعی → بازگشت به لیست).
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۱۲
+تست (۶۰۶→۶۱۲، ۶ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم ۳ فاز ۴ (محتوای کامل ۴ Tab شات Composer، شامل دو محدودیت مستندشده در
+`unit16-execution-plan.md` درباره‌ی `dependentShotsCount` و
+`OutputConstraints`) آماده‌ی شروع است.**
 
 ## Stack
 
@@ -785,10 +826,16 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   بعد از ذخیره‌ی یک Asset تازه، فیلتر بالای صفحه‌ی Assets خودکار روی نوع
   تازه‌ساخته‌شده نمی‌ماند (همیشه به Characters بازمی‌گردد) — کاربر باید دستی فیلتر
   مربوطه را لمس کند. جزئیات کامل در `docs/adr/049-unit16-phase3-step2-asset-forms.md`.
-- **Scene Detail هنوز «ویرایش» ندارد، فقط «ساخت»** — Tab «شات‌ها»/«دارایی‌ها» این
-  صفحه فعلاً فقط پیام خالی نشان می‌دهند (منتظر Shot Composer، قدم بعدی فاز ۴).
-  دکمه‌ی Quick Action «افزودن شات» فقط Snackbar «به‌زودی» است. بعد از بازگشت از
-  Scene Detail، Tab «صحنه‌ها» خودکار انتخاب نمی‌ماند (کاربر باید دستی دوباره لمس
-  کند — همان محدودیت پذیرفته‌شده‌ی فیلتر Assets، ADR-049). حذف Scene («Delete»)
-  هنوز پیاده نشده — تصمیم مستند، خارج از Scope این قدم. جزئیات کامل در
+- **Scene Detail هنوز «ویرایش» ندارد، فقط «ساخت»** — Tab «دارایی‌ها» این صفحه
+  فعلاً فقط پیام خالی نشان می‌دهد. بعد از بازگشت از Scene Detail، Tab «صحنه‌ها»
+  خودکار انتخاب نمی‌ماند (کاربر باید دستی دوباره لمس کند — همان محدودیت
+  پذیرفته‌شده‌ی فیلتر Assets، ADR-049). حذف Scene («Delete») هنوز پیاده نشده —
+  تصمیم مستند، خارج از Scope این قدم. جزئیات کامل در
   `docs/adr/050-unit16-phase4-step1-scene-detail.md`.
+- **Shot Composer فقط اسکلت است** — فیلدهای سطح‌بالا (عنوان/توصیف/هدف/نوع
+  نما/مدت/سطح حرکت) واقعی و Auto-Save‌شونده‌اند (هم برای شات جدید هم برای
+  ویرایش شات موجود — لمس یک کارت شات همین حالا با داده‌ی واقعی پیش‌پر می‌شود)،
+  اما محتوای هر ۴ Tab (اصلی/دوربین/نور و محیط/صدا) فقط پیام «این بخش در قدم
+  بعدی تکمیل می‌شود» نشان می‌دهد — دوربین/نور/محیط/کاراکترها/صدا/مدل هدف/
+  Negative Prompt هنوز هیچ فیلد واقعی ندارند. جزئیات کامل در
+  `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`.

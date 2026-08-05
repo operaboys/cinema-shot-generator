@@ -76,6 +76,11 @@ data class ShotDto(
     val lighting: SourcedLightingSettingsDto = SourcedLightingSettingsDto(),
     val environment: SourcedEnvironmentSettingsDto = SourcedEnvironmentSettingsDto(),
     val soundProfile: SoundProfileDto,
+    // واحد ۱۶ فاز ۴ قدم ۲: کمبود واقعی کشف‌شده — negativePromptOverride روی
+    // domain/shot/ShotModels.kt از قبل موجود بود (ADR-028) اما هرگز به این DTO
+    // اضافه نشده بود؛ یعنی هر Shot که از این مسیر Round-Trip می‌کرد، این فیلد را
+    // بی‌صدا گم می‌کرد. رفع شد — پیش‌فرض null، Backward Compatible.
+    val negativePromptOverride: String? = null,
     val characterIds: List<String> = emptyList(),
     val objectIds: List<String> = emptyList(),
     val locationIds: List<String> = emptyList(),

@@ -3,6 +3,8 @@ package com.operaboys.cinemashotgenerator.data.repository
 import com.operaboys.cinemashotgenerator.data.dao.ShotDao
 import com.operaboys.cinemashotgenerator.data.entity.ShotEntity
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
 // واحد ۱۶ فاز ۲ — قدم ۲: اولین Repository مستقل برای Shot (واحد ۰۵) — یافته‌ی واقعی
@@ -29,5 +31,25 @@ class ShotRepository(private val shotDao: ShotDao) {
                 shotDataJson = json.encodeToString(ShotDto.serializer(), shot.toDto())
             )
         )
+    }
+
+    // واحد ۱۶ فاز ۴ — قدم ۲: کمبود مستندشده‌ی صریح دستور کار — تا این قدم هیچ متد
+    // خواندنی‌ای در این Repository وجود نداشت (فقط saveShot). ShotDao.getShotsForScene
+    // از قبل موجود بود (واحد ۱۵) اما هیچ معادل سطح دامنه‌ای نداشت — دقیقاً هم‌الگو با
+    // SceneRepository.loadAllScenes/AssetRepository.loadAllCharacterAssets (Flow، نه
+    // suspend Result، چون UI باید با ذخیره‌ی Shot جدید خودکار به‌روز شود).
+    // مرتب‌سازی بر اساس shotNumber اینجا انجام می‌شود — خودِ Query مرتب‌سازی ندارد.
+    fun loadAllShots(sceneId: String): Flow<List<Shot>> =
+        shotDao.getShotsForScene(sceneId).map { entities ->
+            entities
+                .map { json.decodeFromString(ShotDto.serializer(), it.shotDataJson).toDomain() }
+                .sortedBy { it.shotNumber }
+        }
+
+    /** برای Shot Composer — بارگذاری یک Shot موجود برای ویرایش (طبق «chevron → opens Shot Composer» سند طراحی). */
+    suspend fun loadShot(shotId: String): Result<Shot?> = runCatching {
+        shotDao.loadShot(shotId)?.let {
+            json.decodeFromString(ShotDto.serializer(), it.shotDataJson).toDomain()
+        }
     }
 }

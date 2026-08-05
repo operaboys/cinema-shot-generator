@@ -26,6 +26,7 @@ import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.launch
 
@@ -60,19 +61,23 @@ fun MainScaffold(
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
 
-    // AiStoryBreakdown/SceneDetail نمی‌توانند در backTargetsByRouteKey (ui/navigation/BackNavigation.kt)
-    // بیایند چون مقصدشان (Studio(projectId)) به یک آرگومان Runtime نیاز دارد، در حالی که آن Map
-    // فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق تصمیم مستند، این استثناها اینجا
-    // (محل واقعی navController) مدیریت می‌شوند، بدون تغییر امضای تابع خالص تست‌شده‌ی
-    // resolveContextualBackTarget. SceneDetail→Studio دقیقاً همان قانون صریح
-    // docs/design/README.md بخش Interactions است. جزئیات کامل در
-    // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md و
-    // docs/adr/050-unit16-phase4-step1-scene-detail.md.
+    // AiStoryBreakdown/SceneDetail/ShotComposer نمی‌توانند در backTargetsByRouteKey
+    // (ui/navigation/BackNavigation.kt) بیایند چون مقصدشان به آرگومان‌های Runtime
+    // نیاز دارد، در حالی که آن Map فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق
+    // تصمیم مستند، این استثناها اینجا (محل واقعی navController) مدیریت می‌شوند،
+    // بدون تغییر امضای تابع خالص تست‌شده‌ی resolveContextualBackTarget.
+    // SceneDetail→Studio و Composer→Shots هر دو دقیقاً همان قانون صریح
+    // docs/design/README.md بخش Interactions هستند. جزئیات کامل در
+    // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md،
+    // docs/adr/050-unit16-phase4-step1-scene-detail.md و
+    // docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md.
     val backTarget = when {
         currentDestination?.hasRoute<AiStoryBreakdown>() == true ->
             backStackEntry?.toRoute<AiStoryBreakdown>()?.projectId?.let { Studio(it) }
         currentDestination?.hasRoute<SceneDetail>() == true ->
             backStackEntry?.toRoute<SceneDetail>()?.projectId?.let { Studio(it) }
+        currentDestination?.hasRoute<ShotComposer>() == true ->
+            backStackEntry?.toRoute<ShotComposer>()?.let { SceneDetail(it.projectId, it.sceneId, SceneDetailTab.SHOTS.name) }
         else -> resolveContextualBackTarget(currentDestination?.route)
     }
     BackHandler(enabled = backTarget != null) {

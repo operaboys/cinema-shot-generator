@@ -22,9 +22,12 @@ import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailScreen
+import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
+import com.operaboys.cinemashotgenerator.ui.shots.ShotComposerScreen
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 
 // واحد ۱۶ — فاز ۱: Navigation Graph با محتوای واقعی هر ۴ مسیر ریشه (فاز ۰ فقط
 // Container خالی داشت). ProjectListViewModel یک نمونه‌ی مشترک است (نه یکی به‌ازای
@@ -136,6 +139,7 @@ fun AppNavHost(
         composable<SceneDetail> { backStackEntry ->
             val route: SceneDetail = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             SceneDetailScreen(
                 projectId = route.projectId,
                 sceneId = route.sceneId,
@@ -144,9 +148,30 @@ fun AppNavHost(
                 onNavigateToScene = { newSceneId ->
                     navController.navigate(SceneDetail(route.projectId, newSceneId)) { launchSingleTop = true }
                 },
+                onNavigateToShot = { shotId, sceneNumber, sceneDisplayTitle ->
+                    navController.navigate(ShotComposer(route.projectId, route.sceneId, sceneNumber, sceneDisplayTitle, shotId)) { launchSingleTop = true }
+                },
                 onShowMessage = onShowMessage,
+                initialTab = route.initialTab,
+                shotListViewMode = workflowState?.shotListViewMode ?: ShotListViewMode.GRID,
+                onShotListViewModeChange = workflowViewModel::setShotListViewMode,
                 sceneRepository = sceneRepository,
-                assetRepository = assetRepository
+                assetRepository = assetRepository,
+                shotRepository = shotRepository
+            )
+        }
+        composable<ShotComposer> { backStackEntry ->
+            val route: ShotComposer = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            ShotComposerScreen(
+                sceneId = route.sceneId,
+                sceneDisplayTitle = route.sceneDisplayTitle,
+                shotId = route.shotId,
+                language = language,
+                onBack = {
+                    navController.navigate(SceneDetail(route.projectId, route.sceneId, SceneDetailTab.SHOTS.name)) { launchSingleTop = true }
+                },
+                shotRepository = shotRepository
             )
         }
     }
