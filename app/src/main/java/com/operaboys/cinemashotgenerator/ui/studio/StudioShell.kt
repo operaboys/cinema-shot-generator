@@ -115,6 +115,8 @@ fun StudioShell(
                 projectId = projectId,
                 language = language,
                 projectDnaRepository = projectDnaRepository,
+                dependentShotsCount = summary?.shotCount ?: 0,
+                onShowMessage = onWarning,
                 modifier = Modifier.fillMaxSize()
             )
             StudioTab.SCENES -> ScenesListScreen(

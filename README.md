@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. قدم بعدی: رفع دو محدودیت ثبت‌شده در `unit16-execution-plan.md` (`dependentShotsCount` در Tab DNA، سه فیلد بدون UI در `OutputConstraints`).**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA (`dependentShotsCount`، سه فیلد بدون UI `OutputConstraints`) نیز رفع شدند.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -808,10 +808,31 @@ Tab‌های «نور و محیط» و «صدا» قدم بعدی جداگانه
 تست (۶۲۰→۶۲۵، ۵ تست جدید)، ۰ Failure، ۰ Error.
 
 **فاز ۴ واحد ۱۶ (Scene + Shot Composer) به‌طور کامل تکمیل شد — هر ۴ Tab
-Shot Composer (اصلی/دوربین/نور و محیط/صدا) اکنون محتوای واقعی دارند.** طبق
-تصمیم قبلی معمار، قدم مستقل بعدی رفع دو محدودیت ثبت‌شده در
-`unit16-execution-plan.md` است: `dependentShotsCount` در Tab DNA (ADR-047) و
-سه فیلد بدون UI در `OutputConstraints` (ADR-047).
+Shot Composer (اصلی/دوربین/نور و محیط/صدا) اکنون محتوای واقعی دارند.**
+
+### 🎯 نقطه‌ی عطف: رفع دو محدودیت ثبت‌شده‌ی Tab DNA (`dependentShotsCount` + سه فیلد بدون UI `OutputConstraints`)
+
+قدم مستقل کوچک بعد از فاز ۴ — رفع دو محدودیت ثبت‌شده در
+`unit16-execution-plan.md` (ADR-047) که در فاز ۲ قدم ۳ عمداً به بعد از فاز ۴
+موکول شده بودند:
+
+- **Rule 1 (Soft Lock) اکنون شمار واقعی شات‌های وابسته‌ی پروژه را می‌گیرد** —
+  به‌جای همیشه صفر. با بازاستفاده‌ی مستقیم از Query موجود
+  `ProjectDao.getProjectWithCounts` (واحد ۱۶ فاز ۱، ADR-044؛ همان عددی که
+  Header استودیو از قبل نشان می‌دهد)، نه یک Query تازه در `ShotDao`. تغییر
+  سبک بصری با شات وابسته اکنون واقعاً هشدار Snackbar نشان می‌دهد (نه فقط در
+  تئوری).
+- **سه فیلد `OutputConstraints`** (`forbiddenElements` با سه دسته‌ی ثابت
+  camera/lighting/weather، `mandatoryElements` با فرم افزودن دستی، و
+  `maxShotDurationSeconds`) اکنون در گروه «محدودیت‌های خروجی» Tab DNA
+  قابل‌ویرایش‌اند.
+- تست‌ها: ۲ تست تازه در `DnaSoftLockWarningTest.kt` (فایل جدا، به‌دلیل
+  محدودیت واقعی «هر Compose Test فقط یک‌بار `setContent`»)، ۱ تست Round-Trip
+  تازه در `DnaTabFlowTest.kt`. جزئیات کامل تصمیمات (خصوصاً چرا Query تازه‌ای
+  اضافه نشد) در `docs/adr/054-unit16-dependent-shots-count-output-constraints-ui.md`.
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۲۸
+تست (۶۲۵→۶۲۸، ۳ تست جدید)، ۰ Failure، ۰ Error.
 
 ## Stack
 
@@ -889,13 +910,12 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   «داستان» Studio است، نه Tab «صحنه‌ها»**: چون هنوز هیچ صفحه‌ی فهرست Scene/Shot
   مستقلی ساخته نشده و `selectedTab` در `StudioShell` یک State محلی است، نه
   پارامتر ورودی. جزئیات در `docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md`.
-- **Tab «DNA»: فیلدهای `forbiddenElements`/`mandatoryElements`/
-  `maxShotDurationSeconds` (بخشی از `OutputConstraints`) هنوز UI ندارند** — فقط
-  `AspectRatio` قابل‌ویرایش است؛ آن سه فیلد با مقدار پیش‌فرض ثابت باقی می‌مانند.
-  همچنین Rule 1 (`DnaValidation.updateCoreIdentity`، هشدار Soft Lock هنگام تغییر
-  سبک با شات‌های وابسته) هنوز به شمار واقعی شات‌ها وصل نیست — هیچ Repository ای
-  هنوز «همه‌ی شات‌های یک پروژه» را نمی‌شمارد. جزئیات در
-  `docs/adr/047-unit16-phase2-step3-dna-tab.md`.
+- ~~Tab «DNA»: فیلدهای `forbiddenElements`/`mandatoryElements`/
+  `maxShotDurationSeconds` بدون UI + Rule 1 با `dependentShotsCount` ثابت روی
+  صفر~~ — **رفع شد.** هر سه فیلد اکنون در گروه «محدودیت‌های خروجی» قابل
+  ویرایش‌اند و هشدار واقعی Rule 1 اکنون از شمار واقعی شات‌های پروژه (بازاستفاده
+  از Query موجود `ProjectDao.getProjectWithCounts`) تغذیه می‌شود. جزئیات در
+  `docs/adr/054-unit16-dependent-shots-count-output-constraints-ui.md`.
 - **فرم‌های ساخت Asset فقط «ساخت» دارند، نه «ویرایش» Asset موجود** — لمس یک کارت
   در صفحه‌ی Asset Library هنوز به فرم پیش‌پرشده وصل نیست؛ این کار قدم بعدی است.
   همچنین مدیریت کامل چند-Outfit کاراکتر (تصمیم F5) فقط یک دکمه‌ی Placeholder دارد.

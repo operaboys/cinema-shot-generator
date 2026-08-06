@@ -36,7 +36,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +67,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.validateColorPalette
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.story.moodLabel
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -96,22 +100,49 @@ const val DNA_MOOD_INTENSITY_FIELD_TAG = "dna.moodIntensityField"
 const val DNA_MOOD_CONSISTENCY_FIELD_TAG = "dna.moodConsistencyField"
 const val DNA_LIGHTING_STYLE_FIELD_TAG = "dna.lightingStyleField"
 const val DNA_ASPECT_RATIO_FIELD_TAG = "dna.aspectRatioField"
+const val DNA_MAX_SHOT_DURATION_FIELD_TAG = "dna.maxShotDurationField"
+const val DNA_MANDATORY_ELEMENT_FIELD_TAG = "dna.mandatoryElementField"
+const val DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG = "dna.addMandatoryElementButton"
+const val DNA_FORBIDDEN_CATEGORY_FIELD_TAG = "dna.forbiddenCategoryField"
+const val DNA_FORBIDDEN_VALUE_FIELD_TAG = "dna.forbiddenValueField"
+const val DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG = "dna.addForbiddenElementButton"
 const val DNA_QUALITY_TAGS_FIELD_TAG = "dna.qualityTagsField"
 const val DNA_NEGATIVE_PROMPT_FIELD_TAG = "dna.negativePromptField"
 
+/** طبق «مثلاً» بلوپرینت ۰۲ (forbidden_elements: camera/lighting/weather) — همان سه دسته‌ای که Rule 2 (validateShotAgainstDna) واقعاً روی‌شان اعمال می‌شود. */
+val DNA_FORBIDDEN_ELEMENT_CATEGORIES = listOf("camera", "lighting", "weather")
+
+fun dnaForbiddenCategoryLabel(category: String, language: Language): String = when (category) {
+    "camera" -> uiString("dna.outputConstraints.category.camera", language)
+    "lighting" -> uiString("dna.outputConstraints.category.lighting", language)
+    "weather" -> uiString("dna.outputConstraints.category.weather", language)
+    else -> category
+}
+
 /** testTag برای Swatch شماره‌ی [index] (۰ تا ۴) — طبق الگوی testTag های فیلد در قدم قبل. */
 fun dnaSwatchFieldTag(index: Int): String = "dna.swatchField.$index"
+
+fun dnaMandatoryElementChipTag(index: Int): String = "dna.mandatoryElementChip.$index"
+fun dnaForbiddenElementChipTag(index: Int): String = "dna.forbiddenElementChip.$index"
 
 @Composable
 fun DnaTabContent(
     projectId: String,
     language: Language,
     projectDnaRepository: ProjectDnaRepository? = null,
+    dependentShotsCount: Int = 0,
+    onShowMessage: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: DnaViewModel = viewModel(factory = DnaViewModel.factory(application, projectId, projectDnaRepository))
     val dna by viewModel.dna.collectAsStateWithLifecycle()
+    val maxShotDurationSecondsText by viewModel.maxShotDurationSecondsText.collectAsStateWithLifecycle()
+    val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
+
+    LaunchedEffect(lastActionMessage) {
+        lastActionMessage?.let { onShowMessage(it); viewModel.clearLastActionMessage() }
+    }
 
     val colorPaletteIssue = remember(dna.masterPalette.colorPalette) { validateColorPalette(dna.masterPalette.colorPalette) }
 
@@ -134,7 +165,7 @@ fun DnaTabContent(
                     categoryOf = VisualStyle::category,
                     categoryLabel = { visualStyleCategoryLabel(it, language) },
                     itemLabel = { visualStyleLabel(it, language) },
-                    onSelected = { viewModel.setDominantVisualStyle(it); onDismiss() }
+                    onSelected = { viewModel.setDominantVisualStyle(it, dependentShotsCount); onDismiss() }
                 )
             }
             EnumDropdownField(
@@ -252,7 +283,7 @@ fun DnaTabContent(
             }
         }
 
-        DnaGroup(title = uiString("dna.group.outputConstraints", language), fieldCount = 1) {
+        DnaGroup(title = uiString("dna.group.outputConstraints", language), fieldCount = 4) {
             EnumDropdownField(
                 label = uiString("dna.outputConstraints.aspectRatioLabel", language),
                 selectedLabel = aspectRatioLabel(dna.outputConstraints.aspectRatio),
@@ -260,6 +291,15 @@ fun DnaTabContent(
             ) { onDismiss ->
                 FlatEntries(AspectRatio.entries, { aspectRatioLabel(it) }) { viewModel.setAspectRatio(it); onDismiss() }
             }
+            OutlinedTextField(
+                value = maxShotDurationSecondsText,
+                onValueChange = viewModel::setMaxShotDurationSecondsText,
+                label = { Text(uiString("dna.outputConstraints.maxShotDurationLabel", language)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag(DNA_MAX_SHOT_DURATION_FIELD_TAG)
+            )
+            MandatoryElementsSection(viewModel = viewModel, language = language, elements = dna.outputConstraints.mandatoryElements)
+            ForbiddenElementsSection(viewModel = viewModel, language = language, forbiddenElements = dna.outputConstraints.forbiddenElements)
         }
 
         DnaGroup(title = uiString("dna.group.qualityDirectives", language), fieldCount = 2) {
@@ -446,5 +486,116 @@ private fun ValidationIssueRow(issue: ValidationIssue) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(icon, contentDescription = null, tint = color)
         Text(text = issue.message, color = color, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * فرم افزودن دستی ساده — هم‌الگو با actionSounds/characterSounds Shot Composer
+ * (docs/adr/053، تصمیم ۶): لیست چیپ قابل‌حذف + یک فیلد متنی + دکمه‌ی افزودن.
+ */
+@Composable
+private fun MandatoryElementsSection(viewModel: DnaViewModel, language: Language, elements: List<String>) {
+    var text by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(uiString("dna.outputConstraints.mandatoryElementsSectionTitle", language), style = MaterialTheme.typography.labelLarge)
+        if (elements.isEmpty()) {
+            Text(
+                uiString("dna.outputConstraints.mandatoryElementsEmptyState", language),
+                style = MaterialTheme.typography.bodySmall,
+                color = CinemaTheme.extendedColors.fg3
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                elements.forEachIndexed { index, element ->
+                    OpaqueChip(
+                        label = "$element ×",
+                        selected = false,
+                        onClick = { viewModel.removeMandatoryElement(index) },
+                        testTag = dnaMandatoryElementChipTag(index)
+                    )
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(uiString("dna.outputConstraints.mandatoryElementFieldLabel", language)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f).testTag(DNA_MANDATORY_ELEMENT_FIELD_TAG)
+            )
+            IconButton(
+                onClick = { if (text.isNotBlank()) { viewModel.addMandatoryElement(text); text = "" } },
+                modifier = Modifier.testTag(DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = uiString("dna.outputConstraints.addMandatoryElementButton", language))
+            }
+        }
+    }
+}
+
+/**
+ * سه دسته‌ی ثابت (camera/lighting/weather) طبق «مثلاً» بلوپرینت ۰۲ — نه یک فیلد
+ * متنی آزاد برای دسته، چون هیچ enum دامنه‌ای برایش وجود ندارد (خودِ
+ * `OutputConstraints.forbiddenElements` عمداً `Map<String, List<String>>` باز
+ * مانده) اما یک Dropdown بسته از سه دسته‌ی مستند‌شده، از تایپوی بی‌اثر (کلیدی که
+ * هیچ Rule ای با آن مطابقت نمی‌کند) جلوگیری می‌کند.
+ */
+@Composable
+private fun ForbiddenElementsSection(viewModel: DnaViewModel, language: Language, forbiddenElements: Map<String, List<String>>) {
+    var category by remember { mutableStateOf(DNA_FORBIDDEN_ELEMENT_CATEGORIES.first()) }
+    var value by remember { mutableStateOf("") }
+    val flattened = remember(forbiddenElements) {
+        forbiddenElements.flatMap { (cat, values) -> values.map { cat to it } }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(uiString("dna.outputConstraints.forbiddenElementsSectionTitle", language), style = MaterialTheme.typography.labelLarge)
+        if (flattened.isEmpty()) {
+            Text(
+                uiString("dna.outputConstraints.forbiddenElementsEmptyState", language),
+                style = MaterialTheme.typography.bodySmall,
+                color = CinemaTheme.extendedColors.fg3
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                flattened.forEachIndexed { index, (cat, elementValue) ->
+                    OpaqueChip(
+                        label = "${dnaForbiddenCategoryLabel(cat, language)}: $elementValue ×",
+                        selected = false,
+                        onClick = { viewModel.removeForbiddenElement(cat, elementValue) },
+                        testTag = dnaForbiddenElementChipTag(index)
+                    )
+                }
+            }
+        }
+        EnumDropdownField(
+            label = uiString("dna.outputConstraints.forbiddenElementCategoryLabel", language),
+            selectedLabel = dnaForbiddenCategoryLabel(category, language),
+            testTag = DNA_FORBIDDEN_CATEGORY_FIELD_TAG
+        ) { onDismiss ->
+            FlatEntries(DNA_FORBIDDEN_ELEMENT_CATEGORIES, { dnaForbiddenCategoryLabel(it, language) }) { category = it; onDismiss() }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                label = { Text(uiString("dna.outputConstraints.forbiddenElementValueLabel", language)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f).testTag(DNA_FORBIDDEN_VALUE_FIELD_TAG)
+            )
+            IconButton(
+                onClick = { if (value.isNotBlank()) { viewModel.addForbiddenElement(category, value); value = "" } },
+                modifier = Modifier.testTag(DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = uiString("dna.outputConstraints.addForbiddenElementButton", language))
+            }
+        }
     }
 }

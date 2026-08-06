@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
@@ -180,6 +181,44 @@ class DnaTabFlowTest {
         val goldenHourLabel = lightingStyleLabel(LightingStyle.GOLDEN_HOUR, Language.FA)
         composeRule.onNodeWithText(goldenHourLabel).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasText(goldenHourLabel), timeoutMillis = 5_000)
+    }
+
+    // قدم مستقل بعد از فاز ۴ — رفع محدودیت dependentShotsCount + سه فیلد بدون UI
+    // OutputConstraints (docs/adr/054-...md). تست‌های خودِ dependentShotsCount
+    // (که DnaTabContent را مستقیماً، بدون MainScaffold، Mount می‌کنند) در فایل
+    // جداگانه‌ی DnaSoftLockWarningTest.kt هستند — چون composeRule این فایل از
+    // قبل در setUp() یک‌بار روی MainScaffold کامل `setContent` صدا زده و Compose
+    // Test Rule اجازه‌ی دومین فراخوان `setContent` در همان تست را نمی‌دهد
+    // (`IllegalStateException: ...has already set content`، یافته‌ی واقعی این قدم).
+
+    @Test
+    fun `adding a mandatory element, a forbidden element and setting max shot duration round-trips after leaving and re-entering Studio`() {
+        createProjectAndOpenDnaTab("DNA Output Constraints Test")
+
+        composeRule.onNodeWithTag(DNA_MAX_SHOT_DURATION_FIELD_TAG).performScrollTo().performTextReplacement("15")
+
+        composeRule.onNodeWithTag(DNA_MANDATORY_ELEMENT_FIELD_TAG).performScrollTo().performTextInput("subject_visible")
+        composeRule.onNodeWithTag(DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(dnaMandatoryElementChipTag(0)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(DNA_FORBIDDEN_VALUE_FIELD_TAG).performScrollTo().performTextInput("dutch_angle")
+        composeRule.onNodeWithTag(DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(dnaForbiddenElementChipTag(0)), timeoutMillis = 5_000)
+
+        // «بستن و بازکردن مجدد صفحه» — عیناً همان الگوی تست Round-Trip بالا (Visual Style).
+        composeRule.onNodeWithTag(BOTTOM_NAV_HOME_TAG).performClick()
+        composeRule.onNodeWithText("DNA Output Constraints Test").clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(studioTabTestTag(StudioTab.STORY)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(studioTabTestTag(StudioTab.DNA)).performClick()
+
+        composeRule.waitUntilExactlyOneExists(hasTestTag(DNA_MANDATORY_ELEMENT_FIELD_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(DNA_MAX_SHOT_DURATION_FIELD_TAG).performScrollTo().assertTextContains("15")
+        composeRule.onNodeWithTag(dnaMandatoryElementChipTag(0)).performScrollTo().assertTextContains("subject_visible ×")
+        // یافته‌ی واقعی: substring ای که از مرز متن فارسی (RTL) به انگلیسی (LTR) عبور
+        // کند (مثلاً "دوربین: dutch_angle") در assertTextContains شکست می‌خورد —
+        // برخلاف چیپ mandatoryElement بالا (کاملاً انگلیسی) که مشکلی نداشت. برای
+        // پرهیز از این مرز، فقط بخش انگلیسی (بدون پیشوند فارسی دسته) بررسی می‌شود.
+        composeRule.onNodeWithTag(dnaForbiddenElementChipTag(0)).performScrollTo().assertTextContains("dutch_angle", substring = true)
     }
 
     private fun moodLabelFor(mood: Mood): String = com.operaboys.cinemashotgenerator.ui.story.moodLabel(mood, Language.FA)

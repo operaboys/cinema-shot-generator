@@ -11,6 +11,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
 import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
+import com.operaboys.cinemashotgenerator.domain.dna.updateCoreIdentity
 import com.operaboys.cinemashotgenerator.domain.dna.LightingPreference
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
@@ -55,26 +56,43 @@ class DnaViewModel(
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
+    // متن خام فیلد «حداکثر مدت شات» — هم‌الگو با `_durationSecondsText` در
+    // ShotComposerViewModel: اگر مستقیماً از dna.outputConstraints.maxShotDurationSeconds
+    // مشتق می‌شد، پاک‌کردن کامل فیلد برای تایپ دوباره غیرممکن می‌شد (رشته‌ی خالی
+    // Int.parse نمی‌شود و بلافاصله به مقدار قبلی بازمی‌گشت).
+    private val _maxShotDurationSecondsText = MutableStateFlow(_dna.value.outputConstraints.maxShotDurationSeconds.toString())
+    val maxShotDurationSecondsText: StateFlow<String> = _maxShotDurationSecondsText.asStateFlow()
+
+    /** پیام آخرین اقدام (هشدار Rule 1) — هم‌الگو با SceneDetailViewModel.lastActionMessage. */
+    private val _lastActionMessage = MutableStateFlow<String?>(null)
+    val lastActionMessage: StateFlow<String?> = _lastActionMessage.asStateFlow()
+
     init {
         ioScope.launch {
             repository.loadProjectDna(projectId).getOrNull()?.let { loaded ->
                 _dna.value = loaded
+                _maxShotDurationSecondsText.value = loaded.outputConstraints.maxShotDurationSeconds.toString()
             }
             _isLoaded.value = true
         }
     }
 
+    fun clearLastActionMessage() { _lastActionMessage.value = null }
+
     // هویت اصلی — Soft Lock: طبق Rule 1 (DnaValidation.updateCoreIdentity)، تغییر
-    // سبک بصری همیشه اعمال می‌شود؛ آن تابع فقط وقتی معنا پیدا می‌کند که شمار شات‌های
-    // وابسته‌ی واقعی این پروژه در دسترس باشد — که هنوز هیچ Repository ای این شمارش
-    // تجمعی («همه‌ی شات‌های یک پروژه») را ارائه نمی‌دهد (تأییدشده با grep؛ ShotDao
-    // فقط بر اساس sceneId می‌خواند). ساختن این شمارش‌گر تجمعی جدید خارج از scope این
-    // قدم است؛ اینجا مستقیماً `updateAndSave` معادل با dependentShotsCount=0 اعمال
-    // شده — از نظر رفتاری با فراخوانی updateCoreIdentity با ۰ شات وابسته یکسان است
-    // (بدون هشدار). بنر Soft Lock ثابت بالای صفحه خودِ فلسفه‌ی Soft Lock را به کاربر
-    // منتقل می‌کند.
-    fun setDominantVisualStyle(style: VisualStyle) = updateAndSave {
-        it.copy(coreIdentity = it.coreIdentity.copy(dominantVisualStyle = style))
+    // سبک بصری همیشه اعمال می‌شود؛ اگر شات وابسته‌ای وجود داشته باشد فقط هشدار
+    // می‌دهد (هرگز Blocking). شمار واقعی شات‌های این پروژه دیگر همیشه ۰ نیست — طبق
+    // تصمیم این قدم (رفع محدودیت ثبت‌شده در unit16-execution-plan.md)، از طریق
+    // پارامتر `dependentShotsCount` از لایه‌ی UI (StudioShell، که از قبل
+    // `ProjectListViewModel.projectSummaries` را برای Header خودش می‌خواند) گرفته
+    // می‌شود، نه با یک اشتراک DB تازه داخل خودِ این ViewModel — جزئیات کامل تصمیم
+    // (چرا این روش به یک Query/Repository جدید ترجیح داده شد) در
+    // docs/adr/054-unit16-dependent-shots-count-output-constraints-ui.md.
+    fun setDominantVisualStyle(style: VisualStyle, dependentShotsCount: Int = 0) {
+        val result = updateCoreIdentity(_dna.value, style, dependentShotsCount)
+        _dna.value = result.updatedDna
+        ioScope.launch { repository.saveProjectDna(result.updatedDna) }
+        result.warning?.let { _lastActionMessage.value = it }
     }
     fun setRealismLevel(level: RealismLevel) = updateAndSave {
         it.copy(coreIdentity = it.coreIdentity.copy(realismLevel = level))
@@ -128,11 +146,54 @@ class DnaViewModel(
         it.copy(lightingPreference = it.lightingPreference.copy(preferredStyle = style))
     }
 
-    // محدودیت‌های خروجی — طبق دستور کار صریح این قدم، فقط aspectRatio در UI این
-    // صفحه است؛ forbiddenElements/mandatoryElements/maxShotDurationSeconds در فهرست
-    // فیلدهای صریح این قدم نیامده‌اند (پیش‌فرض ثابت می‌مانند)، مستند در ADR-047.
+    // محدودیت‌های خروجی — این قدم سه فیلد باقی‌مانده‌ی OutputConstraints
+    // (forbiddenElements/mandatoryElements/maxShotDurationSeconds، محدودیت
+    // ثبت‌شده در ADR-047) را به UI اضافه می‌کند؛ جزئیات کامل در ADR-054.
     fun setAspectRatio(ratio: AspectRatio) = updateAndSave {
         it.copy(outputConstraints = it.outputConstraints.copy(aspectRatio = ratio))
+    }
+
+    fun setMaxShotDurationSecondsText(text: String) {
+        _maxShotDurationSecondsText.value = text
+        text.toIntOrNull()?.takeIf { it > 0 }?.let { seconds ->
+            updateAndSave { it.copy(outputConstraints = it.outputConstraints.copy(maxShotDurationSeconds = seconds)) }
+        }
+    }
+
+    fun addMandatoryElement(value: String) {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return
+        updateAndSave {
+            it.copy(outputConstraints = it.outputConstraints.copy(mandatoryElements = it.outputConstraints.mandatoryElements + trimmed))
+        }
+    }
+
+    fun removeMandatoryElement(index: Int) = updateAndSave {
+        it.copy(outputConstraints = it.outputConstraints.copy(mandatoryElements = it.outputConstraints.mandatoryElements.filterIndexed { i, _ -> i != index }))
+    }
+
+    fun addForbiddenElement(category: String, value: String) {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return
+        updateAndSave {
+            val current = it.outputConstraints.forbiddenElements[category] ?: emptyList()
+            if (trimmed in current) return@updateAndSave it
+            it.copy(
+                outputConstraints = it.outputConstraints.copy(
+                    forbiddenElements = it.outputConstraints.forbiddenElements + (category to (current + trimmed))
+                )
+            )
+        }
+    }
+
+    fun removeForbiddenElement(category: String, value: String) = updateAndSave {
+        val updatedList = (it.outputConstraints.forbiddenElements[category] ?: emptyList()) - value
+        val updatedMap = if (updatedList.isEmpty()) {
+            it.outputConstraints.forbiddenElements - category
+        } else {
+            it.outputConstraints.forbiddenElements + (category to updatedList)
+        }
+        it.copy(outputConstraints = it.outputConstraints.copy(forbiddenElements = updatedMap))
     }
 
     // دستورالعمل‌های کیفیت
@@ -173,8 +234,8 @@ private fun randomDnaId(): String = "dna_" + UUID.randomUUID().toString().replac
  * SEMI_REALISTIC، StyleConsistency.MODERATE، ColorTemperature.NEUTRAL،
  * SaturationLevel.MEDIUM، ContrastLevel.MEDIUM، Mood.CALM (هم‌راستا با پیش‌فرض
  * Mood موجود StoryViewModel)، AspectRatio.LANDSCAPE_16_9 (رایج‌ترین نسبت). مقدار
- * maxShotDurationSeconds=8 و forbiddenElements/mandatoryElements خالی — این سه
- * فیلد در UI این قدم در معرض دید نیستند (تصمیم مستند بالا).
+ * maxShotDurationSeconds=8 (پیش‌فرض بلوپرینت) و forbiddenElements/mandatoryElements
+ * خالی — هر سه فیلد اکنون (ADR-054) در UI قابل ویرایش‌اند.
  */
 internal fun defaultProjectDna(projectId: String, idProvider: () -> String): ProjectDna = ProjectDna(
     dnaId = idProvider(),
