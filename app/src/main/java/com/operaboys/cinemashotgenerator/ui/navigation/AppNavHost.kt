@@ -26,6 +26,7 @@ import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
 import com.operaboys.cinemashotgenerator.ui.shots.ShotComposerScreen
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
+import com.operaboys.cinemashotgenerator.ui.validation.ValidationScreen
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 
@@ -171,7 +172,31 @@ fun AppNavHost(
                 onBack = {
                     navController.navigate(SceneDetail(route.projectId, route.sceneId, SceneDetailTab.SHOTS.name)) { launchSingleTop = true }
                 },
+                onNavigateToValidation = { shotId ->
+                    navController.navigate(
+                        Validation(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
+                    ) { launchSingleTop = true }
+                },
                 shotRepository = shotRepository
+            )
+        }
+        composable<Validation> { backStackEntry ->
+            val route: Validation = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            ValidationScreen(
+                projectId = route.projectId,
+                sceneId = route.sceneId,
+                shotId = route.shotId,
+                language = language,
+                onBack = {
+                    navController.navigate(
+                        ShotComposer(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, route.shotId)
+                    ) { launchSingleTop = true }
+                },
+                shotRepository = shotRepository,
+                sceneRepository = sceneRepository,
+                projectDnaRepository = projectDnaRepository,
+                assetRepository = assetRepository
             )
         }
     }

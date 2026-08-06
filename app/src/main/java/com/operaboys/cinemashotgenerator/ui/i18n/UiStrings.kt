@@ -669,7 +669,18 @@ val faStrings: Map<String, String> = mapOf(
     "soundTab.characterSoundTypeLabel" to "نوع صدا",
     "soundTab.characterSoundDescriptionLabel" to "توضیح",
     "soundTab.addCharacterSoundButton" to "افزودن صدای کاراکتر",
-    "shotComposer.notSet" to "تنظیم‌نشده"
+    "shotComposer.notSet" to "تنظیم‌نشده",
+    "validation.title" to "اعتبارسنجی",
+    "validation.subtitle" to "اعتبارسنجی سه‌سطحی",
+    "validation.blockingLabel" to "BLOCKING",
+    "validation.warningLabel" to "WARNING",
+    "validation.level1Title" to "سطح ۱ — کامل بودن داده",
+    "validation.level2Title" to "سطح ۲ — سازگاری منطقی",
+    "validation.level3Title" to "سطح ۳ — تداوم و وابستگی",
+    "validation.levelEmptyState" to "هیچ مشکلی در این سطح یافت نشد.",
+    "validation.suggestionPrefix" to "پیشنهاد:",
+    "validation.allClearMessage" to "هیچ مشکلی یافت نشد — این شات آماده‌ی تولید Prompt است.",
+    "validation.entryButtonLabel" to "اعتبارسنجی این شات"
 )
 
 val enStrings: Map<String, String> = mapOf(
@@ -1333,7 +1344,18 @@ val enStrings: Map<String, String> = mapOf(
     "soundTab.characterSoundTypeLabel" to "Sound type",
     "soundTab.characterSoundDescriptionLabel" to "Description",
     "soundTab.addCharacterSoundButton" to "Add character sound",
-    "shotComposer.notSet" to "Not set"
+    "shotComposer.notSet" to "Not set",
+    "validation.title" to "Validation",
+    "validation.subtitle" to "3-level validation",
+    "validation.blockingLabel" to "BLOCKING",
+    "validation.warningLabel" to "WARNING",
+    "validation.level1Title" to "Level 1 — Data Completeness",
+    "validation.level2Title" to "Level 2 — Logical Consistency",
+    "validation.level3Title" to "Level 3 — Continuity & Dependencies",
+    "validation.levelEmptyState" to "No issues found at this level.",
+    "validation.suggestionPrefix" to "Suggestion:",
+    "validation.allClearMessage" to "No issues found — this shot is ready for prompt generation.",
+    "validation.entryButtonLabel" to "Validate this shot"
 )
 
 val uiTranslations: Map<Language, Map<String, String>> = mapOf(

@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA (`dependentShotsCount`، سه فیلد بدون UI `OutputConstraints`) نیز رفع شدند.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Prompt Generation → Output Delivery) آغاز شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی) تکمیل شد.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -833,6 +833,32 @@ Shot Composer (اصلی/دوربین/نور و محیط/صدا) اکنون مح�
 
 `gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۲۸
 تست (۶۲۵→۶۲۸، ۳ تست جدید)، ۰ Failure، ۰ Error.
+
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۵، قدم ۱ — صفحه‌ی Validation (تجمیع سه‌سطحی)
+
+اولین قدم فاز ۵ (Validation → Prompt Generation → Output Delivery) — طبق
+`docs/blueprints/16-user-workflow-v2.md` و `docs/design/README.md` بخش «۹.
+Validation».
+
+- **تجمیع‌کننده‌ی خالص جدید** (`domain/validation/ValidationAggregator.kt`):
+  چون `ValidationIssue` سراسری واحد ۰۷ هیچ مفهوم Level نداشت (تأییدشده با
+  grep)، یک نوع Wrapper تازه (`LeveledValidationIssue`) ساخته شد — بدون
+  دست‌زدن به خودِ نوع سراسری. Level 1 (کامل بودن داده)، Level 2 (سازگاری
+  منطقی — شامل هر ۱۳ Rule نور/محیط واحد ۰۸، طبق یادآوری دستور کار اکنون
+  زنده وایر شدند)، Level 3 (تداوم و وابستگی — DNA پروژه + Asset های متصل).
+- **صفحه‌ی Validation**: Header + دو کارت شمارش کاملاً Solid/حاشیه‌دار
+  (BLOCKING قرمز/WARNING کهربایی، طبق الزام Contrast صریح سند طراحی) + سه
+  بخش سطح.
+- نقطه‌ی ورود: دکمه‌ی «اعتبارسنجی این شات» داخل Header خودِ Shot Composer
+  (فقط برای شات‌های از‌پیش‌ذخیره‌شده) — نه Nav Drawer (که هنوز برای هیچ
+  مقصد وابسته‌به‌Context واقعی Navigate نمی‌کند).
+- سه یافته‌ی واقعی دیباگ مستند شدند: تداخل متن با لینک Drawer، نیاز
+  `mergeDescendants=true` روی کارت‌های شمارش برای تست‌پذیری، و یک باگ
+  Fixture در تست (`shotCount` صحنه). جزئیات کامل در
+  `docs/adr/055-unit16-phase5-step1-validation-screen.md`.
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۳۵
+تست (۶۲۸→۶۳۵، ۷ تست جدید)، ۰ Failure، ۰ Error.
 
 ## Stack
 

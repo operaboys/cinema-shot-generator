@@ -74,3 +74,25 @@ data class ShotComposer(
     val sceneDisplayTitle: String,
     val shotId: String? = null
 )
+
+// واحد ۱۶ فاز ۵ — قدم ۱: مسیر مستقل سطح‌بالا برای صفحه‌ی Validation — دقیقاً
+// هم‌الگو با SceneDetail/ShotComposer بالا (Header/Back مستقل خودش). برخلاف
+// ShotComposer، `shotId` اینجا nullable نیست — Validation فقط برای یک Shot از
+// قبل ذخیره‌شده معنا دارد (شات هنوز-ذخیره‌نشده چیزی برای Validate کردن در سطح
+// Repository ندارد). طبق تصمیم مستند (ADR-055)، ورودی این مسیر از داخل خودِ
+// Shot Composer است (نه Nav Drawer — «اعتبارسنجی» در Drawer هنوز placeholder
+// «به‌زودی» می‌ماند، چون بدون Shot مشخص معنایی ندارد).
+// `sceneNumber`/`sceneDisplayTitle` عیناً هم‌الگو با ShotComposer تکرار شدند —
+// نه برای نمایش مستقیم در این صفحه، بلکه چون «برگشت» این صفحه باید دقیقاً به
+// همان ShotComposer(sceneNumber, sceneDisplayTitle) واقعی برگردد (طبق قاعده‌ی
+// صریح معماری «Back Navigation Contextual، نه popBackStack ساده» —
+// ui/navigation/MainScaffold.kt)؛ بدون این دو فیلد، بازسازی یک مسیر ShotComposer
+// معتبر برای Navigate ممکن نبود.
+@Serializable
+data class Validation(
+    val projectId: String,
+    val sceneId: String,
+    val sceneNumber: Int,
+    val sceneDisplayTitle: String,
+    val shotId: String
+)

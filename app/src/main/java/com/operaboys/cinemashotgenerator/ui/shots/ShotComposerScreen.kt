@@ -13,11 +13,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +68,7 @@ const val SHOT_COMPOSER_CAMERA_TAB_TAG = "shotComposer.tab.camera"
 const val SHOT_COMPOSER_LIGHTING_TAB_TAG = "shotComposer.tab.lighting"
 const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
 const val SHOT_COMPOSER_BACK_BUTTON_TAG = "shotComposer.backButton"
+const val SHOT_COMPOSER_VALIDATION_BUTTON_TAG = "shotComposer.validationButton"
 
 @Composable
 fun ShotComposerScreen(
@@ -72,6 +77,7 @@ fun ShotComposerScreen(
     shotId: String?,
     language: Language,
     onBack: () -> Unit,
+    onNavigateToValidation: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
     modifier: Modifier = Modifier
 ) {
@@ -98,6 +104,21 @@ fun ShotComposerScreen(
             onBack = onBack,
             backTestTag = SHOT_COMPOSER_BACK_BUTTON_TAG
         )
+
+        // دکمه‌ی ورود به صفحه‌ی Validation — طبق تصمیم مستند (ADR-055) فقط برای یک
+        // شات از قبل ذخیره‌شده معنا دارد (shotId != null)؛ شات هنوز-ذخیره‌نشده چیزی
+        // در Repository ندارد که Validate شود.
+        if (shotId != null) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                TextButton(
+                    onClick = { onNavigateToValidation(shotId) },
+                    modifier = Modifier.testTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                    Text(uiString("validation.entryButtonLabel", language))
+                }
+            }
+        }
 
         Box(
             modifier = Modifier
