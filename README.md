@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Prompt Generation → Output Delivery) آغاز شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی) تکمیل شد.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Output Delivery) آغاز شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی) تکمیل شد؛ قدم «Prompt Generation» طبق تصمیم معمار با قدم Output Delivery ادغام شد (هیچ صفحه‌ی مستقلی برای آن پیش‌بینی نشده بود — پایین را ببینید).**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -859,6 +859,20 @@ Validation».
 
 `gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۳۵
 تست (۶۲۸→۶۳۵، ۷ تست جدید)، ۰ Failure، ۰ Error.
+
+### 📌 قدم ۲ فاز ۵ («Prompt Generation») با قدم ۳ («Output Delivery») ادغام شد
+
+تحقیق اولیه‌ی الزامی این قدم (grep دقیق فهرست «Screens / Views» در
+`docs/design/README.md`) نشان داد **هیچ بخش مستقلی برای «Prompt Generation»
+بین بخش ۹ (Validation) و ۱۰ (Output Delivery) وجود ندارد** — همان چیزی که
+`docs/blueprints/16-user-workflow-v2.md` هم صریحاً می‌گوید («مرحله ۷:
+کاملاً پشت‌صحنه، بدون UI مستقل»). با تأیید مستقیم معمار، این قدم رسماً با
+قدم بعدی (Output Delivery) ادغام شد — هیچ صفحه‌ی مستقلی ساخته نشد؛ انتخاب
+مدل/warnings/پیش‌نمایش/تولید نهایی همگی در همان یک صفحه‌ی «Output Delivery»
+پیاده می‌شوند. زنجیره‌ی دامنه‌ی پیش‌نیاز
+(`PromptGenerationRepository.collectData` → `assemblePromptBlueprint` →
+`render`) از قبل کامل و تست‌شده بود، پس هیچ کد تازه‌ای هم لازم نشد. جزئیات
+کامل در `docs/adr/056-unit16-phase5-step2-prompt-generation-merged.md`.
 
 ## Stack
 
