@@ -15,8 +15,28 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentalMotion
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.FillLight
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.GroundState
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightSourceCount
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivation
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ShadowQuality
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.TemperatureFeel
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.Visibility
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherIntensity
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WindStrength
+import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
+import com.operaboys.cinemashotgenerator.domain.shot.AmbientSound
 import com.operaboys.cinemashotgenerator.domain.shot.Beat
 import com.operaboys.cinemashotgenerator.domain.shot.BeatEventType
+import com.operaboys.cinemashotgenerator.domain.shot.CharacterSound
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
@@ -186,5 +206,82 @@ class ShotRepositoryTest {
     @Test
     fun `saveShot then loadShot round-trips CameraMovement Compound exactly`() = runBlocking {
         assertCameraRoundTrip(CameraMovement.Compound(primary = "dolly_in", secondary = "orbit", sync = "matched"))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips LightingSettings and EnvironmentSettings with every nullable field populated`() = runBlocking {
+        seedProjectAndScene("proj_001", "scene_001")
+        val lighting = LightingSettings(
+            style = LightingStyle.LOW_KEY,
+            keyLightPosition = KeyLightPosition.BOTTOM,
+            contrastRatio = ContrastRatio.HIGH,
+            fillLight = FillLight.STRONG,
+            colorTemperature = ColorTemperature.COLD,
+            shadowQuality = ShadowQuality.HARD_SHADOWS,
+            lightSourceCount = LightSourceCount.MULTI,
+            lightingMotivation = LightingMotivation.FIRE
+        )
+        val environment = EnvironmentSettings(
+            weatherType = WeatherType.STORM,
+            weatherIntensity = WeatherIntensity.HEAVY,
+            windStrength = WindStrength.STRONG,
+            groundState = GroundState.MUDDY,
+            visibility = Visibility.LOW,
+            temperatureFeel = TemperatureFeel.COLD,
+            environmentalMotion = listOf(EnvironmentalMotion.DUST_CLOUDS, EnvironmentalMotion.FLYING_DEBRIS)
+        )
+        val shot = fullShot.copy(
+            lighting = SourcedSettings(source = "override", overrideValue = lighting),
+            environment = SourcedSettings(source = "override", overrideValue = environment),
+            soundProfile = SoundProfile(
+                enabled = true,
+                ambientAutoGenerate = true,
+                ambientSounds = listOf(AmbientSound(type = "rain", intensity = "heavy", description = "torrential rain and wind")),
+                actionSounds = listOf(ActionSound(timestampSeconds = 2.5f, type = "door_slam", description = "heavy door slamming shut")),
+                characterSounds = listOf(CharacterSound(characterId = "char_001", type = "gasp", description = "sharp intake of breath"))
+            )
+        )
+
+        val saveResult = repository.saveShot(shot)
+        assertTrue(saveResult.isSuccess)
+
+        val loadResult = repository.loadShot("shot_001")
+        assertTrue(loadResult.isSuccess)
+        assertEquals(shot, loadResult.getOrThrow())
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips LightingSettings and EnvironmentSettings with every nullable field null`() = runBlocking {
+        seedProjectAndScene("proj_001", "scene_001")
+        val lighting = LightingSettings(
+            style = LightingStyle.NATURAL_LIGHT,
+            keyLightPosition = KeyLightPosition.FRONT,
+            contrastRatio = ContrastRatio.LOW,
+            fillLight = null,
+            colorTemperature = null,
+            shadowQuality = null,
+            lightSourceCount = null,
+            lightingMotivation = null
+        )
+        val environment = EnvironmentSettings(
+            weatherType = WeatherType.CLEAR,
+            weatherIntensity = null,
+            windStrength = null,
+            groundState = null,
+            visibility = null,
+            temperatureFeel = null,
+            environmentalMotion = emptyList()
+        )
+        val shot = fullShot.copy(
+            lighting = SourcedSettings(source = "override", overrideValue = lighting),
+            environment = SourcedSettings(source = "override", overrideValue = environment)
+        )
+
+        val saveResult = repository.saveShot(shot)
+        assertTrue(saveResult.isSuccess)
+
+        val loadResult = repository.loadShot("shot_001")
+        assertTrue(loadResult.isSuccess)
+        assertEquals(shot, loadResult.getOrThrow())
     }
 }

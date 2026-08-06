@@ -31,6 +31,8 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentalMotion
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
@@ -50,6 +52,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -309,6 +312,86 @@ class ShotsFlowTest {
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.camera?.source } == "scene"
+        }
+    }
+
+    /** شات از‌پیش‌Seed‌شده را باز می‌کند و وارد Tab «نور و محیط» می‌شود. */
+    private fun openLightingEnvironmentTab() {
+        createProjectAndOpenShotsTab()
+        composeRule.onNodeWithTag(shotCardTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("shotComposer.title", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_LIGHTING_TAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(LIGHTING_SOURCE_SCENE_TAG), timeoutMillis = 5_000)
+    }
+
+    @Test
+    fun `switching lighting and environment sources independently saves the correct source in the shot`() {
+        openLightingEnvironmentTab()
+
+        composeRule.onNodeWithTag(LIGHTING_SOURCE_OVERRIDE_TAG).clickViaSemantics()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.lighting?.source } == "override"
+        }
+        // این دو سوییچ کاملاً مستقل‌اند (Shot.lighting/.environment دو SourcedSettings
+        // جدا) — سوییچ نور نباید روی منبع محیط اثر بگذارد.
+        val environmentSourceStillScene = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.environment?.source }
+        assertEquals("scene", environmentSourceStillScene)
+
+        composeRule.onNodeWithTag(ENVIRONMENT_SOURCE_OVERRIDE_TAG).clickViaSemantics()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.environment?.source } == "override"
+        }
+    }
+
+    @Test
+    fun `selecting a fourth environmental motion is blocked once three are already selected`() {
+        openLightingEnvironmentTab()
+
+        composeRule.onNodeWithTag(ENVIRONMENT_SOURCE_OVERRIDE_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(ENVIRONMENT_WEATHER_TYPE_FIELD_TAG), timeoutMillis = 5_000)
+
+        val motions = EnvironmentalMotion.entries
+        composeRule.onNodeWithTag(environmentalMotionChipTag(motions[0])).performScrollTo().clickViaSemantics()
+        composeRule.onNodeWithTag(environmentalMotionChipTag(motions[1])).performScrollTo().clickViaSemantics()
+        composeRule.onNodeWithTag(environmentalMotionChipTag(motions[2])).performScrollTo().clickViaSemantics()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.environment?.overrideValue?.environmentalMotion?.size } == 3
+        }
+
+        // مورد چهارم باید مسدود شود — Chip غیرفعال (onClick=null) هیچ اثری ندارد.
+        composeRule.onNodeWithTag(environmentalMotionChipTag(motions[3])).performScrollTo().clickViaSemantics()
+        composeRule.waitForIdle()
+        val finalCount = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.environment?.overrideValue?.environmentalMotion?.size }
+        assertEquals(3, finalCount)
+    }
+
+    @Test
+    fun `opening the Sound tab never auto-generates ambient sounds, only the explicit button does`() {
+        openLightingEnvironmentTab()
+
+        // آب‌وهوا را روی «بارانی» تنظیم می‌کنیم تا تولید خودکار واقعاً چیزی تولید کند
+        // (mapEnvironmentToSound برای CLEAR+NONE پیش‌فرض چیزی تولید نمی‌کند).
+        composeRule.onNodeWithTag(ENVIRONMENT_SOURCE_OVERRIDE_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(ENVIRONMENT_WEATHER_TYPE_FIELD_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(ENVIRONMENT_WEATHER_TYPE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(weatherTypeLabel(WeatherType.RAIN, Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(weatherTypeLabel(WeatherType.RAIN, Language.FA)).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.environment?.overrideValue?.weatherType } == WeatherType.RAIN
+        }
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_AUDIO_TAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SOUND_ENABLED_SWITCH_TAG), timeoutMillis = 5_000)
+        composeRule.waitForIdle()
+
+        val beforeClick = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.soundProfile?.ambientSounds }
+        assertEquals(emptyList<Any>(), beforeClick)
+
+        composeRule.onNodeWithTag(SOUND_GENERATE_AMBIENT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            val sounds = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.soundProfile?.ambientSounds }
+            sounds != null && sounds.isNotEmpty()
         }
     }
 }

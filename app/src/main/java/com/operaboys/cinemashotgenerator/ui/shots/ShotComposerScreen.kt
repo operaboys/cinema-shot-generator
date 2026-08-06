@@ -187,6 +187,16 @@ fun ShotComposerScreen(
                     language = language,
                     modifier = Modifier.padding(top = 16.dp)
                 )
+                ShotComposerTab.LIGHTING -> LightingEnvironmentTabContent(
+                    viewModel = viewModel,
+                    language = language,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+                ShotComposerTab.AUDIO -> AudioTabContent(
+                    viewModel = viewModel,
+                    language = language,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
                 else -> Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
                     Text(
                         text = uiString("shotComposer.tabPlaceholderNextStep", language),

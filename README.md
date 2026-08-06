@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail)، قدم ۲ (Shot List + اسکلت Shot Composer) و قدم ۳ (محتوای کامل Tab «دوربین») کامل، Tab‌های «نور و محیط» و «صدا» در پیش‌اند.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. قدم بعدی: رفع دو محدودیت ثبت‌شده در `unit16-execution-plan.md` (`dependentShotsCount` در Tab DNA، سه فیلد بدون UI در `OutputConstraints`).**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -776,7 +776,42 @@ Tab‌های «نور و محیط» و «صدا» قدم بعدی جداگانه
 `gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۲۰
 تست (۶۱۲→۶۲۰، ۸ تست جدید)، ۰ Failure، ۰ Error.
 
-**قدم بعدی فاز ۴ (Tab «نور و محیط» + «صدا») آماده‌ی شروع است.**
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۴، قدم ۴ (آخرین قدم) — Tab «نور و محیط» + Tab «صدا»؛ فاز ۴ به‌طور کامل تکمیل شد
+
+آخرین قدم فاز ۴ — Tab «نور و محیط» (`LightingSettings`/`EnvironmentSettings`،
+واحد ۰۸) و Tab «صدا» (`SoundProfile` + Environment-to-Sound Mapping).
+
+- **دو سوییچ منبع/Override مستقل** (نه یک سوییچ ترکیبی) — `Shot.lighting` و
+  `Shot.environment` دو `SourcedSettings` کاملاً جدای واحد ۰۵ هستند؛ سوییچ
+  نور می‌تواند مستقل از سوییچ محیط تغییر کند.
+- **محدودیت ۳موردی `environmentalMotion`** با غیرفعال‌کردن Chip (نه Exception)
+  اعمال شد — دو لایه محافظت (UI + ViewModel).
+- **Rule 5** («Ambient — auto from Weather... manual only / never
+  auto-generated»): دکمه‌ی صریح «تولید صداهای محیط» تنها راه پر شدن
+  `ambientSounds` است — هیچ Effect خودکاری در بارگذاری Tab وجود ندارد؛
+  مستقیماً از `mapEnvironmentToSound` (واحد ۰۸) استفاده می‌کند.
+- **بازاستفاده:** `lightingStyleLabel`/کلیدهای `lightingStyle.*` موجود
+  (فاز ۲، DNA Tab) مستقیماً بازاستفاده شدند؛ `ColorTemperature` این واحد
+  (WARM/NEUTRAL/COLD/MIXED) با `ColorTemperature` سطح DNA (WARM/COOL/NEUTRAL)
+  تداخل ندارد — کلید ترجمه‌ی جدا (`sceneConditionsColorTemperature.*`).
+- **تصمیم آگاهانه:** برخلاف Tab دوربین (قدم قبل)، هیچ‌کدام از ۱۳ Rule
+  اعتبارسنجی واحد ۰۸ زنده وایر نشدند — سه‌تای‌شان به `TimeOfDay`/`locationType`
+  از Scene نیاز دارند (وابستگی تازه‌ای که `ShotComposerViewModel` ندارد)،
+  و وایرکردن ناقص بدون نشانه‌ی بصری گمراه‌کننده بود. جزئیات کامل در
+  `docs/adr/053-unit16-phase4-step4-lighting-environment-sound.md`.
+
+`ShotRepositoryTest.kt` (۲ تست Round-Trip جدید: همه‌ی فیلدهای Nullable
+پر/خالی) و `ShotsFlowTest.kt` (۳ تست End-to-End جدید: سوییچ مستقل منبع
+نور/محیط، محدودیت ۳موردی `environmentalMotion`، Rule 5).
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۲۵
+تست (۶۲۰→۶۲۵، ۵ تست جدید)، ۰ Failure، ۰ Error.
+
+**فاز ۴ واحد ۱۶ (Scene + Shot Composer) به‌طور کامل تکمیل شد — هر ۴ Tab
+Shot Composer (اصلی/دوربین/نور و محیط/صدا) اکنون محتوای واقعی دارند.** طبق
+تصمیم قبلی معمار، قدم مستقل بعدی رفع دو محدودیت ثبت‌شده در
+`unit16-execution-plan.md` است: `dependentShotsCount` در Tab DNA (ADR-047) و
+سه فیلد بدون UI در `OutputConstraints` (ADR-047).
 
 ## Stack
 
@@ -873,15 +908,25 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   پذیرفته‌شده‌ی فیلتر Assets، ADR-049). حذف Scene («Delete») هنوز پیاده نشده —
   تصمیم مستند، خارج از Scope این قدم. جزئیات کامل در
   `docs/adr/050-unit16-phase4-step1-scene-detail.md`.
-- **Shot Composer: فقط فیلدهای سطح‌بالا و Tab «دوربین» واقعی‌اند.** فیلدهای
-  سطح‌بالا (عنوان/توصیف/هدف/نوع نما/مدت/سطح حرکت) و کل Tab «دوربین»
-  (angle/distance/lensType/حرکت با فرم شرطی هر ۶ نوع/Advanced/Attached
-  References/سوییچ منبع-Override) واقعی و Auto-Save‌شونده‌اند (هم برای شات
-  جدید هم برای ویرایش شات موجود). Tab‌های «اصلی»، «نور و محیط»، «صدا» هنوز
-  فقط پیام «این بخش در قدم بعدی تکمیل می‌شود» نشان می‌دهند —
-  نور/محیط/کاراکترها/صدا/مدل هدف/Negative Prompt هنوز هیچ فیلد واقعی
-  ندارند. مدیریت واقعی آپلود تصویر برای Attached References هم هنوز پیاده
-  نشده (فقط نوع + توضیح متنی — هیچ Infra انتخاب‌گر تصویر در کل کدبیس وجود
-  ندارد). جزئیات کامل در
-  `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md` و
-  `docs/adr/052-unit16-phase4-step3-camera-tab.md`.
+- **Shot Composer: فیلدهای سطح‌بالا و هر ۴ Tab (دوربین، نور و محیط، صدا) واقعی‌اند — فاز ۴ کامل شد.**
+  فیلدهای سطح‌بالا (عنوان/توصیف/هدف/نوع نما/مدت/سطح حرکت، خارج از همه‌ی
+  Tab‌ها و همیشه قابل‌مشاهده)، Tab «دوربین» (angle/distance/lensType/حرکت با
+  فرم شرطی هر ۶ نوع/Advanced/Attached References/سوییچ منبع-Override)، Tab
+  «نور و محیط» (دو سوییچ منبع-Override مستقل برای نور و محیط، style/
+  weatherType + بخش Advanced شامل بقیه‌ی فیلدهای Nullable هر دو data class،
+  انتخاب چندگانه‌ی environmentalMotion با سقف ۳موردی) و Tab «صدا» (سوییچ
+  فعال/غیرفعال، دکمه‌ی صریح «تولید صداهای محیط» طبق Rule 5 — هرگز خودکار،
+  فرم افزودن دستی actionSounds/characterSounds) همگی واقعی و
+  Auto-Save‌شونده‌اند (هم برای شات جدید هم برای ویرایش شات موجود). Tab
+  «اصلی» همچنان فقط پیام Placeholder نشان می‌دهد — چون طبق طراحی ADR-051
+  همه‌ی فیلدهای سطح‌بالای شات از قبل خارج از هر Tab و همیشه‌قابل‌مشاهده‌اند،
+  این Tab عملاً محتوای اختصاصی معناداری ندارد که پیاده‌سازی کند (بدهی
+  ثبت‌شده، نه فراموش‌شده). مدیریت واقعی آپلود تصویر برای Attached
+  References هم هنوز پیاده نشده (فقط نوع + توضیح متنی — هیچ Infra
+  انتخاب‌گر تصویر در کل کدبیس وجود ندارد). اعتبارسنجی زنده (Validation) نیز
+  فقط برای ۴ Rule خودبسنده‌ی Tab «دوربین» وایر شده؛ هیچ‌کدام از ۱۳ Rule
+  «نور و محیط» زنده وایر نشده‌اند (نیاز به وابستگی تازه به `SceneRepository`
+  برای `TimeOfDay`/`locationType` — تصمیم آگاهانه، جزئیات در ADR-053).
+  جزئیات کامل در `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`،
+  `docs/adr/052-unit16-phase4-step3-camera-tab.md` و
+  `docs/adr/053-unit16-phase4-step4-lighting-environment-sound.md`.

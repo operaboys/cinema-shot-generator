@@ -22,6 +22,27 @@ import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShall
 import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
 import com.operaboys.cinemashotgenerator.domain.camera.checkStaticMovementWithHandheldStabilization
+import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentalMotion
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.FillLight
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.GroundState
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.KeyLightPosition
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightSourceCount
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivation
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.ShadowQuality
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.TemperatureFeel
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.Visibility
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherIntensity
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WindStrength
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.mapEnvironmentToSound
+import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
+import com.operaboys.cinemashotgenerator.domain.shot.AmbientSound
+import com.operaboys.cinemashotgenerator.domain.shot.CharacterSound
 import com.operaboys.cinemashotgenerator.domain.shot.ImageReference
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
@@ -183,6 +204,89 @@ class ShotComposerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    // --- Tab «نور و محیط» (فاز ۴ قدم ۴) ---
+
+    /**
+     * طبق Shot.lighting/.environment (هر دو SourcedSettings مستقل واحد ۰۵) — این دو
+     * منبع/Override کاملاً جدا از هم‌اند (نه یک سوییچ ترکیبی مشترک برای کل Tab)، چون
+     * دامنه هم همین‌طور مدل‌شده: یک شات می‌تواند نور را Override کند اما محیط را از
+     * صحنه ارث ببرد، یا برعکس.
+     */
+    private val _lightingSource = MutableStateFlow("scene")
+    val lightingSource: StateFlow<String> = _lightingSource.asStateFlow()
+
+    // پیش‌فرض‌ها دقیقاً از جدول «پارامترها»ی بخش الف docs/blueprints/08-scene-conditions.md.
+    private val _lightingStyle = MutableStateFlow(LightingStyle.DRAMATIC_LIGHT)
+    val lightingStyle: StateFlow<LightingStyle> = _lightingStyle.asStateFlow()
+
+    private val _keyLightPosition = MutableStateFlow(KeyLightPosition.SIDE)
+    val keyLightPosition: StateFlow<KeyLightPosition> = _keyLightPosition.asStateFlow()
+
+    private val _contrastRatio = MutableStateFlow(ContrastRatio.MEDIUM)
+    val contrastRatio: StateFlow<ContrastRatio> = _contrastRatio.asStateFlow()
+
+    private val _fillLight = MutableStateFlow<FillLight?>(FillLight.SOFT)
+    val fillLight: StateFlow<FillLight?> = _fillLight.asStateFlow()
+
+    private val _lightingColorTemperature = MutableStateFlow<ColorTemperature?>(ColorTemperature.NEUTRAL)
+    val lightingColorTemperature: StateFlow<ColorTemperature?> = _lightingColorTemperature.asStateFlow()
+
+    private val _shadowQuality = MutableStateFlow<ShadowQuality?>(ShadowQuality.SOFT_SHADOWS)
+    val shadowQuality: StateFlow<ShadowQuality?> = _shadowQuality.asStateFlow()
+
+    private val _lightSourceCount = MutableStateFlow<LightSourceCount?>(LightSourceCount.DUAL)
+    val lightSourceCount: StateFlow<LightSourceCount?> = _lightSourceCount.asStateFlow()
+
+    private val _lightingMotivation = MutableStateFlow<LightingMotivation?>(LightingMotivation.ARTIFICIAL)
+    val lightingMotivation: StateFlow<LightingMotivation?> = _lightingMotivation.asStateFlow()
+
+    private val _environmentSource = MutableStateFlow("scene")
+    val environmentSource: StateFlow<String> = _environmentSource.asStateFlow()
+
+    private val _weatherType = MutableStateFlow(WeatherType.CLEAR)
+    val weatherType: StateFlow<WeatherType> = _weatherType.asStateFlow()
+
+    // بلوپرینت هیچ پیش‌فرضی برای weatherIntensity نمی‌دهد («—») — برخلاف بقیه‌ی
+    // فیلدهای nullable این بخش، عمداً با null (نه یک مقدار حدسی) شروع می‌شود.
+    private val _weatherIntensity = MutableStateFlow<WeatherIntensity?>(null)
+    val weatherIntensity: StateFlow<WeatherIntensity?> = _weatherIntensity.asStateFlow()
+
+    private val _windStrength = MutableStateFlow<WindStrength?>(WindStrength.NONE)
+    val windStrength: StateFlow<WindStrength?> = _windStrength.asStateFlow()
+
+    private val _groundState = MutableStateFlow<GroundState?>(GroundState.DRY)
+    val groundState: StateFlow<GroundState?> = _groundState.asStateFlow()
+
+    private val _visibility = MutableStateFlow<Visibility?>(Visibility.CLEAR)
+    val visibility: StateFlow<Visibility?> = _visibility.asStateFlow()
+
+    private val _temperatureFeel = MutableStateFlow<TemperatureFeel?>(TemperatureFeel.MILD)
+    val temperatureFeel: StateFlow<TemperatureFeel?> = _temperatureFeel.asStateFlow()
+
+    private val _environmentalMotion = MutableStateFlow<List<EnvironmentalMotion>>(emptyList())
+    val environmentalMotion: StateFlow<List<EnvironmentalMotion>> = _environmentalMotion.asStateFlow()
+
+    // --- Tab «صدا» (فاز ۴ قدم ۴) ---
+
+    private val _soundEnabled = MutableStateFlow(false)
+    val soundEnabled: StateFlow<Boolean> = _soundEnabled.asStateFlow()
+
+    /**
+     * از Shot موجود بارگذاری و بدون تغییر دوباره ذخیره می‌شود — این قدم هیچ کنترل UI
+     * برای این پرچم نمی‌سازد (دستور کار صریحاً آن را نخواسته بود؛ دکمه‌ی صریح «تولید
+     * صداهای محیط» به‌تنهایی الزام Rule 5 را برآورده می‌کند، مستقل از مقدار این پرچم).
+     */
+    private var loadedAmbientAutoGenerate = true
+
+    private val _ambientSounds = MutableStateFlow<List<AmbientSound>>(emptyList())
+    val ambientSounds: StateFlow<List<AmbientSound>> = _ambientSounds.asStateFlow()
+
+    private val _actionSounds = MutableStateFlow<List<ActionSound>>(emptyList())
+    val actionSounds: StateFlow<List<ActionSound>> = _actionSounds.asStateFlow()
+
+    private val _characterSounds = MutableStateFlow<List<CharacterSound>>(emptyList())
+    val characterSounds: StateFlow<List<CharacterSound>> = _characterSounds.asStateFlow()
+
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
@@ -212,6 +316,32 @@ class ShotComposerViewModel(
                         _framing.value = camera.framing
                         _cameraMovement.value = camera.movement
                     }
+                    _lightingSource.value = loaded.lighting.source
+                    loaded.lighting.overrideValue?.let { lighting ->
+                        _lightingStyle.value = lighting.style
+                        _keyLightPosition.value = lighting.keyLightPosition
+                        _contrastRatio.value = lighting.contrastRatio
+                        _fillLight.value = lighting.fillLight
+                        _lightingColorTemperature.value = lighting.colorTemperature
+                        _shadowQuality.value = lighting.shadowQuality
+                        _lightSourceCount.value = lighting.lightSourceCount
+                        _lightingMotivation.value = lighting.lightingMotivation
+                    }
+                    _environmentSource.value = loaded.environment.source
+                    loaded.environment.overrideValue?.let { environment ->
+                        _weatherType.value = environment.weatherType
+                        _weatherIntensity.value = environment.weatherIntensity
+                        _windStrength.value = environment.windStrength
+                        _groundState.value = environment.groundState
+                        _visibility.value = environment.visibility
+                        _temperatureFeel.value = environment.temperatureFeel
+                        _environmentalMotion.value = environment.environmentalMotion
+                    }
+                    _soundEnabled.value = loaded.soundProfile.enabled
+                    loadedAmbientAutoGenerate = loaded.soundProfile.ambientAutoGenerate
+                    _ambientSounds.value = loaded.soundProfile.ambientSounds
+                    _actionSounds.value = loaded.soundProfile.actionSounds
+                    _characterSounds.value = loaded.soundProfile.characterSounds
                 }
             } else {
                 val existingShots = repository.loadAllShots(sceneId).first()
@@ -300,6 +430,107 @@ class ShotComposerViewModel(
         save()
     }
 
+    fun setLightingSource(value: String) { _lightingSource.value = value; save() }
+    fun setLightingStyle(value: LightingStyle) { _lightingStyle.value = value; save() }
+    fun setKeyLightPosition(value: KeyLightPosition) { _keyLightPosition.value = value; save() }
+    fun setContrastRatio(value: ContrastRatio) { _contrastRatio.value = value; save() }
+    fun setFillLight(value: FillLight?) { _fillLight.value = value; save() }
+    fun setLightingColorTemperature(value: ColorTemperature?) { _lightingColorTemperature.value = value; save() }
+    fun setShadowQuality(value: ShadowQuality?) { _shadowQuality.value = value; save() }
+    fun setLightSourceCount(value: LightSourceCount?) { _lightSourceCount.value = value; save() }
+    fun setLightingMotivation(value: LightingMotivation?) { _lightingMotivation.value = value; save() }
+
+    fun setEnvironmentSource(value: String) { _environmentSource.value = value; save() }
+    fun setWeatherType(value: WeatherType) { _weatherType.value = value; save() }
+    fun setWeatherIntensity(value: WeatherIntensity?) { _weatherIntensity.value = value; save() }
+    fun setWindStrength(value: WindStrength?) { _windStrength.value = value; save() }
+    fun setGroundState(value: GroundState?) { _groundState.value = value; save() }
+    fun setVisibility(value: Visibility?) { _visibility.value = value; save() }
+    fun setTemperatureFeel(value: TemperatureFeel?) { _temperatureFeel.value = value; save() }
+
+    /**
+     * طبق تصریح بلوپرینت («۰ تا ۳») و دستور کار («غیرفعال‌کردن گزینه‌های بیشتر بعد از
+     * انتخاب ۳تا») — محدودیت هم در دامنه (کامنت enum) و هم اینجا رعایت می‌شود: افزودن
+     * موردی چهارم وقتی لیست پر است بی‌اثر است (نه Exception، فقط عدم تغییر State) —
+     * دفاعی، چون UI خودش با غیرفعال‌کردن Chip از رسیدن این حالت جلوگیری می‌کند.
+     */
+    fun toggleEnvironmentalMotion(value: EnvironmentalMotion) {
+        val current = _environmentalMotion.value
+        _environmentalMotion.value = when {
+            value in current -> current - value
+            current.size < 3 -> current + value
+            else -> current
+        }
+        save()
+    }
+
+    fun setSoundEnabled(value: Boolean) { _soundEnabled.value = value; save() }
+
+    /**
+     * Rule 5 (docs/design/README.md بخش ۷: «manual only / never auto-generated — only
+     * on explicit user action») — این تابع فقط با کلیک صریح دکمه‌ی «تولید صداهای محیط»
+     * فراخوانی می‌شود، هرگز از init{} یا هیچ Effect خودکاری. مستقیماً از
+     * mapEnvironmentToSound (واحد ۰۸، بدون تغییر منطق) استفاده می‌کند — طبق امضای آن
+     * تابع، پارامترها رشته‌ی lowercase هستند، نه enum مستقیم. لیست موجود جایگزین
+     * می‌شود (نه Append) — دکمه معنای «بازتولید طبق آب‌وهوای فعلی» دارد.
+     */
+    fun generateAmbientSounds() {
+        val suggestions = mapEnvironmentToSound(
+            weatherType = _weatherType.value.name.lowercase(),
+            weatherIntensity = (_weatherIntensity.value ?: WeatherIntensity.MEDIUM).name.lowercase(),
+            windStrength = (_windStrength.value ?: WindStrength.NONE).name.lowercase()
+        )
+        _ambientSounds.value = suggestions.map { AmbientSound(type = it.type, intensity = it.intensity, description = it.description) }
+        save()
+    }
+
+    fun removeAmbientSound(index: Int) {
+        _ambientSounds.value = _ambientSounds.value.filterIndexed { i, _ -> i != index }
+        save()
+    }
+
+    fun addActionSound(timestampSeconds: Float, type: String, description: String) {
+        _actionSounds.value = _actionSounds.value + ActionSound(timestampSeconds, type, description)
+        save()
+    }
+
+    fun removeActionSound(index: Int) {
+        _actionSounds.value = _actionSounds.value.filterIndexed { i, _ -> i != index }
+        save()
+    }
+
+    /** بدون انتخاب‌گر کاراکتر از کتابخانه — فرم افزودن دستی ساده طبق تصریح دستور کار. */
+    fun addCharacterSound(characterId: String, type: String, description: String) {
+        _characterSounds.value = _characterSounds.value + CharacterSound(characterId, type, description)
+        save()
+    }
+
+    fun removeCharacterSound(index: Int) {
+        _characterSounds.value = _characterSounds.value.filterIndexed { i, _ -> i != index }
+        save()
+    }
+
+    private fun buildLightingSettings(): LightingSettings = LightingSettings(
+        style = _lightingStyle.value,
+        keyLightPosition = _keyLightPosition.value,
+        contrastRatio = _contrastRatio.value,
+        fillLight = _fillLight.value,
+        colorTemperature = _lightingColorTemperature.value,
+        shadowQuality = _shadowQuality.value,
+        lightSourceCount = _lightSourceCount.value,
+        lightingMotivation = _lightingMotivation.value
+    )
+
+    private fun buildEnvironmentSettings(): EnvironmentSettings = EnvironmentSettings(
+        weatherType = _weatherType.value,
+        weatherIntensity = _weatherIntensity.value,
+        windStrength = _windStrength.value,
+        groundState = _groundState.value,
+        visibility = _visibility.value,
+        temperatureFeel = _temperatureFeel.value,
+        environmentalMotion = _environmentalMotion.value
+    )
+
     private fun buildCameraSettings(): CameraSettings = CameraSettings(
         angle = _cameraAngle.value,
         distance = _cameraDistance.value,
@@ -329,9 +560,16 @@ class ShotComposerViewModel(
             // تا سوییچ رفت‌وبرگشتی منبع/Override داده‌ی کاربر را گم نکند؛ resolveCameraSettings
             // (واحد ۰۵) خودش overrideValue را فقط وقتی source=="override" باشد در نظر می‌گیرد.
             camera = SourcedSettings(source = _cameraSource.value, overrideValue = buildCameraSettings()),
-            lighting = base?.lighting ?: SourcedSettings(),
-            environment = base?.environment ?: SourcedSettings(),
-            soundProfile = base?.soundProfile ?: SoundProfile(enabled = false),
+            // همان منطق camera بالا — overrideValue همیشه با فرم فعلی پر می‌شود.
+            lighting = SourcedSettings(source = _lightingSource.value, overrideValue = buildLightingSettings()),
+            environment = SourcedSettings(source = _environmentSource.value, overrideValue = buildEnvironmentSettings()),
+            soundProfile = SoundProfile(
+                enabled = _soundEnabled.value,
+                ambientAutoGenerate = loadedAmbientAutoGenerate,
+                ambientSounds = _ambientSounds.value,
+                actionSounds = _actionSounds.value,
+                characterSounds = _characterSounds.value
+            ),
             negativePromptOverride = base?.negativePromptOverride,
             characterIds = base?.characterIds ?: emptyList(),
             objectIds = base?.objectIds ?: emptyList(),
