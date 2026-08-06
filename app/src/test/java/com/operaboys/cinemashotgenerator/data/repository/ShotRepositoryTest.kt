@@ -5,6 +5,16 @@ import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
 import com.operaboys.cinemashotgenerator.data.entity.SceneEntity
+import com.operaboys.cinemashotgenerator.domain.camera.BasicMovementType
+import com.operaboys.cinemashotgenerator.domain.camera.CameraAngle
+import com.operaboys.cinemashotgenerator.domain.camera.CameraDistance
+import com.operaboys.cinemashotgenerator.domain.camera.CameraMovement
+import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
+import com.operaboys.cinemashotgenerator.domain.camera.DepthOfField
+import com.operaboys.cinemashotgenerator.domain.camera.Framing
+import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
+import com.operaboys.cinemashotgenerator.domain.camera.LensType
+import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
 import com.operaboys.cinemashotgenerator.domain.shot.Beat
 import com.operaboys.cinemashotgenerator.domain.shot.BeatEventType
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
@@ -12,6 +22,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
+import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -27,6 +38,13 @@ import org.robolectric.annotation.Config
 // تستی برای این Repository وجود نداشت (فقط saveShot بدون هیچ متد خواندنی). طبق
 // دستور کار: نمایش صحیح شات‌های یک صحنه (loadAllShots). هم‌الگو با
 // SceneRepositoryTest.kt.
+//
+// MIGRATED (فاز ۴ قدم ۳): ۶ تست Round-Trip جداگانه برای هر ۶ Variant واقعی
+// CameraMovement — طبق دستور کار صریح («این حیاتی است چون یک باگ مشابه قبلی، DTO
+// ناقص، در Migration‌های قبلی چندبار رخ داده»). با grep تأیید شد CameraSettingsDto/
+// CameraMovementDto (واحد ۱۵) از قبل هر ۶ Variant را پشتیبانی می‌کنند — این تست‌ها
+// آن پوشش را برای اولین بار از طریق ShotRepository واقعی اثبات می‌کنند (تست قبلی
+// این فایل فقط SourcedSettings() پیش‌فرض/خالی را برای camera امتحان می‌کرد).
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -115,5 +133,58 @@ class ShotRepositoryTest {
 
         val shots = repository.loadAllShots("scene_001").first()
         assertEquals(listOf(firstShot, secondShot), shots)
+    }
+
+    private fun cameraSettings(movement: CameraMovement) = CameraSettings(
+        angle = CameraAngle.DUTCH,
+        distance = CameraDistance.WIDE,
+        movement = movement,
+        lensType = LensType.TELEPHOTO,
+        depthOfField = DepthOfField.SHALLOW,
+        focusMode = FocusMode.MANUAL,
+        stabilization = Stabilization.TRIPOD,
+        framing = Framing.ASYMMETRICAL
+    )
+
+    private suspend fun assertCameraRoundTrip(movement: CameraMovement) {
+        seedProjectAndScene("proj_001", "scene_001")
+        val shot = fullShot.copy(camera = SourcedSettings(source = "override", overrideValue = cameraSettings(movement)))
+
+        val saveResult = repository.saveShot(shot)
+        assertTrue(saveResult.isSuccess)
+
+        val loadResult = repository.loadShot("shot_001")
+        assertTrue(loadResult.isSuccess)
+        assertEquals(shot, loadResult.getOrThrow())
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement Basic exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.Basic(type = BasicMovementType.CRANE, speed = "slow"))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement Orbit exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.Orbit(degrees = 180, speed = "medium", maintainEyeLevel = true))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement DronePath exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.DronePath(altitudeChange = "ascending", pathType = "spiral", speed = "fast"))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement DollyZoom exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.DollyZoom(focalStart = 35, focalEnd = 85, direction = "in"))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement HandheldShake exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.HandheldShake(intensity = 7, frequency = "high"))
+    }
+
+    @Test
+    fun `saveShot then loadShot round-trips CameraMovement Compound exactly`() = runBlocking {
+        assertCameraRoundTrip(CameraMovement.Compound(primary = "dolly_in", secondary = "orbit", sync = "matched"))
     }
 }

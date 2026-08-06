@@ -181,12 +181,19 @@ fun ShotComposerScreen(
                 )
             }
 
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    text = uiString("shotComposer.tabPlaceholderNextStep", language),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = CinemaTheme.extendedColors.fg3
+            when (selectedTab) {
+                ShotComposerTab.CAMERA -> CameraTabContent(
+                    viewModel = viewModel,
+                    language = language,
+                    modifier = Modifier.padding(top = 16.dp)
                 )
+                else -> Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = uiString("shotComposer.tabPlaceholderNextStep", language),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = CinemaTheme.extendedColors.fg3
+                    )
+                }
             }
         }
     }

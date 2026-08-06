@@ -5,11 +5,13 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -21,6 +23,7 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.camera.AdvancedMovementType
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
@@ -81,6 +84,17 @@ import java.util.UUID
 // SceneDetailViewModel.kt (هر دو Repository حالا مستقل بررسی می‌شوند) + این تست هم
 // اکنون assetRepository را صریحاً می‌دهد. جزئیات کامل در
 // docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md.
+//
+// MIGRATED (فاز ۴ قدم ۳): ۲ تست End-to-End برای Tab «دوربین» اضافه شد. دو یافته‌ی
+// واقعی تازه‌ی دیباگ: (۱) کلیک روی فیلد Dropdown انتخاب نوع Movement پیشرفته
+// (`AssetFormEnumDropdownField`) وقتی پایین‌تر از ناحیه‌ی دیده‌شده‌ی
+// `verticalScroll` قرار دارد، بدون `performScrollTo()` صریح باز نمی‌شود — برخلاف
+// فیلدهای بالای همان صفحه (Angle/Distance/...) که این مشکل را نداشتند. (۲) تستی که
+// چند سوییچ UI سریع پشت‌سرهم انجام می‌دهد (هرکدام یک Auto-Save ناهمگام مستقل صف
+// می‌کند) گاهی با `IllegalStateException: connection pool has been closed` شکست
+// می‌خورد چون `tearDown()`'s `database.close()` ممکن بود پیش از تکمیل واقعی آخرین
+// Coroutine صف‌شده اجرا شود؛ رفع شد با `composeRule.waitForIdle()` در `tearDown()`.
+// جزئیات کامل در docs/adr/052-unit16-phase4-step3-camera-tab.md.
 
 private const val PROJECT_ID = "proj_shots_flow_test"
 private const val SCENE_ID = "scene_shots_flow_test"
@@ -148,6 +162,12 @@ class ShotsFlowTest {
 
     @After
     fun tearDown() {
+        // یافته‌ی واقعی این قدم (متناوب، تست‌های با چند سوییچ سریع UI پشت‌سرهم):
+        // هر تغییر فیلد یک Auto-Save ناهمگام مستقل (ioScope.launch) صف می‌کند؛ بدون
+        // این خط، database.close() ممکن است پیش از تکمیل واقعی آخرین Coroutine
+        // صف‌شده روی Main Dispatcher اجرا شود (IllegalStateException: connection pool
+        // closed). waitForIdle() تضمین می‌کند همه‌ی کارهای صف‌شده واقعاً اجرا شده‌اند.
+        composeRule.waitForIdle()
         context.preferencesDataStoreFile(dataStoreFileName).delete()
         database.close()
     }
@@ -220,5 +240,75 @@ class ShotsFlowTest {
         composeRule.waitUntilExactlyOneExists(hasText("The Reveal"), timeoutMillis = 5_000)
         // شات از‌پیش‌موجود هم باید همچنان در فهرست باشد.
         composeRule.onNodeWithText(SEEDED_SHOT_TITLE).assertExists()
+    }
+
+    /** شات از‌پیش‌Seed‌شده را باز می‌کند، وارد Tab «دوربین» می‌شود و به «سفارشی‌سازی برای این شات» سوییچ می‌کند تا فیلدهای CameraSettings در دسترس باشند. */
+    private fun openCameraTabInOverrideMode() {
+        createProjectAndOpenShotsTab()
+        composeRule.onNodeWithTag(shotCardTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("shotComposer.title", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CAMERA_TAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(CAMERA_TAB_SOURCE_SCENE_TAG), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(CAMERA_TAB_SOURCE_OVERRIDE_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(CAMERA_TAB_ANGLE_FIELD_TAG), timeoutMillis = 5_000)
+    }
+
+    @Test
+    fun `selecting each camera movement kind shows its own conditional fields`() {
+        openCameraTabInOverrideMode()
+
+        // پیش‌فرض: Tier=Basic — فیلدهای Basic باید موجود باشند.
+        composeRule.onNodeWithTag(CAMERA_TAB_BASIC_MOVEMENT_TYPE_FIELD_TAG).assertExists()
+        composeRule.onNodeWithTag(CAMERA_TAB_BASIC_SPEED_FIELD_TAG).assertExists()
+
+        composeRule.onNodeWithTag(CAMERA_TAB_MOVEMENT_TIER_ADVANCED_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(CAMERA_TAB_ORBIT_DEGREES_FIELD_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(CAMERA_TAB_ORBIT_SPEED_FIELD_TAG).assertExists()
+        composeRule.onNodeWithTag(CAMERA_TAB_ORBIT_MAINTAIN_EYE_LEVEL_TAG).assertExists()
+
+        fun selectAdvanced(type: AdvancedMovementType, expectedFieldTag: String) {
+            composeRule.onNodeWithTag(CAMERA_TAB_ADVANCED_MOVEMENT_TYPE_FIELD_TAG).performScrollTo().clickViaSemantics()
+            composeRule.waitUntilExactlyOneExists(hasText(advancedMovementTypeLabel(type, Language.FA)), timeoutMillis = 5_000)
+            composeRule.onNodeWithText(advancedMovementTypeLabel(type, Language.FA)).performClick()
+            composeRule.waitUntilExactlyOneExists(hasTestTag(expectedFieldTag), timeoutMillis = 5_000)
+        }
+
+        selectAdvanced(AdvancedMovementType.DRONE_PATH, CAMERA_TAB_DRONE_ALTITUDE_FIELD_TAG)
+        composeRule.onNodeWithTag(CAMERA_TAB_DRONE_PATH_TYPE_FIELD_TAG).assertExists()
+        composeRule.onNodeWithTag(CAMERA_TAB_DRONE_SPEED_FIELD_TAG).assertExists()
+
+        selectAdvanced(AdvancedMovementType.DOLLY_ZOOM, CAMERA_TAB_DOLLY_FOCAL_START_FIELD_TAG)
+        composeRule.onNodeWithTag(CAMERA_TAB_DOLLY_FOCAL_END_FIELD_TAG).assertExists()
+        composeRule.onNodeWithTag(CAMERA_TAB_DOLLY_DIRECTION_FIELD_TAG).assertExists()
+
+        selectAdvanced(AdvancedMovementType.HANDHELD_SHAKE, CAMERA_TAB_HANDHELD_INTENSITY_FIELD_TAG)
+        composeRule.onNodeWithTag(CAMERA_TAB_HANDHELD_FREQUENCY_FIELD_TAG).assertExists()
+
+        selectAdvanced(AdvancedMovementType.COMPOUND, CAMERA_TAB_COMPOUND_PRIMARY_FIELD_TAG)
+        composeRule.onNodeWithTag(CAMERA_TAB_COMPOUND_SECONDARY_FIELD_TAG).assertExists()
+        composeRule.onNodeWithTag(CAMERA_TAB_COMPOUND_SYNC_FIELD_TAG).assertExists()
+
+        selectAdvanced(AdvancedMovementType.ORBIT, CAMERA_TAB_ORBIT_DEGREES_FIELD_TAG)
+
+        composeRule.onNodeWithTag(CAMERA_TAB_MOVEMENT_TIER_BASIC_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(CAMERA_TAB_BASIC_MOVEMENT_TYPE_FIELD_TAG), timeoutMillis = 5_000)
+    }
+
+    @Test
+    fun `switching camera source between scene and override saves the correct source in the shot`() {
+        openCameraTabInOverrideMode()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.camera?.source } == "override"
+        }
+
+        composeRule.onNodeWithTag(CAMERA_TAB_SOURCE_SCENE_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("cameraTab.sourceSceneDescription", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.camera?.source } == "scene"
+        }
     }
 }

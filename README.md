@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail) و قدم ۲ (Shot List + اسکلت Shot Composer) کامل، قدم ۳ (محتوای کامل ۴ Tab شات Composer) در پیش است.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab) و فاز ۳ (Asset Library) به‌طور کامل تکمیل شده‌اند؛ فاز ۴ (Scene + Shot Composer) آغاز شده — قدم ۱ (لیست صحنه‌ها + Scene Detail)، قدم ۲ (Shot List + اسکلت Shot Composer) و قدم ۳ (محتوای کامل Tab «دوربین») کامل، Tab‌های «نور و محیط» و «صدا» در پیش‌اند.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -733,9 +733,50 @@ In-Memory: نمایش صحیح شات‌های صحنه + سوییچ Grid/Timeli
 `gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۱۲
 تست (۶۰۶→۶۱۲، ۶ تست جدید)، ۰ Failure، ۰ Error.
 
-**قدم ۳ فاز ۴ (محتوای کامل ۴ Tab شات Composer، شامل دو محدودیت مستندشده در
-`unit16-execution-plan.md` درباره‌ی `dependentShotsCount` و
-`OutputConstraints`) آماده‌ی شروع است.**
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۴، قدم ۳ — محتوای کامل Tab «دوربین» Shot Composer
+
+سومین قدم فاز ۴ — عمداً محدود به Tab «دوربین» (پیچیده‌ترین Tab این صفحه)؛
+Tab‌های «نور و محیط» و «صدا» قدم بعدی جداگانه‌اند.
+
+- **چالش اصلی: فرم شرطی Movement.** `CameraMovement` (`sealed class`، ۶
+  زیرکلاس با فیلدهای کاملاً متفاوت) اولین sealed class این کدبیس بود که به
+  فرم UI شرطی نیاز داشت — هیچ الگوی مشابه از قبل در پروژه وجود نداشت. طراحی
+  نهایی: سوییچ دو‌لایه‌ی Basic/Advanced (دقیقاً هم‌ساختار خودِ بلوپرینت)، با
+  `AdvancedMovementType` (enum موجود اما تا این قدم در هیچ‌جای کد استفاده
+  نشده) به‌عنوان انتخاب‌گر ۵ Variant پیشرفته. State یک `MutableStateFlow<CameraMovement>`
+  تکی است — Tier/Variant فعلی مستقیماً از روی نوع Runtime همین مقدار مشتق
+  می‌شود، نه یک State موازی قابل Desync.
+- **واژگان بسته کجا Dropdown، کجا متن آزاد:** با خواندن دقیق جدول بلوپرینت
+  (نه فقط امضای Kotlin)، فیلدهایی مثل `Orbit.degrees` (۹۰/۱۸۰/۳۶۰)،
+  `DronePath.altitudeChange`/`.pathType`، و `HandheldShake.intensity`
+  (Slider ۰ تا ۱۰) واژگان بسته‌ی صریح داشتند؛ بقیه (سرعت‌ها، `frequency`،
+  ترکیب Compound) متن آزاد ماندند.
+- **منبع/Override:** فیلدها فقط در حالت «سفارشی‌سازی برای این شات» رندر
+  می‌شوند (نه Disabled) — چون طبق ADR-013 (واحد ۰۵)، Scene هیچ مقدار
+  camera واقعی برای ارث‌بری ندارد. `overrideValue` همیشه با آخرین State فرم
+  پر می‌شود (حتی در حالت «scene») تا سوییچ رفت‌وبرگشتی داده گم نکند.
+- **۴ از ۵ Rule اعتبارسنجی بخش الف واحد ۰۹ زنده وایر شدند** (لنز/فاصله،
+  Static+Handheld، Extreme Wide+Shallow DoF، Rack Focus+Subject Count) —
+  Rule پنجم («مدت حرکت دوربین») عمداً نه، چون طبق ADR-008 هیچ Variant
+  فیلد duration ندارد.
+- **Attached References:** فقط نوع (character/style/composition) + توضیح
+  متنی — با grep تأیید شد هیچ Infra انتخاب‌گر تصویر در کل کدبیس وجود ندارد؛
+  مدیریت واقعی آپلود فایل بدهی ثبت‌شده برای قدمی مستقل است.
+- **یافته‌ی تست:** کلیک روی Dropdown پایین‌تر از ناحیه‌ی دیده‌شده‌ی
+  `verticalScroll` بدون `performScrollTo()` صریح باز نمی‌شد؛ و تستی با چند
+  سوییچ سریع UI پشت‌سرهم گاهی با Race واقعی بین Auto-Save ناهمگام و
+  `database.close()` شکست می‌خورد — هر دو رفع شدند. جزئیات کامل در
+  `docs/adr/052-unit16-phase4-step3-camera-tab.md`.
+
+`ShotRepositoryTest.kt` (۶ تست جدید: Round-Trip کامل جداگانه برای هر ۶ نوع
+`CameraMovement`) و `ShotsFlowTest.kt` (۲ تست End-to-End جدید: انتخاب هر ۶
+نوع Movement → نمایش صحیح فرم شرطی متناظر؛ سوییچ منبع/Override → صحت
+`source` در Shot ذخیره‌شده).
+
+`gradle :app:assembleDebug :app:testDebugUnitTest` → `BUILD SUCCESSFUL`، ۶۲۰
+تست (۶۱۲→۶۲۰، ۸ تست جدید)، ۰ Failure، ۰ Error.
+
+**قدم بعدی فاز ۴ (Tab «نور و محیط» + «صدا») آماده‌ی شروع است.**
 
 ## Stack
 
@@ -832,10 +873,15 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   پذیرفته‌شده‌ی فیلتر Assets، ADR-049). حذف Scene («Delete») هنوز پیاده نشده —
   تصمیم مستند، خارج از Scope این قدم. جزئیات کامل در
   `docs/adr/050-unit16-phase4-step1-scene-detail.md`.
-- **Shot Composer فقط اسکلت است** — فیلدهای سطح‌بالا (عنوان/توصیف/هدف/نوع
-  نما/مدت/سطح حرکت) واقعی و Auto-Save‌شونده‌اند (هم برای شات جدید هم برای
-  ویرایش شات موجود — لمس یک کارت شات همین حالا با داده‌ی واقعی پیش‌پر می‌شود)،
-  اما محتوای هر ۴ Tab (اصلی/دوربین/نور و محیط/صدا) فقط پیام «این بخش در قدم
-  بعدی تکمیل می‌شود» نشان می‌دهد — دوربین/نور/محیط/کاراکترها/صدا/مدل هدف/
-  Negative Prompt هنوز هیچ فیلد واقعی ندارند. جزئیات کامل در
-  `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`.
+- **Shot Composer: فقط فیلدهای سطح‌بالا و Tab «دوربین» واقعی‌اند.** فیلدهای
+  سطح‌بالا (عنوان/توصیف/هدف/نوع نما/مدت/سطح حرکت) و کل Tab «دوربین»
+  (angle/distance/lensType/حرکت با فرم شرطی هر ۶ نوع/Advanced/Attached
+  References/سوییچ منبع-Override) واقعی و Auto-Save‌شونده‌اند (هم برای شات
+  جدید هم برای ویرایش شات موجود). Tab‌های «اصلی»، «نور و محیط»، «صدا» هنوز
+  فقط پیام «این بخش در قدم بعدی تکمیل می‌شود» نشان می‌دهند —
+  نور/محیط/کاراکترها/صدا/مدل هدف/Negative Prompt هنوز هیچ فیلد واقعی
+  ندارند. مدیریت واقعی آپلود تصویر برای Attached References هم هنوز پیاده
+  نشده (فقط نوع + توضیح متنی — هیچ Infra انتخاب‌گر تصویر در کل کدبیس وجود
+  ندارد). جزئیات کامل در
+  `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md` و
+  `docs/adr/052-unit16-phase4-step3-camera-tab.md`.
