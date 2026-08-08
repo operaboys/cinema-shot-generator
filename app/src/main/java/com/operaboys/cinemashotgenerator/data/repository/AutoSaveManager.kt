@@ -29,6 +29,21 @@ class AutoSaveManager(
             true
         }
     }
+
+    // واحد ۱۶ فاز ۶ — قدم ۱: اتصال واقعی این کلاس به یک Timer دوره‌ای (طبق تصمیم
+    // مستند docs/adr/058-unit16-phase6-step1-settings-autosave.md). ذخیره‌ی واقعیِ
+    // فیلدهای هر Entity (Scene/Shot/DNA/Asset) از قبل و مستقل از این کلاس، بلافاصله
+    // روی هر تغییر انجام می‌شود — این متد فقط `ProjectEntity.lastModified` را در
+    // فاصله‌های زمانی منظم تازه نگه می‌دارد (شکافی که پیش از این قدم واقعاً وجود
+    // داشت: `lastModified` فقط با تغییرنام/آرشیو/کپی پروژه به‌روزرسانی می‌شد، هرگز با
+    // ویرایش واقعی محتوا). `saveIfDirty` موجود عمداً بدون تغییر ماند (تست‌های
+    // AutoSaveManagerTest.kt موجود دست‌نخورده)؛ این یک متد Convenience تازه است که
+    // خودش بارگذاری فعلیِ Project را هم انجام می‌دهد، تا لایه‌ی UI مجبور به حمل
+    // ProjectEntity خام نباشد.
+    suspend fun touch(projectId: String): Result<Boolean> {
+        val project = projectDao.loadProject(projectId) ?: return Result.success(false)
+        return saveIfDirty(project, isDirty = true)
+    }
 }
 
 private fun nowIso8601(): String = Instant.now().toString()

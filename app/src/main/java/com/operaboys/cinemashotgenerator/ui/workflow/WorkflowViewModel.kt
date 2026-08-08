@@ -90,6 +90,48 @@ class WorkflowViewModel(
     )
     val composerLayoutVariant: StateFlow<ComposerLayoutVariant> = _composerLayoutVariant.asStateFlow()
 
+    // واحد ۱۶ فاز ۶ — قدم ۱ (صفحه‌ی Settings): کارت «نمایش» — طبق یافته‌ی صریح
+    // این قدم (grep روی ui/theme/Theme.kt)، هیچ زیرساخت واقعی‌ای برای Dynamic
+    // Font/Min Touch Target/Reduced Motion در این پروژه وجود ندارد؛ این سه فلگ
+    // واقعاً Persist می‌شوند (هم‌الگو دقیق با ۴ فیلد بالا) اما فعلاً هیچ اثر
+    // Runtime ای در جای دیگری از اپ ندارند — محدودیت شناخته‌شده و صریحاً مستند،
+    // نه پنهان‌شده (جزئیات در docs/adr/058-...md).
+    private val _dynamicFontEnabled = MutableStateFlow(initialPrefs[WorkflowPrefKeys.DYNAMIC_FONT_ENABLED] ?: false)
+    val dynamicFontEnabled: StateFlow<Boolean> = _dynamicFontEnabled.asStateFlow()
+
+    private val _minTouchTargetEnabled = MutableStateFlow(initialPrefs[WorkflowPrefKeys.MIN_TOUCH_TARGET_ENABLED] ?: false)
+    val minTouchTargetEnabled: StateFlow<Boolean> = _minTouchTargetEnabled.asStateFlow()
+
+    private val _reducedMotionEnabled = MutableStateFlow(initialPrefs[WorkflowPrefKeys.REDUCED_MOTION_ENABLED] ?: false)
+    val reducedMotionEnabled: StateFlow<Boolean> = _reducedMotionEnabled.asStateFlow()
+
+    /**
+     * فاصله‌ی زمانی Timer واقعی Auto-Save (`StudioShell`، `AutoSaveManager.touch`) —
+     * پیش‌فرض ۳۰ دقیقاً هم‌تراز `AutoSaveManager.intervalSeconds` پیش‌فرض. جزئیات
+     * کامل تصمیم در docs/adr/058-unit16-phase6-step1-settings-autosave.md.
+     */
+    private val _autoSaveCadenceSeconds = MutableStateFlow(initialPrefs[WorkflowPrefKeys.AUTO_SAVE_CADENCE_SECONDS] ?: 30L)
+    val autoSaveCadenceSeconds: StateFlow<Long> = _autoSaveCadenceSeconds.asStateFlow()
+
+    /**
+     * «پرش آزاد بین مراحل» — پیش‌فرض true چون رفتار واقعیِ فعلیِ Studio همین است
+     * (تب‌های Story/DNA/Scenes/... همیشه آزادانه قابل‌کلیک‌اند، بدون هیچ Gate ای).
+     * این سوییچ واقعاً Persist می‌شود، اما هیچ منطق Gate/هشدار واقعی‌ای در جای
+     * دیگری از این اپ برای اجرای آن وجود ندارد — محدودیت شناخته‌شده و مستند.
+     */
+    private val _allowFreeStepJump = MutableStateFlow(initialPrefs[WorkflowPrefKeys.ALLOW_FREE_STEP_JUMP] ?: true)
+    val allowFreeStepJump: StateFlow<Boolean> = _allowFreeStepJump.asStateFlow()
+
+    /**
+     * تصویر پس‌زمینه‌ی Home — طبق سند طراحی هم روی Home (Full-bleed) هم Blur‌شده
+     * در پس‌زمینه‌ی بقیه‌ی صفحات استفاده می‌شود؛ چون هیچ زیرساخت File Picker ای در
+     * کل این کدبیس وجود ندارد (grep تأییدشده، هم‌کلاس محدودیت شناخته‌شده‌ی Attached
+     * References در Shot Composer)، این قدم فقط خودِ مقدار را Persist می‌کند —
+     * نمایش واقعی آن روی Home/بقیه‌ی صفحات کار یک قدم بعدی است.
+     */
+    private val _homeScreenImageUri = MutableStateFlow(initialPrefs[WorkflowPrefKeys.HOME_SCREEN_IMAGE_URI])
+    val homeScreenImageUri: StateFlow<String?> = _homeScreenImageUri.asStateFlow()
+
     /** null یعنی هنوز هیچ Session واقعی‌ای (ورود به یک پروژه‌ی مشخص) شروع نشده. */
     private val _workflowState = MutableStateFlow<WorkflowState?>(null)
     val workflowState: StateFlow<WorkflowState?> = _workflowState.asStateFlow()
@@ -112,6 +154,40 @@ class WorkflowViewModel(
     fun setComposerLayoutVariant(variant: ComposerLayoutVariant): Job {
         _composerLayoutVariant.value = variant
         return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.COMPOSER_LAYOUT_VARIANT] = variant.name } }
+    }
+
+    fun setDynamicFontEnabled(enabled: Boolean): Job {
+        _dynamicFontEnabled.value = enabled
+        return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.DYNAMIC_FONT_ENABLED] = enabled } }
+    }
+
+    fun setMinTouchTargetEnabled(enabled: Boolean): Job {
+        _minTouchTargetEnabled.value = enabled
+        return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.MIN_TOUCH_TARGET_ENABLED] = enabled } }
+    }
+
+    fun setReducedMotionEnabled(enabled: Boolean): Job {
+        _reducedMotionEnabled.value = enabled
+        return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.REDUCED_MOTION_ENABLED] = enabled } }
+    }
+
+    fun setAutoSaveCadenceSeconds(seconds: Long): Job {
+        _autoSaveCadenceSeconds.value = seconds
+        return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.AUTO_SAVE_CADENCE_SECONDS] = seconds } }
+    }
+
+    fun setAllowFreeStepJump(allow: Boolean): Job {
+        _allowFreeStepJump.value = allow
+        return ioScope.launch { dataStore.edit { it[WorkflowPrefKeys.ALLOW_FREE_STEP_JUMP] = allow } }
+    }
+
+    fun setHomeScreenImageUri(uri: String?): Job {
+        _homeScreenImageUri.value = uri
+        return ioScope.launch {
+            dataStore.edit {
+                if (uri != null) it[WorkflowPrefKeys.HOME_SCREEN_IMAGE_URI] = uri else it.remove(WorkflowPrefKeys.HOME_SCREEN_IMAGE_URI)
+            }
+        }
     }
 
     /**

@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
+import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -72,6 +73,9 @@ fun App() {
             AudioContextRepository(database.audioContextDao())
         )
     }
+    // واحد ۱۶ فاز ۶ — قدم ۱: همان الگو، برای Timer دوره‌ای Auto-Save واقعی
+    // (StudioShell) — جزئیات در docs/adr/058-unit16-phase6-step1-settings-autosave.md.
+    val autoSaveManager = remember { AutoSaveManager(database.projectDao()) }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -88,7 +92,8 @@ fun App() {
                 sceneRepository = sceneRepository,
                 shotRepository = shotRepository,
                 projectDnaRepository = projectDnaRepository,
-                promptGenerationRepository = promptGenerationRepository
+                promptGenerationRepository = promptGenerationRepository,
+                autoSaveManager = autoSaveManager
             )
         }
     }

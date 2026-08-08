@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -55,7 +56,8 @@ fun MainScaffold(
     sceneRepository: SceneRepository? = null,
     shotRepository: ShotRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
-    promptGenerationRepository: PromptGenerationRepository? = null
+    promptGenerationRepository: PromptGenerationRepository? = null,
+    autoSaveManager: AutoSaveManager? = null
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -103,6 +105,10 @@ fun MainScaffold(
                     coroutineScope.launch { drawerState.close() }
                     navController.navigate(Assets) { launchSingleTop = true }
                 },
+                onNavigateSettings = {
+                    coroutineScope.launch { drawerState.close() }
+                    navController.navigate(Settings) { launchSingleTop = true }
+                },
                 onComingSoon = {
                     coroutineScope.launch {
                         drawerState.close()
@@ -142,6 +148,7 @@ fun MainScaffold(
                 shotRepository = shotRepository,
                 projectDnaRepository = projectDnaRepository,
                 promptGenerationRepository = promptGenerationRepository,
+                autoSaveManager = autoSaveManager,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

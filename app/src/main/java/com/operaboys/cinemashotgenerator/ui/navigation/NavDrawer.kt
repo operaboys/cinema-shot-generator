@@ -1,6 +1,9 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -21,7 +24,9 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 // چشم «خراب» می‌آید، در حالی که یک Snackbar واضح می‌گوید این بخش هنوز ساخته
 // نشده، نه اینکه از کار افتاده.
 
-private data class DrawerLink(val labelKey: String, val onNavigateAssets: Boolean = false)
+private enum class DrawerAction { COMING_SOON, ASSETS, SETTINGS }
+
+private data class DrawerLink(val labelKey: String, val action: DrawerAction = DrawerAction.COMING_SOON)
 
 private val studioLinks = listOf(
     DrawerLink("drawer.storyWizard"),
@@ -29,15 +34,17 @@ private val studioLinks = listOf(
     DrawerLink("drawer.dnaManager"),
     DrawerLink("drawer.scenes"),
     DrawerLink("drawer.shots"),
-    DrawerLink("drawer.assets", onNavigateAssets = true)
+    DrawerLink("drawer.assets", action = DrawerAction.ASSETS)
 )
 private val toolsLinks = listOf(
     DrawerLink("drawer.validation"),
     DrawerLink("drawer.promptGenerator"),
     DrawerLink("drawer.outputDelivery")
 )
+// واحد ۱۶ فاز ۶ — قدم ۱: «تنظیمات» اکنون واقعاً Navigate می‌کند (نه دیگر «به‌زودی»)
+// — دومین لینک این Drawer که مسیر واقعی پیدا کرد، هم‌الگو دقیق با «دارایی‌ها».
 private val systemLinks = listOf(
-    DrawerLink("drawer.settings"),
+    DrawerLink("drawer.settings", action = DrawerAction.SETTINGS),
     DrawerLink("drawer.backups")
 )
 
@@ -45,14 +52,23 @@ private val systemLinks = listOf(
 fun NavDrawerContent(
     language: Language,
     onNavigateAssets: () -> Unit,
+    onNavigateSettings: () -> Unit,
     onComingSoon: () -> Unit
 ) {
+    // واحد ۱۶ فاز ۶ — قدم ۱: یافته‌ی واقعی این قدم — با ۱۱ آیتم در ۳ گروه، محتوای
+    // Drawer می‌تواند از ارتفاع صفحه‌های واقعی/متوسط بیشتر شود؛ ModalDrawerSheet
+    // به‌خودی‌خود محتوایش را Scroll نمی‌کند (فقط یک Surface/Column ساده است) — بدون
+    // این Modifier.verticalScroll، آیتم‌های گروه SYSTEM (تنظیمات/بکاپ‌ها) در
+    // صفحه‌های کوچک‌تر عملاً غیرقابل‌دسترس بودند. این یک باگ واقعی UX بود، نه فقط
+    // یافته‌ی تست — با پیدایش در تست End-to-End صفحه‌ی Settings (SettingsFlowTest.kt).
     ModalDrawerSheet {
-        DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onComingSoon = onComingSoon)
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onComingSoon = onComingSoon)
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onComingSoon = onComingSoon)
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+        }
     }
 }
 
@@ -62,6 +78,7 @@ private fun DrawerGroup(
     links: List<DrawerLink>,
     language: Language,
     onNavigateAssets: () -> Unit,
+    onNavigateSettings: () -> Unit,
     onComingSoon: () -> Unit
 ) {
     Text(
@@ -74,7 +91,11 @@ private fun DrawerGroup(
         NavigationDrawerItem(
             label = { Text(uiString(link.labelKey, language)) },
             selected = false,
-            onClick = if (link.onNavigateAssets) onNavigateAssets else onComingSoon,
+            onClick = when (link.action) {
+                DrawerAction.ASSETS -> onNavigateAssets
+                DrawerAction.SETTINGS -> onNavigateSettings
+                DrawerAction.COMING_SOON -> onComingSoon
+            },
             modifier = Modifier.padding(horizontal = 12.dp)
         )
     }

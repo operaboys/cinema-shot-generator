@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -40,6 +41,8 @@ import com.operaboys.cinemashotgenerator.ui.scenes.ScenesListScreen
 import com.operaboys.cinemashotgenerator.ui.story.StoryTabContent
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 // واحد ۱۶ فاز ۱ — Studio Shell طبق دستور کار بخش ج: Header (برگشت، عنوان، زیرعنوان
 // شمارش صحنه/شات، چیپ «ذخیره شد») + ۴ Tab (فاز ۰، اینجا واقعاً به محتوا وصل شدند).
@@ -67,11 +70,13 @@ fun StudioShell(
     storyRepository: StoryRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
     sceneRepository: SceneRepository? = null,
+    autoSaveManager: AutoSaveManager? = null,
     onNavigateToAiBreakdown: (String) -> Unit = {},
     onNavigateToScene: (String) -> Unit = {}
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
+    val autoSaveCadenceSeconds by workflowViewModel.autoSaveCadenceSeconds.collectAsStateWithLifecycle()
     val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
     val summary = summaries.find { it.project.projectId == projectId }
 
@@ -82,6 +87,21 @@ fun StudioShell(
     LaunchedEffect(projectId) {
         if (workflowState?.projectId != projectId) {
             workflowViewModel.startWorkflowSession(projectId)
+        }
+    }
+
+    // واحد ۱۶ فاز ۶ — قدم ۱: اتصال واقعی Timer دوره‌ای Auto-Save (طبق تصمیم مستند
+    // docs/adr/058-unit16-phase6-step1-settings-autosave.md) — ذخیره‌ی واقعی
+    // فیلدهای هر Entity از قبل بلافاصله روی هر تغییر انجام می‌شود (بدون تغییر در
+    // این قدم)؛ این حلقه فقط `ProjectEntity.lastModified` را هر Cadence (از
+    // Settings) تازه نگه می‌دارد، دقیقاً تا وقتی این Composable برای این
+    // projectId روی صفحه است (لغو خودکار با ترک/تغییر Composition، هم‌الگو با
+    // LaunchedEffect بالا — بدون نیاز به مدیریت دستی Job).
+    LaunchedEffect(projectId, autoSaveCadenceSeconds, autoSaveManager) {
+        if (autoSaveManager == null) return@LaunchedEffect
+        while (isActive) {
+            delay(autoSaveCadenceSeconds * 1000L)
+            autoSaveManager.touch(projectId)
         }
     }
 

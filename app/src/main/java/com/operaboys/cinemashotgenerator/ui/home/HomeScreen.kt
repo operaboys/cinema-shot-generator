@@ -60,6 +60,9 @@ import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 // QuickCreateRow است ("پروژه‌ی جدید")، و هر دو هم‌زمان در درخت Composition
 // حاضرند وقتی دیالوگ باز است؛ همان الگوی رفع تصادف متنی BottomNavBar.kt.
 const val CREATE_PROJECT_NAME_FIELD_TAG = "createProject.nameField"
+// واحد ۱۶ فاز ۶ — قدم ۱: لازم برای تست End-to-End صفحه‌ی Settings (باز کردن Drawer
+// از Home، تنها نقطه‌ی واقعی ورود به Settings).
+const val HOME_OPEN_DRAWER_BUTTON_TAG = "home.openDrawerButton"
 
 @Composable
 fun HomeScreen(
@@ -187,7 +190,7 @@ private fun HomeHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onOpenDrawer) {
+        IconButton(onClick = onOpenDrawer, modifier = Modifier.testTag(HOME_OPEN_DRAWER_BUTTON_TAG)) {
             Icon(Icons.Filled.Menu, contentDescription = null)
         }
 

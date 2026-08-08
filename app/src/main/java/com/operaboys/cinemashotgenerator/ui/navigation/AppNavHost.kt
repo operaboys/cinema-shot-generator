@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -24,6 +25,7 @@ import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailScreen
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
+import com.operaboys.cinemashotgenerator.ui.settings.SettingsScreen
 import com.operaboys.cinemashotgenerator.ui.shots.ShotComposerScreen
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
@@ -50,6 +52,7 @@ fun AppNavHost(
     shotRepository: ShotRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
     promptGenerationRepository: PromptGenerationRepository? = null,
+    autoSaveManager: AutoSaveManager? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -85,6 +88,7 @@ fun AppNavHost(
                 storyRepository = storyRepository,
                 projectDnaRepository = projectDnaRepository,
                 sceneRepository = sceneRepository,
+                autoSaveManager = autoSaveManager,
                 onNavigateToAiBreakdown = { targetProjectId ->
                     navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
                 },
@@ -228,6 +232,13 @@ fun AppNavHost(
                 onModelProfileSelected = workflowViewModel::setSelectedModelProfileId,
                 onShowMessage = onShowMessage,
                 promptGenerationRepository = promptGenerationRepository
+            )
+        }
+        composable<Settings> {
+            SettingsScreen(
+                workflowViewModel = workflowViewModel,
+                onBack = { navController.navigate(Home) { launchSingleTop = true } },
+                onShowMessage = onShowMessage
             )
         }
     }

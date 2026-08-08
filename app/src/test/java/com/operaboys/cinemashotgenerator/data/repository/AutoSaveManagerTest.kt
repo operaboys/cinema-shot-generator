@@ -91,4 +91,27 @@ class AutoSaveManagerTest {
         assertTrue(loaded != null)
         assertEquals("New Project", loaded?.projectName)
     }
+
+    // واحد ۱۶ فاز ۶ — قدم ۱: تست `touch` تازه (بدون تغییر در `saveIfDirty` موجود بالا).
+
+    @Test
+    fun `touch on an existing project loads it and updates lastModified`() = runBlocking {
+        database.projectDao().saveProject(originalProject)
+
+        val result = manager.touch("proj_001")
+
+        assertTrue(result.isSuccess)
+        assertEquals(true, result.getOrThrow())
+        val loaded = database.projectDao().loadProject("proj_001")
+        assertEquals(fixedClockValue, loaded?.lastModified)
+        assertEquals("Original Name", loaded?.projectName)
+    }
+
+    @Test
+    fun `touch on a project id that does not exist returns success false without throwing`() = runBlocking {
+        val result = manager.touch("proj_does_not_exist")
+
+        assertTrue(result.isSuccess)
+        assertEquals(false, result.getOrThrow())
+    }
 }

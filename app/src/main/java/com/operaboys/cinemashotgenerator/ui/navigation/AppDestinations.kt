@@ -113,3 +113,13 @@ data class OutputDelivery(
     val sceneDisplayTitle: String,
     val shotId: String
 )
+
+// واحد ۱۶ فاز ۶ — قدم ۱: مسیر مستقل سطح‌بالا برای صفحه‌ی Settings — دقیقاً هم‌الگو
+// با Assets بالا (`data object` بدون آرگومان، نه یک `data class`): Settings یک
+// مفهوم کاملاً سراسری/مستقل از پروژه است (طبق docs/design/README.md بخش «۱۱.
+// Settings» — همه‌ی مقادیرش از WorkflowViewModel/DataStore می‌آیند، نه از یک
+// projectId مشخص). ورودی از Nav Drawer (گروه SYSTEM) است؛ «برگشت» طبق قاعده‌ی
+// Fallback عمومی («همه‌جای دیگر→Home») به Home می‌رود — نیازی به قانون
+// اختصاصی در resolveContextualBackTarget نیست، دقیقاً هم‌الگو با Assets.
+@Serializable
+data object Settings

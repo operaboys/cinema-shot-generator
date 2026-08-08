@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. **فاز ۵ (Validation → Output Delivery) به‌طور کامل تکمیل شد** — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی)، قدم ۲ («Prompt Generation»، طبق تصمیم معمار با قدم ۳ ادغام‌شده) و قدم ۳ (صفحه‌ی Output Delivery: انتخاب مدل، پیش‌نمایش خروجی واقعی، هشدارها، Copy/Export) — پایین را ببینید.**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Output Delivery) به‌طور کامل تکمیل شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی)، قدم ۲ («Prompt Generation»، طبق تصمیم معمار با قدم ۳ ادغام‌شده) و قدم ۳ (صفحه‌ی Output Delivery: انتخاب مدل، پیش‌نمایش خروجی واقعی، هشدارها، Copy/Export). **فاز ۶ (آخرین فاز واحد ۱۶) آغاز شد — قدم ۱ (صفحه‌ی Settings + اتصال واقعی Timer دوره‌ای Auto-Save) تکمیل شد** — پایین را ببینید.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -912,6 +912,50 @@ Validation».
 
 `gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۴۰
 تست (۶۳۵→۶۴۰، ۵ تست جدید)، ۰ Failure، ۰ Error.
+
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۶ (آخرین فاز)، قدم ۱ — صفحه‌ی Settings + اتصال واقعی Timer دوره‌ای Auto-Save
+
+اولین قدم آخرین فاز واحد ۱۶. طبق `docs/design/README.md` بخش «۱۱.
+Settings»، دقیقاً همان ۷ کارت:
+
+- **Display** (Dynamic Font/Min Touch Target/Reduced Motion): سه سوییچ
+  واقعاً Persist می‌شوند؛ طبق یافته‌ی صریح این قدم (grep روی `Theme.kt`)
+  هیچ زیرساخت Runtime واقعی‌ای برای این سه در کل کدبیس وجود ندارد —
+  محدودیت شناخته‌شده، صریحاً مستند.
+- **Workflow**: Shot List Default View (کاملاً واقعی)، Auto-Save Cadence
+  (واقعاً به `AutoSaveManager` وصل شد — پایین را ببینید)، Jump Between
+  Steps (Persist واقعی، بدون منطق Gate ای در جای دیگر — مستند).
+- **Privacy**: صرفاً نمایشی/اطلاعاتی، طبق README.
+- **Language & Theme**: رادیوهای صریح، مستقیماً روی همان
+  `WorkflowViewModel.language`/`theme` موجود از فاز ۰.
+- **Home Screen Image**: کارت واقعی + Persist مقدار URI؛ بدون File
+  Picker واقعی (هیچ‌جای کدبیس چنین Infra ای ندارد؛ هم‌کلاس محدودیت
+  Attached References، ADR-051) — «انتخاب تصویر» پیام «به‌زودی» می‌دهد.
+- **Layout Variants**: چیپ‌های Home/Composer مستقیماً به
+  `homeLayoutVariant`/`composerLayoutVariant` موجود وصل شدند؛ یافته‌ی
+  این قدم: نه `HomeScreen` و نه `ShotComposerScreen` فعلاً به این دو
+  مقدار شاخه‌بندی نمی‌کنند — Persist واقعی است، اعمال بصری هنوز نیست
+  (مستند، خارج از Scope این قدم).
+- **About**: کارت ثابت.
+
+**اتصال واقعی Auto-Save**: `AutoSaveManager` متد تازه‌ی `touch(projectId)`
+گرفت؛ `StudioShell` اکنون یک `LaunchedEffect` دوره‌ای واقعی دارد که هر
+Cadence (از همین صفحه‌ی Settings، پیش‌فرض ۳۰ ثانیه) آن را صدا می‌زند —
+طول یک Session فعال Studio. تصمیم مستند: ذخیره‌ی فوری هر Entity
+(Scene/Shot/DNA/Asset، از فازهای قبل) و این Timer دو لایه‌ی کاملاً
+مستقل‌اند، نه یک جایگزینی برای هم — Timer فقط شکاف واقعی کشف‌شده
+(`ProjectEntity.lastModified` هرگز با ویرایش واقعی محتوا تازه نمی‌شد) را
+پر می‌کند.
+
+یک باگ واقعی UX هم در همین قدم پیدا و رفع شد: Nav Drawer با ۱۱ آیتم
+بدون هیچ Scroll ای بود — روی صفحه‌های کوچک‌تر، «تنظیمات»/«بکاپ‌ها»
+(آخرین گروه) عملاً غیرقابل‌دسترس بودند.
+
+جزئیات کامل تصمیمات و یافته‌های دیباگ در
+`docs/adr/058-unit16-phase6-step1-settings-autosave.md`.
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۴۹
+تست (۶۴۰→۶۴۹، ۹ تست جدید)، ۰ Failure، ۰ Error.
 
 ## Stack
 
