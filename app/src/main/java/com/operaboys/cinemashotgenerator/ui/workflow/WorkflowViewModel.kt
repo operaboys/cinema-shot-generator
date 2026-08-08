@@ -129,6 +129,11 @@ class WorkflowViewModel(
         _workflowState.value = _workflowState.value?.copy(shotListViewMode = mode)
     }
 
+    /** انتخاب مدل هدف در Output Delivery — هم‌الگو دقیق با setShotListViewMode بالا. */
+    fun setSelectedModelProfileId(profileId: String) {
+        _workflowState.value = _workflowState.value?.copy(selectedModelProfileId = profileId)
+    }
+
     /** شروع یک Session گردش کار واقعی برای یک projectId مشخص — فراخوان واقعی این تابع (هنگام ورود به Studio) کار فاز بعدی است. */
     fun startWorkflowSession(projectId: String) {
         _workflowState.value = WorkflowState(

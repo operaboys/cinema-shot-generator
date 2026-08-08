@@ -65,7 +65,12 @@ data class WorkflowState(
     val stepStatus: Map<WorkflowStep, StepStatus>,
     val startedAt: String,
     val lastActionAt: String,
-    val shotListViewMode: ShotListViewMode = ShotListViewMode.GRID
+    val shotListViewMode: ShotListViewMode = ShotListViewMode.GRID,
+    // واحد ۱۶ فاز ۵ قدم ۳: آخرین مدل هدف انتخاب‌شده در صفحه‌ی Output Delivery — طبق
+    // docs/design/README.md بخش State Management («Selected output model»، در همان
+    // فهرست Language/Theme/shotListViewMode، نه یک فیلد مختص یک Shot خاص). دقیقاً
+    // هم‌جنس shotListViewMode: طول یک Session Studio، نه DataStore بلندمدت.
+    val selectedModelProfileId: String? = null
 ) {
     val progressPercentage: Int
         get() = (stepStatus.values.count { it == StepStatus.COMPLETED } * 100) / WorkflowStep.entries.size

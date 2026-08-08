@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -69,6 +70,7 @@ const val SHOT_COMPOSER_LIGHTING_TAB_TAG = "shotComposer.tab.lighting"
 const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
 const val SHOT_COMPOSER_BACK_BUTTON_TAG = "shotComposer.backButton"
 const val SHOT_COMPOSER_VALIDATION_BUTTON_TAG = "shotComposer.validationButton"
+const val SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG = "shotComposer.outputDeliveryButton"
 
 @Composable
 fun ShotComposerScreen(
@@ -78,6 +80,7 @@ fun ShotComposerScreen(
     language: Language,
     onBack: () -> Unit,
     onNavigateToValidation: (shotId: String) -> Unit = {},
+    onNavigateToOutputDelivery: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
     modifier: Modifier = Modifier
 ) {
@@ -116,6 +119,17 @@ fun ShotComposerScreen(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                     Text(uiString("validation.entryButtonLabel", language))
+                }
+                // ورودی مستقیم به Output Delivery — طبق دستور کار قدم ۳ فاز ۵ («نقطه‌ی
+                // ورود می‌تواند هم از Validation و هم مستقیم از Shot Composer باشد»)،
+                // دقیقاً هم‌الگو با دکمه‌ی Validation بالا (همان شرط shotId != null: شات
+                // هنوز-ذخیره‌نشده چیزی برای رندر کردن ندارد).
+                TextButton(
+                    onClick = { onNavigateToOutputDelivery(shotId) },
+                    modifier = Modifier.testTag(SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG)
+                ) {
+                    Icon(Icons.Filled.MovieFilter, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                    Text(uiString("outputDelivery.entryButtonLabel", language))
                 }
             }
         }

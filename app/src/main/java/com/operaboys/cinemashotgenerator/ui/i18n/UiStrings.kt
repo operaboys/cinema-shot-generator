@@ -680,7 +680,22 @@ val faStrings: Map<String, String> = mapOf(
     "validation.levelEmptyState" to "هیچ مشکلی در این سطح یافت نشد.",
     "validation.suggestionPrefix" to "پیشنهاد:",
     "validation.allClearMessage" to "هیچ مشکلی یافت نشد — این شات آماده‌ی تولید Prompt است.",
-    "validation.entryButtonLabel" to "اعتبارسنجی این شات"
+    "validation.entryButtonLabel" to "اعتبارسنجی این شات",
+    "outputDelivery.entryButtonLabel" to "تولید و تحویل خروجی",
+    "outputDelivery.subtitle" to "پیش‌نمایش، بررسی هشدارها، و ارسال خروجی نهایی",
+    "outputDelivery.modelPickerSectionTitle" to "انتخاب مدل هدف",
+    "outputDelivery.tokenCostLabel" to "هزینه‌ی Token",
+    "outputDelivery.previewTitleTemplate" to "پیش‌نمایش خروجی — {model}",
+    "outputDelivery.cleanedFinalizedBadge" to "پاک‌سازی‌شده · نهایی‌شده",
+    "outputDelivery.copyButton" to "کپی",
+    "outputDelivery.copiedMessage" to "متن پرامپت کپی شد",
+    "outputDelivery.regenerateButton" to "بازتولید",
+    "outputDelivery.exportButton" to "Export",
+    "outputDelivery.exportedMessage" to "پرامپت نهایی برای Export آماده و کپی شد",
+    "outputDelivery.warningsSectionTitle" to "هشدارها",
+    "outputDelivery.noWarnings" to "هیچ هشداری برای این خروجی وجود ندارد.",
+    "outputDelivery.loadingState" to "در حال بارگذاری...",
+    "outputDelivery.errorPrefix" to "خطا:"
 )
 
 val enStrings: Map<String, String> = mapOf(
@@ -1355,7 +1370,22 @@ val enStrings: Map<String, String> = mapOf(
     "validation.levelEmptyState" to "No issues found at this level.",
     "validation.suggestionPrefix" to "Suggestion:",
     "validation.allClearMessage" to "No issues found — this shot is ready for prompt generation.",
-    "validation.entryButtonLabel" to "Validate this shot"
+    "validation.entryButtonLabel" to "Validate this shot",
+    "outputDelivery.entryButtonLabel" to "Generate & Deliver Output",
+    "outputDelivery.subtitle" to "Preview, review warnings, and deliver the final output",
+    "outputDelivery.modelPickerSectionTitle" to "Target Model",
+    "outputDelivery.tokenCostLabel" to "Token cost",
+    "outputDelivery.previewTitleTemplate" to "Output Preview — {model}",
+    "outputDelivery.cleanedFinalizedBadge" to "Cleaned · Finalized",
+    "outputDelivery.copyButton" to "Copy",
+    "outputDelivery.copiedMessage" to "Prompt text copied",
+    "outputDelivery.regenerateButton" to "Regenerate",
+    "outputDelivery.exportButton" to "Export",
+    "outputDelivery.exportedMessage" to "Final prompt is ready and copied for export",
+    "outputDelivery.warningsSectionTitle" to "Warnings",
+    "outputDelivery.noWarnings" to "No warnings for this output.",
+    "outputDelivery.loadingState" to "Loading...",
+    "outputDelivery.errorPrefix" to "Error:"
 )
 
 val uiTranslations: Map<Language, Map<String, String>> = mapOf(

@@ -21,6 +21,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -53,7 +54,8 @@ fun MainScaffold(
     assetRepository: AssetRepository? = null,
     sceneRepository: SceneRepository? = null,
     shotRepository: ShotRepository? = null,
-    projectDnaRepository: ProjectDnaRepository? = null
+    projectDnaRepository: ProjectDnaRepository? = null,
+    promptGenerationRepository: PromptGenerationRepository? = null
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -139,6 +141,7 @@ fun MainScaffold(
                 sceneRepository = sceneRepository,
                 shotRepository = shotRepository,
                 projectDnaRepository = projectDnaRepository,
+                promptGenerationRepository = promptGenerationRepository,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -26,6 +27,7 @@ import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
 import com.operaboys.cinemashotgenerator.ui.shots.ShotComposerScreen
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
 import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
+import com.operaboys.cinemashotgenerator.ui.outputdelivery.OutputDeliveryScreen
 import com.operaboys.cinemashotgenerator.ui.validation.ValidationScreen
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
@@ -47,6 +49,7 @@ fun AppNavHost(
     sceneRepository: SceneRepository? = null,
     shotRepository: ShotRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
+    promptGenerationRepository: PromptGenerationRepository? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -177,6 +180,11 @@ fun AppNavHost(
                         Validation(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
                     ) { launchSingleTop = true }
                 },
+                onNavigateToOutputDelivery = { shotId ->
+                    navController.navigate(
+                        OutputDelivery(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
+                    ) { launchSingleTop = true }
+                },
                 shotRepository = shotRepository
             )
         }
@@ -193,10 +201,33 @@ fun AppNavHost(
                         ShotComposer(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, route.shotId)
                     ) { launchSingleTop = true }
                 },
+                onNavigateToOutputDelivery = { shotId ->
+                    navController.navigate(
+                        OutputDelivery(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
+                    ) { launchSingleTop = true }
+                },
                 shotRepository = shotRepository,
                 sceneRepository = sceneRepository,
                 projectDnaRepository = projectDnaRepository,
                 assetRepository = assetRepository
+            )
+        }
+        composable<OutputDelivery> { backStackEntry ->
+            val route: OutputDelivery = backStackEntry.toRoute()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
+            OutputDeliveryScreen(
+                shotId = route.shotId,
+                language = language,
+                onBack = {
+                    navController.navigate(
+                        ShotComposer(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, route.shotId)
+                    ) { launchSingleTop = true }
+                },
+                initialModelProfileId = workflowState?.selectedModelProfileId,
+                onModelProfileSelected = workflowViewModel::setSelectedModelProfileId,
+                onShowMessage = onShowMessage,
+                promptGenerationRepository = promptGenerationRepository
             )
         }
     }

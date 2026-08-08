@@ -96,3 +96,20 @@ data class Validation(
     val sceneDisplayTitle: String,
     val shotId: String
 )
+
+// واحد ۱۶ فاز ۵ — قدم ۳ (آخرین قدم فاز ۵، طبق ADR-056 شامل هر دو وظیفه‌ی «تولید
+// Prompt» و «تحویل خروجی»): مسیر مستقل Output Delivery — دقیقاً هم‌شکل با
+// Validation بالا (همان دلیل‌ها: shotId غیر-nullable، sceneNumber/sceneDisplayTitle
+// فقط برای بازسازی معتبر مسیر ShotComposer در برگشت). طبق دستور کار این قدم، نقطه‌ی
+// ورود می‌تواند هم از Validation و هم مستقیم از Shot Composer باشد — اما مقصد
+// «برگشت» در هر دو حالت یکسان و ثابت است (به خودِ ShotComposer)، دقیقاً هم‌الگو با
+// Validation، نه دو مقصد متفاوت بسته به نقطه‌ی ورود (که با قاعده‌ی «Back
+// Navigation Contextual» این پروژه پیچیدگی غیرضروری اضافه می‌کرد).
+@Serializable
+data class OutputDelivery(
+    val projectId: String,
+    val sceneId: String,
+    val sceneNumber: Int,
+    val sceneDisplayTitle: String,
+    val shotId: String
+)

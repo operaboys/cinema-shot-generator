@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -56,6 +58,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 const val VALIDATION_BACK_BUTTON_TAG = "validation.backButton"
 const val VALIDATION_BLOCKING_COUNT_CARD_TAG = "validation.blockingCountCard"
 const val VALIDATION_WARNING_COUNT_CARD_TAG = "validation.warningCountCard"
+const val VALIDATION_OUTPUT_DELIVERY_BUTTON_TAG = "validation.outputDeliveryButton"
 
 fun validationLevelSectionTag(level: ValidationLevel): String = "validation.levelSection.${level.name}"
 fun validationIssueCardTag(level: ValidationLevel, index: Int): String = "validation.issueCard.${level.name}.$index"
@@ -67,6 +70,7 @@ fun ValidationScreen(
     shotId: String,
     language: Language,
     onBack: () -> Unit,
+    onNavigateToOutputDelivery: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
     sceneRepository: SceneRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
@@ -89,6 +93,21 @@ fun ValidationScreen(
             onBack = onBack,
             backTestTag = VALIDATION_BACK_BUTTON_TAG
         )
+
+        // ورودی مستقیم به Output Delivery — طبق دستور کار قدم ۳ فاز ۵ («نقطه‌ی ورود
+        // می‌تواند هم از Validation و هم مستقیم از Shot Composer باشد»)، هم‌الگو با
+        // دکمه‌ی مشابه در ShotComposerScreen. برخلاف آن صفحه، اینجا هیچ شرط
+        // shotId != null لازم نیست — Validation از قبل فقط برای یک شات ذخیره‌شده باز
+        // می‌شود (shotId این پارامتر غیر-nullable است).
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            TextButton(
+                onClick = { onNavigateToOutputDelivery(shotId) },
+                modifier = Modifier.testTag(VALIDATION_OUTPUT_DELIVERY_BUTTON_TAG)
+            ) {
+                Icon(Icons.Filled.MovieFilter, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                Text(uiString("outputDelivery.entryButtonLabel", language))
+            }
+        }
 
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),

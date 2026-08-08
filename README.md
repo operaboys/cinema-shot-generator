@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Output Delivery) آغاز شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی) تکمیل شد؛ قدم «Prompt Generation» طبق تصمیم معمار با قدم Output Delivery ادغام شد (هیچ صفحه‌ی مستقلی برای آن پیش‌بینی نشده بود — پایین را ببینید).**
+**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. **فاز ۵ (Validation → Output Delivery) به‌طور کامل تکمیل شد** — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی)، قدم ۲ («Prompt Generation»، طبق تصمیم معمار با قدم ۳ ادغام‌شده) و قدم ۳ (صفحه‌ی Output Delivery: انتخاب مدل، پیش‌نمایش خروجی واقعی، هشدارها، Copy/Export) — پایین را ببینید.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -874,6 +874,45 @@ Validation».
 `render`) از قبل کامل و تست‌شده بود، پس هیچ کد تازه‌ای هم لازم نشد. جزئیات
 کامل در `docs/adr/056-unit16-phase5-step2-prompt-generation-merged.md`.
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۵، قدم ۳ (آخرین قدم) — صفحه‌ی Output Delivery؛ فاز ۵ به‌طور کامل تکمیل شد
+
+آخرین قدم فاز ۵ (طبق ADR-056 شامل هر دو وظیفه‌ی «تولید Prompt» و «تحویل
+خروجی»). طبق `docs/design/README.md` بخش «۱۰. Output Delivery»:
+
+- **Model Picker**: چیپ Wrap‌شونده‌ی هر ۱۴ پروفایل (۱۳ مدل واقعی +
+  Universal Default) + «هزینه‌ی Token» هر مدل. منبع این عدد نه یک تخمین
+  کاراکتر→توکن تازه (Option A) و نه تغییر برچسب به شمار کاراکتر
+  (Option B) بود — بلکه یک گزینه‌ی سوم بهتر: فیلد از‌پیش‌موجود و دقیق
+  `ModelConstraints.maxTokens` (که با جدول «Model List» سند طراحی کاملاً
+  مطابقت داشت)، مستقل از هشدار واقعی Over-limit (`validatePromptLength`،
+  که همچنان شمارش کاراکتر واقعی است).
+- **Output Preview Card**: Badge «پاک‌سازی‌شده · نهایی‌شده»، متن Read-only
+  واقعاً رندرشده (`render(blueprint, profile)`)، خط هزینه‌ی Token +
+  هشدار Over-limit، ردیف Copy/Regenerate، دکمه‌ی تمام‌عرض Export.
+- **Warnings**: هماهنگ با صفحه‌ی Validation (همان `aggregateShotValidation`
+  ADR-055، به‌عنوان `validationIssues` تزریقی به `assemblePromptBlueprint`)
+  + دو هشدار واقعاً تازه‌ی مختص Render/مدل (`validatePromptLength`،
+  `validateUnsupportedFeatureUsage`) — نه یک منبع منطق کاملاً جدا.
+- **زنجیره‌ی کامل پشت‌صحنه**: انتخاب مدل → `collectData` → `assemblePromptBlueprint`
+  → `render` → نمایش؛ عوض‌کردن مدل کل زنجیره را واقعاً دوباره اجرا می‌کند.
+- **Export**: فعلاً هم‌ارز Copy to Clipboard (با پیام تأیید متفاوت) —
+  هیچ Infra نوشتن فایل/Share Intent واقعی در کدبیس وجود ندارد؛ محدودیت
+  شناخته‌شده و مستند (پایین را ببینید).
+- نقطه‌ی ورود: هم از داخل Shot Composer و هم از داخل صفحه‌ی Validation.
+- انتخاب مدل هدف بین بازدیدهای این صفحه حفظ می‌شود (`WorkflowState.
+  selectedModelProfileId`، هم‌الگو دقیق با `shotListViewMode` — طول یک
+  نشست Studio، نه DataStore).
+- یک باگ واقعی کد محصول در همین قدم پیدا و رفع شد: `OutputDeliveryViewModel.
+  regenerate()` بدون لغو صریح Job قبلی، در برابر انتخاب سریع چند مدل
+  پشت‌سرهم آسیب‌پذیر بود (نتیجه‌ی قدیمی می‌توانست جای نتیجه‌ی تازه را
+  بگیرد) — رفع با لغو صریح `regenerateJob` قبل از هر اجرای تازه.
+
+جزئیات کامل تصمیمات (خصوصاً منبع «هزینه‌ی Token» و یافته‌های دیباگ) در
+`docs/adr/057-unit16-phase5-step3-output-delivery.md`.
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۴۰
+تست (۶۳۵→۶۴۰، ۵ تست جدید)، ۰ Failure، ۰ Error.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -990,3 +1029,7 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   جزئیات کامل در `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`،
   `docs/adr/052-unit16-phase4-step3-camera-tab.md` و
   `docs/adr/053-unit16-phase4-step4-lighting-environment-sound.md`.
+- **Output Delivery: «Export» فقط Copy to Clipboard است، نه نوشتن فایل/Share
+  Intent واقعی** — هیچ Infra ای برای این کار در کل کدبیس وجود ندارد (هم‌کلاس
+  محدودیت شناخته‌شده‌ی Attached References در Shot Composer). جزئیات کامل در
+  `docs/adr/057-unit16-phase5-step3-output-delivery.md`.

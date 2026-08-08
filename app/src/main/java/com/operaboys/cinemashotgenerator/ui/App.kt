@@ -12,8 +12,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SettingsResolutionRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -57,6 +60,18 @@ fun App() {
     // واحد ۱۶ فاز ۲ — قدم ۳ (آخرین قدم فاز ۲): همان الگو، برای Tab «DNA» — جزئیات در
     // docs/adr/047-unit16-phase2-step3-dna-tab.md.
     val projectDnaRepository = remember { ProjectDnaRepository(database.projectDnaDao()) }
+    // واحد ۱۶ فاز ۵ — قدم ۳ (آخرین قدم فاز ۵): همان الگو، برای صفحه‌ی Output Delivery —
+    // جزئیات در docs/adr/057-unit16-phase5-step3-output-delivery.md.
+    val promptGenerationRepository = remember {
+        PromptGenerationRepository(
+            database.shotDao(),
+            database.sceneDao(),
+            projectDnaRepository,
+            assetRepository,
+            SettingsResolutionRepository(database.shotDao(), database.sceneDao()),
+            AudioContextRepository(database.audioContextDao())
+        )
+    }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -72,7 +87,8 @@ fun App() {
                 assetRepository = assetRepository,
                 sceneRepository = sceneRepository,
                 shotRepository = shotRepository,
-                projectDnaRepository = projectDnaRepository
+                projectDnaRepository = projectDnaRepository,
+                promptGenerationRepository = promptGenerationRepository
             )
         }
     }
