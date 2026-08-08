@@ -125,11 +125,12 @@ class BackupManagerTest {
         val prefix = "backup_${projectId.length}_${projectId}_"
         val remaining = storage.listFiles(prefix)
         assertEquals(3, remaining.size)
-        // جدیدترین سه‌تا (backup_2، backup_3، backup_4) باید باقی مانده باشند
+        // جدیدترین سه‌تا (backup_2، backup_3، backup_4) باید باقی مانده باشند —
+        // createBackup() بدون آرگومان صریح، پیش‌فرض MANUAL است (طبق ADR-059).
         val remainingIds = remaining.map { it.path.substringAfterLast('/') }.toSet()
-        assertTrue(remainingIds.contains("${prefix}backup_4.json"))
-        assertTrue(remainingIds.contains("${prefix}backup_3.json"))
-        assertTrue(remainingIds.contains("${prefix}backup_2.json"))
+        assertTrue(remainingIds.contains("${prefix}manual_backup_4.csgb"))
+        assertTrue(remainingIds.contains("${prefix}manual_backup_3.csgb"))
+        assertTrue(remainingIds.contains("${prefix}manual_backup_2.csgb"))
     }
 
     @Test
@@ -255,6 +256,65 @@ class BackupManagerTest {
         val result = backupManager.restoreFromBackup("does_not_exist")
         assertTrue(result.isFailure)
     }
+
+    // واحد ۱۶ فاز ۶ — قدم ۲: تست‌های تازه برای listBackups/deleteBackup (توابع
+    // تازه‌ی این قدم، طبق ADR-059).
+
+    @Test
+    fun `listBackups reports the real kind and size for manual and auto backups`() = runBlocking {
+        seedFullProject(database)
+        var counter = 0
+        val manager = BackupManager(
+            projectId = projectId,
+            projectDao = database.projectDao(),
+            sceneDao = database.sceneDao(),
+            shotDao = database.shotDao(),
+            assetDao = database.assetDao(),
+            projectDnaDao = database.projectDnaDao(),
+            audioContextDao = database.audioContextDao(),
+            backupFileStorage = fakeStorage,
+            idProvider = { "id_${counter++}" }
+        )
+
+        manager.createBackup(BackupKind.MANUAL)
+        manager.createBackup(BackupKind.AUTO)
+
+        val result = manager.listBackups()
+        assertTrue(result.isSuccess)
+        val summaries = result.getOrThrow()
+        assertEquals(2, summaries.size)
+        assertEquals(setOf(BackupKind.MANUAL, BackupKind.AUTO), summaries.map { it.kind }.toSet())
+        assertTrue(summaries.all { it.sizeBytes > 0 })
+    }
+
+    @Test
+    fun `deleteBackup removes only the matching backup, leaving the others intact`() = runBlocking {
+        seedFullProject(database)
+        var counter = 0
+        val manager = BackupManager(
+            projectId = projectId,
+            projectDao = database.projectDao(),
+            sceneDao = database.sceneDao(),
+            shotDao = database.shotDao(),
+            assetDao = database.assetDao(),
+            projectDnaDao = database.projectDnaDao(),
+            audioContextDao = database.audioContextDao(),
+            backupFileStorage = fakeStorage,
+            maxBackupsToKeep = 10,
+            idProvider = { "id_${counter++}" }
+        )
+        manager.createBackup(BackupKind.MANUAL)
+        manager.createBackup(BackupKind.MANUAL)
+        val summariesBefore = manager.listBackups().getOrThrow()
+        assertEquals(2, summariesBefore.size)
+
+        val deleteResult = manager.deleteBackup(summariesBefore.first().backupId)
+        assertTrue(deleteResult.isSuccess)
+
+        val summariesAfter = manager.listBackups().getOrThrow()
+        assertEquals(1, summariesAfter.size)
+        assertTrue(summariesAfter.none { it.backupId == summariesBefore.first().backupId })
+    }
 }
 
 /** Fake in-memory برای BackupFileStorage — تست‌پذیر بدون I/O واقعی دستگاه. */
@@ -275,7 +335,13 @@ class FakeBackupFileStorage(private val clock: () -> String = { java.time.Instan
     override suspend fun listFiles(prefix: String): List<BackupFileInfo> =
         files.keys
             .filter { it.substringAfterLast('/').startsWith(prefix) }
-            .map { path -> BackupFileInfo(path = path, createdAt = createdAtByPath.getValue(path)) }
+            .map { path ->
+                BackupFileInfo(
+                    path = path,
+                    createdAt = createdAtByPath.getValue(path),
+                    sizeBytes = files.getValue(path).toByteArray(Charsets.UTF_8).size.toLong()
+                )
+            }
 
     override suspend fun deleteFile(path: String) {
         files.remove(path)

@@ -3,24 +3,31 @@ package com.operaboys.cinemashotgenerator.ui.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
+import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -29,6 +36,7 @@ import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
+import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.launch
 
@@ -57,7 +65,9 @@ fun MainScaffold(
     shotRepository: ShotRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
     promptGenerationRepository: PromptGenerationRepository? = null,
-    autoSaveManager: AutoSaveManager? = null
+    autoSaveManager: AutoSaveManager? = null,
+    backupFileStorage: BackupFileStorage? = null,
+    database: AppDatabase? = null
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -65,16 +75,24 @@ fun MainScaffold(
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
 
-    // AiStoryBreakdown/SceneDetail/ShotComposer نمی‌توانند در backTargetsByRouteKey
-    // (ui/navigation/BackNavigation.kt) بیایند چون مقصدشان به آرگومان‌های Runtime
-    // نیاز دارد، در حالی که آن Map فقط برای مقصدهای بدون‌آرگومان طراحی شده — طبق
-    // تصمیم مستند، این استثناها اینجا (محل واقعی navController) مدیریت می‌شوند،
-    // بدون تغییر امضای تابع خالص تست‌شده‌ی resolveContextualBackTarget.
-    // SceneDetail→Studio و Composer→Shots هر دو دقیقاً همان قانون صریح
-    // docs/design/README.md بخش Interactions هستند. جزئیات کامل در
+    // AiStoryBreakdown/SceneDetail/ShotComposer/Validation/OutputDelivery نمی‌توانند
+    // در backTargetsByRouteKey (ui/navigation/BackNavigation.kt) بیایند چون مقصدشان
+    // به آرگومان‌های Runtime نیاز دارد، در حالی که آن Map فقط برای مقصدهای
+    // بدون‌آرگومان طراحی شده — طبق تصمیم مستند، این استثناها اینجا (محل واقعی
+    // navController) مدیریت می‌شوند، بدون تغییر امضای تابع خالص تست‌شده‌ی
+    // resolveContextualBackTarget. SceneDetail→Studio و Composer→Shots هر دو دقیقاً
+    // همان قانون صریح docs/design/README.md بخش Interactions هستند. جزئیات کامل در
     // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md،
     // docs/adr/050-unit16-phase4-step1-scene-detail.md و
     // docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md.
+    //
+    // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): Validation/
+    // OutputDelivery (فاز ۵) هرگز به این when اضافه نشده بودند — دکمه‌ی برگشت
+    // درون‌خودِ صفحه (AssetFormHeader.onBack، در AppNavHost) درست به ShotComposer
+    // برمی‌گشت، اما دکمه‌ی سخت‌افزاری Back (همین BackHandler) به‌جایش به Home
+    // می‌رفت (چون این دو مسیر در backTargetsByRouteKey هم نبودند، پس Fallback
+    // «همه‌جای دیگر→Home» اجرا می‌شد) — یک ناهماهنگی واقعی بین دو مسیر برگشت
+    // همان صفحه. رفع شد.
     val backTarget = when {
         currentDestination?.hasRoute<AiStoryBreakdown>() == true ->
             backStackEntry?.toRoute<AiStoryBreakdown>()?.projectId?.let { Studio(it) }
@@ -82,6 +100,10 @@ fun MainScaffold(
             backStackEntry?.toRoute<SceneDetail>()?.projectId?.let { Studio(it) }
         currentDestination?.hasRoute<ShotComposer>() == true ->
             backStackEntry?.toRoute<ShotComposer>()?.let { SceneDetail(it.projectId, it.sceneId, SceneDetailTab.SHOTS.name) }
+        currentDestination?.hasRoute<Validation>() == true ->
+            backStackEntry?.toRoute<Validation>()?.let { ShotComposer(it.projectId, it.sceneId, it.sceneNumber, it.sceneDisplayTitle, it.shotId) }
+        currentDestination?.hasRoute<OutputDelivery>() == true ->
+            backStackEntry?.toRoute<OutputDelivery>()?.let { ShotComposer(it.projectId, it.sceneId, it.sceneNumber, it.sceneDisplayTitle, it.shotId) }
         else -> resolveContextualBackTarget(currentDestination?.route)
     }
     BackHandler(enabled = backTarget != null) {
@@ -109,6 +131,10 @@ fun MainScaffold(
                     coroutineScope.launch { drawerState.close() }
                     navController.navigate(Settings) { launchSingleTop = true }
                 },
+                onNavigateBackups = {
+                    coroutineScope.launch { drawerState.close() }
+                    navController.navigate(Backups) { launchSingleTop = true }
+                },
                 onComingSoon = {
                     coroutineScope.launch {
                         drawerState.close()
@@ -119,7 +145,28 @@ fun MainScaffold(
         }
     ) {
         Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            // یافته‌ی واقعی بازبینی نهایی (ADR-059): طبق docs/design/README.md
+            // بخش Interactions («Toast: bottom-anchored pill, auto-dismiss ~2s»)،
+            // اما SnackbarHost پیش‌فرض Material3 با شکل مستطیل‌گوشه‌گرد (نه Pill
+            // کاملاً بیضی) رندر می‌شد — این تنها مکانیزم Toast/Snackbar کل اپ است
+            // (grep تأییدشده: هیچ SnackbarHost دیگری در کل کدبیس نیست)، پس رفع این
+            // یک‌جا برای همه‌ی پیام‌های اپ اعمال می‌شود. مدت‌زمان دقیق «~۲ ثانیه» رفع
+            // نشد — SnackbarDuration استاندارد Material3 فقط سه مقدار گسسته
+            // (Short/Long/Indefinite) دارد، نه میلی‌ثانیه‌ی دلخواه؛ Short (مقدار
+            // فعلی، از قبل استفاده‌شده در هر فراخوان showSnackbar) نزدیک‌ترین گزینه‌ی
+            // موجود است — محدودیت شناخته‌شده، مستند شده.
+            snackbarHost = {
+                SnackbarHost(snackbarHostState) { data ->
+                    Snackbar(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(50),
+                        containerColor = CinemaTheme.extendedColors.solidSurface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ) {
+                        Text(data.visuals.message)
+                    }
+                }
+            },
             bottomBar = {
                 AppBottomNavBar(
                     currentDestination = currentDestination,
@@ -149,6 +196,8 @@ fun MainScaffold(
                 projectDnaRepository = projectDnaRepository,
                 promptGenerationRepository = promptGenerationRepository,
                 autoSaveManager = autoSaveManager,
+                backupFileStorage = backupFileStorage,
+                database = database,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

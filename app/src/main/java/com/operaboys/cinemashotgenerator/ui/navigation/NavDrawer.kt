@@ -24,7 +24,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 // چشم «خراب» می‌آید، در حالی که یک Snackbar واضح می‌گوید این بخش هنوز ساخته
 // نشده، نه اینکه از کار افتاده.
 
-private enum class DrawerAction { COMING_SOON, ASSETS, SETTINGS }
+private enum class DrawerAction { COMING_SOON, ASSETS, SETTINGS, BACKUPS }
 
 private data class DrawerLink(val labelKey: String, val action: DrawerAction = DrawerAction.COMING_SOON)
 
@@ -41,11 +41,11 @@ private val toolsLinks = listOf(
     DrawerLink("drawer.promptGenerator"),
     DrawerLink("drawer.outputDelivery")
 )
-// واحد ۱۶ فاز ۶ — قدم ۱: «تنظیمات» اکنون واقعاً Navigate می‌کند (نه دیگر «به‌زودی»)
-// — دومین لینک این Drawer که مسیر واقعی پیدا کرد، هم‌الگو دقیق با «دارایی‌ها».
+// واحد ۱۶ فاز ۶ — قدم ۱/۲: «تنظیمات» و «بکاپ‌ها» اکنون هر دو واقعاً Navigate
+// می‌کنند (نه دیگر «به‌زودی») — هم‌الگو دقیق با «دارایی‌ها».
 private val systemLinks = listOf(
     DrawerLink("drawer.settings", action = DrawerAction.SETTINGS),
-    DrawerLink("drawer.backups")
+    DrawerLink("drawer.backups", action = DrawerAction.BACKUPS)
 )
 
 @Composable
@@ -53,6 +53,7 @@ fun NavDrawerContent(
     language: Language,
     onNavigateAssets: () -> Unit,
     onNavigateSettings: () -> Unit,
+    onNavigateBackups: () -> Unit,
     onComingSoon: () -> Unit
 ) {
     // واحد ۱۶ فاز ۶ — قدم ۱: یافته‌ی واقعی این قدم — با ۱۱ آیتم در ۳ گروه، محتوای
@@ -63,11 +64,11 @@ fun NavDrawerContent(
     // یافته‌ی تست — با پیدایش در تست End-to-End صفحه‌ی Settings (SettingsFlowTest.kt).
     ModalDrawerSheet {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
         }
     }
 }
@@ -79,6 +80,7 @@ private fun DrawerGroup(
     language: Language,
     onNavigateAssets: () -> Unit,
     onNavigateSettings: () -> Unit,
+    onNavigateBackups: () -> Unit,
     onComingSoon: () -> Unit
 ) {
     Text(
@@ -94,6 +96,7 @@ private fun DrawerGroup(
             onClick = when (link.action) {
                 DrawerAction.ASSETS -> onNavigateAssets
                 DrawerAction.SETTINGS -> onNavigateSettings
+                DrawerAction.BACKUPS -> onNavigateBackups
                 DrawerAction.COMING_SOON -> onComingSoon
             },
             modifier = Modifier.padding(horizontal = 12.dp)

@@ -726,7 +726,23 @@ val faStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — آکاردئون",
     "settings.aboutCardTitle" to "درباره",
     "settings.aboutTagline" to "تولیدکننده‌ی پرامپت سینمایی — کاملاً روی دستگاه خودتان",
-    "settings.comingSoonFeature" to "این قابلیت هنوز پیاده نشده"
+    "settings.comingSoonFeature" to "این قابلیت هنوز پیاده نشده",
+    "backups.subtitle" to "بکاپ‌های دستی و خودکار این پروژه",
+    "backups.createManualButton" to "ساخت بکاپ دستی",
+    "backups.emptyState" to "هنوز هیچ بکاپی برای این پروژه ساخته نشده",
+    "backups.noActiveProjectState" to "برای دیدن بکاپ‌ها، ابتدا یک پروژه را در Studio باز کنید",
+    "backups.kindAuto" to "خودکار",
+    "backups.kindManual" to "دستی",
+    "backups.restoreButton" to "بازیابی",
+    "backups.deleteButton" to "حذف",
+    "backups.createdMessage" to "بکاپ دستی ساخته شد",
+    "backups.restoredMessage" to "پروژه از این بکاپ بازیابی شد",
+    "backups.restoreFailedMessage" to "بازیابی از این بکاپ ناموفق بود",
+    "backups.deletedMessage" to "بکاپ حذف شد",
+    "backups.ageJustNow" to "همین الان",
+    "backups.ageMinutesTemplate" to "{minutes} دقیقه پیش",
+    "backups.ageHoursTemplate" to "{hours} ساعت پیش",
+    "backups.ageDaysTemplate" to "{days} روز پیش"
 )
 
 val enStrings: Map<String, String> = mapOf(
@@ -1447,7 +1463,23 @@ val enStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — Accordion",
     "settings.aboutCardTitle" to "About",
     "settings.aboutTagline" to "Cinematic prompt generator — fully on-device",
-    "settings.comingSoonFeature" to "This feature is not implemented yet"
+    "settings.comingSoonFeature" to "This feature is not implemented yet",
+    "backups.subtitle" to "Manual and automatic backups for this project",
+    "backups.createManualButton" to "Create Manual Backup",
+    "backups.emptyState" to "No backups have been created for this project yet",
+    "backups.noActiveProjectState" to "Open a project in Studio first to see its backups",
+    "backups.kindAuto" to "Auto",
+    "backups.kindManual" to "Manual",
+    "backups.restoreButton" to "Restore",
+    "backups.deleteButton" to "Delete",
+    "backups.createdMessage" to "Manual backup created",
+    "backups.restoredMessage" to "Project restored from this backup",
+    "backups.restoreFailedMessage" to "Restoring from this backup failed",
+    "backups.deletedMessage" to "Backup deleted",
+    "backups.ageJustNow" to "just now",
+    "backups.ageMinutesTemplate" to "{minutes}m ago",
+    "backups.ageHoursTemplate" to "{hours}h ago",
+    "backups.ageDaysTemplate" to "{days}d ago"
 )
 
 val uiTranslations: Map<Language, Map<String, String>> = mapOf(

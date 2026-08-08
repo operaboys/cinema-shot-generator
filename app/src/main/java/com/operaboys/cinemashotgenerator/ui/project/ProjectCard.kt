@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.ui.project
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.project.ProjectSummary
@@ -139,16 +141,25 @@ fun ProjectCard(
                 }
             }
 
+            // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): این چیپ از
+            // فاز ۱ (پیش از الزام صریح Contrast که در ADR-055 مستند شد) با
+            // `.copy(alpha = 0.16f)` رندر می‌شد — دقیقاً همان کلاس باگ Low-opacity
+            // Tinted Fill که Implementation Notes سند طراحی صراحتاً منع کرده. رفع
+            // شد: پس‌زمینه‌ی Solid + حاشیه‌ی ۲dp، هم‌الگو با CountCard در
+            // ValidationScreen.kt. رنگ متن سیاه ثابت (نه رنگ خودِ State) چون هر ۵
+            // رنگ این چیپ (outline/warning/orange/success/fg4) به‌اندازه‌ی کافی
+            // روشن‌اند — دقیقاً همان استدلال مستندشده‌ی ADR-055 برای کارت WARNING.
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = stateChipColor(project.state).copy(alpha = 0.16f),
+                color = stateChipColor(project.state),
+                border = BorderStroke(2.dp, stateChipColor(project.state)),
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     Text(
                         text = stateChipLabel(project.state, language),
                         style = MaterialTheme.typography.labelSmall,
-                        color = stateChipColor(project.state)
+                        color = Color.Black
                     )
                 }
             }

@@ -15,8 +15,12 @@ import kotlinx.coroutines.withContext
 // پیاده‌سازی Fake/in-memory برای تست در BackupManagerTest.kt قرار دارد (تست-محور،
 // نه بخشی از کد اصلی). جزئیات کامل در docs/adr/023-unit15-backup-manager-deviations.md.
 
-/** یک فایل Backup روی دیسک: مسیر کامل + زمان ایجاد (برای مرتب‌سازی/حذف قدیمی‌ترها). */
-data class BackupFileInfo(val path: String, val createdAt: String)
+/**
+ * یک فایل Backup روی دیسک: مسیر کامل + زمان ایجاد (برای مرتب‌سازی/حذف
+ * قدیمی‌ترها) + حجم (برای صفحه‌ی Backups، واحد ۱۶ فاز ۶ قدم ۲ — طبق
+ * docs/design/README.md بخش «۱۲. Backups»).
+ */
+data class BackupFileInfo(val path: String, val createdAt: String, val sizeBytes: Long)
 
 interface BackupFileStorage {
     /** فایل را می‌نویسد و مسیر کامل نوشته‌شده را برمی‌گرداند. */
@@ -53,7 +57,8 @@ class DeviceBackupFileStorage(private val context: Context) : BackupFileStorage 
                 ?.map { file ->
                     BackupFileInfo(
                         path = file.absolutePath,
-                        createdAt = Instant.ofEpochMilli(file.lastModified()).toString()
+                        createdAt = Instant.ofEpochMilli(file.lastModified()).toString(),
+                        sizeBytes = file.length()
                     )
                 }
                 ?: emptyList()

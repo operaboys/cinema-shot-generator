@@ -11,11 +11,14 @@ import java.util.UUID
 // واحد ۱۵ — تکمیل BackupManager (طبق ADR-017/022، دومین و آخرین کلاسی که فقط امضا
 // داشت). منبع حقیقت: docs/blueprints/15-project-storage.md، بخش «Backup Manager».
 //
-// مثل AutoSaveManager (ADR-022)، هیچ Timer/Debounce واقعی («هر ۵ دقیقه») در این
-// لایه ساخته نشد — همان استدلال: زمان‌بندی به Lifecycle واقعی اپ وابسته است که فقط
-// لایه‌ی ViewModel/UI (واحد ۱۶، هنوز ساخته نشده) دارد. backupIntervalMinutes به‌عنوان
-// مقدار پیکربندی public نگه داشته شد، دقیقاً هم‌الگو با intervalSeconds در
-// AutoSaveManager.
+// MIGRATED (واحد ۱۶ فاز ۶ — قدم ۲، docs/adr/059-unit16-phase6-step2-backups-final-review.md):
+// پسوند فایل از `.json` به `.csgb` تغییر کرد (هماهنگی واقعی با
+// docs/design/README.md بخش «۱۲. Backups» — `project-slug-YYYY-MM-DD.csgb`)؛
+// محتوای فایل همچنان متن JSON خام است (فقط پسوند عوض شد، نه فرمت). تمایز
+// auto/manual (`BackupKind`) هم به همین مناسبت اضافه شد — قبلاً هیچ‌جای این
+// کلاس این تمایز را نداشت. `backupIntervalMinutes` اکنون واقعاً توسط یک Timer
+// دوره‌ای در StudioShell مصرف می‌شود (هم‌الگو با AutoSaveManager.intervalSeconds
+// در قدم قبل)، برای backup های `AUTO`.
 class BackupManager(
     private val projectId: String,
     private val projectDao: ProjectDao,
@@ -29,15 +32,29 @@ class BackupManager(
     private val maxBackupsToKeep: Int = 10,
     private val idProvider: () -> String = ::defaultBackupId
 ) {
-    suspend fun createBackup(): Result<String> {
+    suspend fun createBackup(kind: BackupKind = BackupKind.MANUAL): Result<String> {
         val projectData = serializeFullProject(
             projectId, projectDao, sceneDao, shotDao, assetDao, projectDnaDao, audioContextDao
         ).getOrElse { return Result.failure(it) }
 
         val backupId = idProvider()
-        val backupPath = backupFileStorage.writeFile(backupFileName(backupId), projectData)
+        val backupPath = backupFileStorage.writeFile(backupFileName(kind, backupId), projectData)
         cleanOldBackups()
         return Result.success(backupPath)
+    }
+
+    /** فهرست UI-پسند برای صفحه‌ی Backups — نام/حجم/نوع/سن، هر کدام از خودِ فایل واقعی استخراج‌شده. */
+    suspend fun listBackups(): Result<List<BackupSummary>> = runCatching {
+        backupFileStorage.listFiles(backupPrefix())
+            .mapNotNull { info -> parseBackupFileName(info.path.substringAfterLast('/'))?.let { (kind, id) ->
+                BackupSummary(backupId = id, kind = kind, createdAt = info.createdAt, sizeBytes = info.sizeBytes, path = info.path)
+            } }
+            .sortedByDescending { it.createdAt }
+    }
+
+    suspend fun deleteBackup(backupId: String): Result<Unit> = runCatching {
+        val match = findBackupFile(backupId) ?: return@runCatching Unit
+        backupFileStorage.deleteFile(match.path)
     }
 
     /** فقط جدیدترین maxBackupsToKeep بک‌آپ نگه داشته می‌شود؛ بقیه حذف می‌شوند. */
@@ -47,9 +64,7 @@ class BackupManager(
     }
 
     suspend fun restoreFromBackup(backupId: String): Result<Unit> {
-        val expectedFileName = backupFileName(backupId)
-        val match = backupFileStorage.listFiles(backupPrefix())
-            .firstOrNull { it.path.substringAfterLast('/') == expectedFileName }
+        val match = findBackupFile(backupId)
             ?: return Result.failure(IllegalArgumentException("Backup یافت نشد: $backupId"))
 
         val content = backupFileStorage.readFile(match.path)
@@ -59,15 +74,43 @@ class BackupManager(
         )
     }
 
+    private suspend fun findBackupFile(backupId: String): BackupFileInfo? =
+        backupFileStorage.listFiles(backupPrefix())
+            .firstOrNull { parseBackupFileName(it.path.substringAfterLast('/'))?.second == backupId }
+
     // طول projectId به‌عنوان یک عدد صریح در پیشوند رمزگذاری شد (نه فقط
     // "backup_${projectId}_") تا دو projectId که یکی پیشوند رشته‌ای دیگری است
     // (مثلاً "p1" و "p1_v2") هرگز پیشوند فایل یکسان تولید نکنند — بدون این طول
     // صریح، backupPrefix پروژه‌ی "p1" ("backup_p1_") روی فایل‌های پروژه‌ی "p1_v2"
-    // هم true می‌شد (چون "backup_p1_v2_....json" واقعاً با "backup_p1_" شروع
+    // هم true می‌شد (چون "backup_p1_v2_....csgb" واقعاً با "backup_p1_" شروع
     // می‌شود) و cleanOldBackups می‌توانست بک‌آپ یک پروژه‌ی دیگر را پاک کند. جزئیات
     // در docs/adr/023-unit15-backup-manager-deviations.md.
     private fun backupPrefix(): String = "backup_${projectId.length}_${projectId}_"
-    private fun backupFileName(backupId: String): String = "${backupPrefix()}$backupId.json"
+
+    // ترتیب segment ها عمداً kind را بلافاصله بعد از Prefix امن (بالا) می‌گذارد،
+    // نه قبل از آن — تا backupPrefix() (مصرف‌شده برای فیلتر cleanOldBackups/
+    // listFiles) دست‌نخورده بماند. backupId خودش (مثلاً idProvider های تست) ممکن
+    // است حاوی "_" باشد، پس Parse فقط روی اولین "_" بعد از Prefix تکیه می‌کند —
+    // کافی چون مقادیر BackupKind خودشان هرگز "_" ندارند.
+    private fun backupFileName(kind: BackupKind, backupId: String): String =
+        "${backupPrefix()}${kind.name.lowercase()}_$backupId.csgb"
+
+    private fun parseBackupFileName(fileName: String): Pair<BackupKind, String>? {
+        val prefix = backupPrefix()
+        if (!fileName.startsWith(prefix) || !fileName.endsWith(".csgb")) return null
+        val remainder = fileName.removePrefix(prefix).removeSuffix(".csgb")
+        val kindRaw = remainder.substringBefore('_', missingDelimiterValue = "")
+        val backupId = remainder.substringAfter('_', missingDelimiterValue = "")
+        if (kindRaw.isEmpty() || backupId.isEmpty()) return null
+        val kind = BackupKind.entries.firstOrNull { it.name.lowercase() == kindRaw } ?: return null
+        return kind to backupId
+    }
 }
+
+/** نوع Backup — طبق docs/design/README.md بخش «۱۲. Backups» («kind (auto/manual)»). */
+enum class BackupKind { AUTO, MANUAL }
+
+/** یک ردیف صفحه‌ی Backups — همه‌ی فیلدهای لازم UI (نام/حجم/نوع/سن) از قبل استخراج‌شده. */
+data class BackupSummary(val backupId: String, val kind: BackupKind, val createdAt: String, val sizeBytes: Long, val path: String)
 
 private fun defaultBackupId(): String = UUID.randomUUID().toString().replace("-", "").take(12)

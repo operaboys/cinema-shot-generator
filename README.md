@@ -4,7 +4,7 @@
 
 ## وضعیت فعلی
 
-**در حال پیاده‌سازی تدریجی واحدهای معماری — Room/Persistence کامل و به‌طور واقعی به دامنه وصل است؛ واحد ۱۶ (UI/User Workflow) در حال ساخت است — فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library) و فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) به‌طور کامل تکمیل شده‌اند. دو محدودیت ثبت‌شده‌ی Tab DNA رفع شدند. فاز ۵ (Validation → Output Delivery) به‌طور کامل تکمیل شد — قدم ۱ (صفحه‌ی Validation، تجمیع سه‌سطحی)، قدم ۲ («Prompt Generation»، طبق تصمیم معمار با قدم ۳ ادغام‌شده) و قدم ۳ (صفحه‌ی Output Delivery: انتخاب مدل، پیش‌نمایش خروجی واقعی، هشدارها، Copy/Export). **فاز ۶ (آخرین فاز واحد ۱۶) آغاز شد — قدم ۱ (صفحه‌ی Settings + اتصال واقعی Timer دوره‌ای Auto-Save) تکمیل شد** — پایین را ببینید.**
+**🎯 واحد ۱۶ (UI/User Workflow) به‌طور کامل تکمیل شد — هر ۶ فاز.** Room/Persistence (واحد ۱۵) کامل و به‌طور واقعی به دامنه وصل است؛ فاز ۰ (پایه‌ی مشترک)، فاز ۱ (App Shell: Home/Projects/Studio Shell/Assets Container)، فاز ۲ (Story Tab + AI Story Breakdown + DNA Tab)، فاز ۳ (Asset Library)، فاز ۴ (Scene + Shot Composer، شامل هر ۴ Tab کامل) و فاز ۵ (Validation → Output Delivery) پیش‌تر تکمیل شده بودند. **فاز ۶ (آخرین فاز) اکنون کامل است** — قدم ۱ (صفحه‌ی Settings + اتصال واقعی Timer دوره‌ای Auto-Save) و قدم ۲ (آخرین قدم کل واحد ۱۶: صفحه‌ی Backups + بازبینی یکپارچه‌ی نهایی کل اپ) — پایین را ببینید. لیست تجمیع‌شده‌ی تمام محدودیت‌های شناخته‌شده‌ی باقی‌مانده (از همه‌ی فازها) در بخش «محدودیت‌های شناخته‌شده» پایین صفحه است.**
 
 Scaffold اولیه‌ی «Hello World» جای خود را به صفحات واقعی داده است. لایه‌ی دامنه‌ی خالص (Kotlin، بدون Room) این واحدها پیاده‌سازی شده:
 
@@ -957,6 +957,78 @@ Cadence (از همین صفحه‌ی Settings، پیش‌فرض ۳۰ ثانیه)
 `gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`، ۶۴۹
 تست (۶۴۰→۶۴۹، ۹ تست جدید)، ۰ Failure، ۰ Error.
 
+### 🎯 نقطه‌ی عطف: واحد ۱۶ — فاز ۶ (آخرین فاز)، قدم ۲ (آخرین قدم کل واحد ۱۶) — صفحه‌ی Backups + بازبینی یکپارچه‌ی نهایی؛ **واحد ۱۶ کاملاً تکمیل شد**
+
+آخرین قدم کل واحد ۱۶. دو بخش: (الف) صفحه‌ی Backups، (ب) بازبینی
+یکپارچه‌ی نهایی کل اپ روی ۶ محور. جزئیات کامل تصمیمات در
+`docs/adr/059-unit16-phase6-step2-backups-final-review.md`.
+
+**صفحه‌ی Backups** (طبق `docs/design/README.md` بخش «۱۲. Backups»):
+فهرست بکاپ‌ها (نام نمایشی/حجم/نوع Auto-Manual/سن)، دکمه‌ی «ساخت بکاپ
+دستی»، Restore/Delete روی هر ردیف — همگی به `BackupManager` واقعی واحد
+۱۵ وصل شدند (تا این قدم بلااستفاده بود). چون `BackupManager` per-project
+است، این صفحه از `WorkflowState.projectId` (Session فعال Studio) می‌خواند؛
+بدون Session فعال، پیام واضح «ابتدا یک پروژه را باز کنید» نشان می‌دهد.
+
+**تصمیم معماری کلیدی (تناقض واقعی بین دو منبع حقیقت):** سند طراحی پسوند
+`.csgb` را نشان می‌داد؛ کد/بلوپرینت ۱۵ هر دو `.json` بودند. طبق ترجیح
+صریح معمار، پسوند واقعی فایل به `.csgb` تغییر کرد (نه فقط نام نمایشی
+گمراه‌کننده) — محتوای فایل همچنان JSON خام است. الگوی نام‌گذاری امن-در-
+برابر-تصادم (ADR-023) دست‌نخورده ماند؛ یک نام «نمایشی» جدا
+(`displayBackupFileName`) دقیقاً الگوی سند طراحی (`slug-YYYY-MM-DD.csgb`)
+را برای کاربر می‌سازد. تمایز `BackupKind` (Auto/Manual) که تا این قدم
+اصلاً وجود نداشت هم اضافه شد (Chip هر دو نوع Opaque با حاشیه‌ی ۲dp، طبق
+الزام صریح Contrast این قدم).
+
+**بازبینی یکپارچه‌ی نهایی (۶ محور)** — یافته‌های واقعی:
+
+1. **Nav Drawer Scroll**: رفع قدم قبل برای هر ۱۱ آیتم تأیید شد (تست صریح).
+2. **Back Navigation Contextual**: یافته‌ی واقعی — `Validation`/`OutputDelivery`
+   (فاز ۵) هرگز به `when` صریح `MainScaffold.kt` اضافه نشده بودند؛ دکمه‌ی
+   برگشت درون‌صفحه درست کار می‌کرد، اما دکمه‌ی سخت‌افزاری Back به Home
+   می‌رفت. رفع شد.
+3. **Toast/Snackbar**: شکل پیش‌فرض Material3 (نه Pill سند طراحی) رفع شد؛
+   مدت‌زمان دقیق «~۲ ثانیه» رفع **نشد** (محدودیت API استاندارد
+   `SnackbarDuration`، فقط Short/Long/Indefinite).
+4. **EntityState (۵ حالت)**: تأیید شد از فاز ۱ کامل بوده؛ فقط Contrast
+   رفع شد (پایین).
+5. **Contrast**: پنج باگ واقعی Low-opacity Tinted Fill (که ADR-055
+   قبلاً برای Validation مستند کرده بود) در `ProjectCard`،
+   `ScenesListScreen.EntityStateChip`، `DnaTabContent.SoftLockBanner`،
+   `HomeScreen` (پیل برند روی پس‌زمینه‌ی Blur خودِ Home) و `StudioShell`
+   (چیپ «ذخیره شد») پیدا و رفع شدند.
+6. **AutoSave/BackupManager**: یافته‌ی واقعی — `backupIntervalMinutes`
+   از واحد ۱۵ هرگز مصرف نشده بود؛ یک Timer دوره‌ای دوم (هم‌الگو با
+   AutoSave قدم قبل) در `StudioShell` وصل شد.
+
+**باگ واقعی DI کشف و رفع شد** (کشف‌شده حین دیباگ تست‌های End-to-End
+Backups، نه صرفاً یک محدودیت تست): `BackupsViewModel`/`StudioShell`
+هر دو مستقیماً `AppDatabase.getInstance(application)` را صدا می‌زدند —
+تنها استثنای الگوی تزریق سراسری این پروژه (که همه‌جای دیگر `database` را
+از `App.kt` تزریق می‌کند، نه Singleton داخلی). در تست End-to-End، این
+باعث می‌شد `BackupManager` پروژه‌ی واقعاً ساخته‌شده در `database` تزریقی
+تست را هرگز پیدا نکند و `createBackup` بی‌صدا شکست بخورد. **این باگ روی
+رفتار واقعی Production تأثیری نداشت** (چون `AppDatabase.getInstance()`
+در مسیر واقعی همیشه همان Singleton است) — یک ناهماهنگی خالص در الگوی DI
+بود که فقط با تست End-to-End واقعی (نه Mock) قابل‌کشف بود. رفع شد:
+`database: AppDatabase?` اکنون پارامتر تزریقی است در کل زنجیره
+(`BackupsViewModel`→`BackupsScreen`→`AppNavHost`→`MainScaffold`→`App.kt`
+و مستقیماً `StudioShell`)، هم‌الگو دقیق با `autoSaveManager`/
+`backupFileStorage`.
+
+**محدودیت شناخته‌شده‌ی تازه:** Restore/Delete در صفحه‌ی Backups بدون
+دیالوگ تأیید هستند — هر دو مخرب‌اند (سند طراحی چنین دیالوگی را الزام
+نکرده، پس این یک شکاف UX مستندشده است، نه انحراف از Scope).
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`،
+۶۵۵ تست (۶۴۹→۶۵۵، ۶ تست جدید)، ۰ Failure، ۰ Error، ۰ Skipped. APK واقعی
+هم ساخته شد.
+
+**🏁 با این قدم، واحد ۱۶ (User Workflow/UI) به‌طور کامل تکمیل شد — هر ۶
+فاز (App Shell، Story+DNA، Asset Library، Scene+Shot Composer،
+Validation→Output Delivery، Settings+Backups) اکنون منطق واقعی، UI واقعی،
+و تست End-to-End واقعی دارند.**
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -995,17 +1067,25 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── outputdelivery/ → واحد ۱۴: Output Delivery System (Model Profile + Renderer + Composer + Bilingual)
 │   ├── promptfinalization/ → واحد ۱۳: Prompt Finalization Pipeline (Cleaner + Token Calculator)
 │   └── storage/ → واحد ۱۵ (منطق خالص): validateReferentialIntegrity + قوانین جدول
-├── ui/      → واحد ۱۶ (User Workflow/UI) — فاز ۰ (پایه‌ی مشترک) + فاز ۱ (App Shell) + فاز ۲ قدم ۱ (Story Tab) تکمیل‌شده
+├── ui/      → واحد ۱۶ (User Workflow/UI) — **به‌طور کامل تکمیل شده، هر ۶ فاز**
 │   ├── theme/     → Design Tokens واقعی (Color/ExtendedColors/Type/Theme) طبق docs/design/README.md
 │   ├── navigation/ → Navigation دو‌لایه‌ی DDR-002 (MainScaffold/AppNavHost/BottomNavBar/StudioTopTabRow/BackNavigation/NavDrawer)
 │   ├── workflow/  → WorkflowViewModel (language/theme/layout picks با DataStore Preferences، WorkflowState)
 │   ├── project/   → واحد ۱۶ فاز ۱: ProjectListViewModel مشترک Home/Projects + ProjectCard/ProjectListSection
 │   ├── home/      → واحد ۱۶ فاز ۱: HomeScreen (Header/Greeting/Quick-Create/Recent Projects)
-│   ├── studio/    → واحد ۱۶ فاز ۱: StudioShell (Header/۴ Tab) — Tab «داستان» فاز ۲ قدم ۱ محتوای واقعی گرفت، بقیه هنوز Placeholder (فازهای ۲ ادامه تا ۵)
+│   ├── studio/    → واحد ۱۶ فاز ۱: StudioShell (Header/۴ Tab: داستان/DNA/صحنه‌ها/خروجی، همگی واقعی) + Timer دوره‌ای Auto-Save و Auto-Backup (فاز ۶)
 │   ├── story/     → واحد ۱۶ فاز ۲ قدم ۱: StoryViewModel/StoryTabContent/StoryLabels (Tab «داستان» واقعی)
-│   ├── assets/    → واحد ۱۶ فاز ۱: AssetsScreen (Placeholder — فرم‌های واقعی کار فاز ۳)
+│   ├── storybreakdown/ → واحد ۱۶ فاز ۲ قدم ۲: AiStoryBreakdownScreen/ViewModel
+│   ├── dna/       → واحد ۱۶ فاز ۲ قدم ۳: DnaViewModel/DnaTabContent/DnaLabels (Tab «DNA» واقعی)
+│   ├── assets/    → واحد ۱۶ فاز ۳: AssetsScreen + فرم‌های ساخت Character/Location/Object (فقط «ساخت»، نه «ویرایش»)
+│   ├── scenes/    → واحد ۱۶ فاز ۴ قدم ۱: ScenesListScreen/SceneDetailScreen (فقط «ساخت»، نه «ویرایش»)
+│   ├── shots/     → واحد ۱۶ فاز ۴ قدم ۲: ShotComposerScreen (فیلدهای سطح‌بالا + هر ۴ Tab: دوربین/نور و محیط/صدا)
+│   ├── validation/ → واحد ۱۶ فاز ۵ قدم ۱: ValidationScreen/ViewModel (تجمیع سه‌سطحی)
+│   ├── outputdelivery/ → واحد ۱۶ فاز ۵ قدم ۳: OutputDeliveryScreen/ViewModel (انتخاب مدل، پیش‌نمایش، Copy/Export)
+│   ├── settings/  → واحد ۱۶ فاز ۶ قدم ۱: SettingsScreen/ViewModel (۷ کارت طبق سند طراحی)
+│   ├── backups/   → واحد ۱۶ فاز ۶ قدم ۲ (آخرین قدم): BackupsScreen/ViewModel/BackupLabels (فهرست/ساخت/بازیابی/حذف)
 │   ├── i18n/      → UiStrings (fa/en با domain.outputdelivery.t() واقعی) + BidiUtils (زیرساخت RTL)
-│   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold؛ storyRepository مشترک اینجا ساخته می‌شود)
+│   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold؛ همه‌ی Repository/Manager های مشترک اینجا ساخته می‌شوند)
 └── di/      → (خالی، برای بعد)
 
 docs/blueprints/  → بلوپرینت‌های معماری (منبع حقیقت) — قبل از پیاده‌سازی هر واحد بخوانید
@@ -1077,3 +1157,35 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   Intent واقعی** — هیچ Infra ای برای این کار در کل کدبیس وجود ندارد (هم‌کلاس
   محدودیت شناخته‌شده‌ی Attached References در Shot Composer). جزئیات کامل در
   `docs/adr/057-unit16-phase5-step3-output-delivery.md`.
+- **Settings — سه سوییچ Display (Dynamic Font/Min Touch Target/Reduced
+  Motion) و Layout Variants (Home A/B، Shot Composer A/B) واقعاً Persist
+  می‌شوند اما هیچ زیرساخت Runtime ای برایشان وجود ندارد** — نه `HomeScreen`
+  نه `ShotComposerScreen` فعلاً به مقدار Layout Variant شاخه‌بندی می‌کنند؛
+  سه سوییچ Display هم به هیچ رفتار واقعی (فونت/اندازه‌ی لمس/انیمیشن) وصل
+  نیستند. «Choose Image» (Home Screen Image) هم پیام «به‌زودی» می‌دهد —
+  هیچ File Picker ای در کدبیس نیست (هم‌کلاس محدودیت Attached
+  References/Export). جزئیات کامل در
+  `docs/adr/058-unit16-phase6-step1-settings-autosave.md`.
+- **Backups — Restore/Delete بدون دیالوگ تأیید** — هر دو عملیات مخرب‌اند
+  (Restore داده‌ی جاری را جایگزین می‌کند، Delete غیرقابل‌بازگشت است)؛ سند
+  طراحی چنین دیالوگی را الزام نکرده، پس این یک شکاف UX مستندشده است، نه
+  انحراف از Scope. جزئیات در
+  `docs/adr/059-unit16-phase6-step2-backups-final-review.md`.
+- **Toast/Snackbar — مدت‌زمان دقیق «~۲ ثانیه»ی سند طراحی رفع نشد** —
+  `SnackbarDuration` استاندارد Material3 فقط سه مقدار گسسته
+  (Short/Long/Indefinite) دارد، نه میلی‌ثانیه‌ی دلخواه؛ Short نزدیک‌ترین
+  گزینه‌ی موجود است (محدودیت API، نه کد این پروژه).
+- **`backTargetsByRouteKey` (نقشه‌ی Back Navigation طراحی‌شده در فاز ۰)
+  در عمل هرگز استفاده نشد** — همه‌ی قوانین Back Navigation که به آرگومان
+  Runtime نیاز دارند (اکثر مسیرهای واقعی این اپ) مستقیماً در `when` صریح
+  `MainScaffold.kt` پیاده شدند، نه در آن Map (که فقط برای مسیرهای
+  بدون‌آرگومان طراحی شده بود). محدودیت شناخته‌شده‌ی معماری، نه باگ.
+- **فرم‌های Asset/Scene فقط «ساخت» دارند، هیچ صفحه‌ای «ویرایش» ندارد** —
+  خلاصه‌ی محدودیت‌های بالا (ADR-049/ADR-050): لمس یک کارت Asset یا Scene
+  موجود به فرم پیش‌پرشده وصل نیست؛ در کل واحد ۱۶، تنها راه تغییر یک
+  Entity موجود (غیر از فیلدهای سطح‌بالای Shot که Auto-Save واقعی دارند)
+  ساخت دوباره از صفر است.
+- **آپلود/انتخاب تصویر واقعی هیچ‌جای اپ پیاده نشده** — نه برای Attached
+  References شات، نه برای Home Screen Image تنظیمات؛ کل کدبیس فاقد
+  زیرساخت File Picker/Media Picker است (یک محدودیت واحد، تکرارشده در سه
+  جا: Shot Composer، Settings، Output Delivery Export).

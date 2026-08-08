@@ -194,14 +194,19 @@ private fun HomeHeader(
             Icon(Icons.Filled.Menu, contentDescription = null)
         }
 
-        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+        // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): همان کلاس باگ
+        // Low-opacity Tinted Fill — این پیل روی پس‌زمینه‌ی Hero/Blur خودِ Home رندر
+        // می‌شود، دقیقاً همان سناریوی صریح هشدارداده‌شده در Implementation Notes سند
+        // طراحی. رفع شد: پس‌زمینه‌ی Solid + `onPrimary` (توکن رسمی Material3، از قبل
+        // برای این دقیقاً همین منظور تعریف‌شده).
+        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primary) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                Text("Cinema Studio", style = MaterialTheme.typography.labelSmall)
+                Icon(Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                Text("Cinema Studio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
 

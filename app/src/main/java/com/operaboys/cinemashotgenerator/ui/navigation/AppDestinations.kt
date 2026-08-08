@@ -123,3 +123,15 @@ data class OutputDelivery(
 // اختصاصی در resolveContextualBackTarget نیست، دقیقاً هم‌الگو با Assets.
 @Serializable
 data object Settings
+
+// واحد ۱۶ فاز ۶ — قدم ۲ (آخرین قدم کل واحد ۱۶): مسیر مستقل سطح‌بالا برای صفحه‌ی
+// Backups — هم‌الگو با Settings بالا (`data object` بدون آرگومان). بر خلاف
+// Settings (که کاملاً سراسری است)، این صفحه واقعاً به یک projectId نیاز دارد
+// (BackupManager per-project است، طبق docs/blueprints/15-project-storage.md) —
+// اما آن projectId عمداً در خودِ این مسیر نیامده (تا هم‌الگو با Settings/Assets
+// باقی بماند و از Nav Drawer یکسان در دسترس باشد)؛ در عوض از
+// WorkflowState.projectId (Session فعال Studio، اگر باشد) در AppNavHost خوانده
+// می‌شود — دقیقاً همان الگوی PLACEHOLDER_ACTIVE_PROJECT_ID که ADR-048 برای Assets
+// استفاده کرد.
+@Serializable
+data object Backups

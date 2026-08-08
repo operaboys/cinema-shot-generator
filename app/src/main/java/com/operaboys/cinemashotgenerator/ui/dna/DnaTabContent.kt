@@ -328,9 +328,14 @@ fun DnaTabContent(
  */
 @Composable
 private fun SoftLockBanner(language: Language) {
+    // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): همان کلاس باگ
+    // Low-opacity Tinted Fill (این یکی هم حاشیه داشت اما پس‌زمینه‌اش فقط ۱۴٪
+    // Alpha بود، نه Solid طبق الزام صریح سند طراحی «Final spec: solid/near-opaque
+    // fills + a visible 2dp border»). رفع شد؛ رنگ متن/آیکون به سیاه ثابت تغییر
+    // کرد چون نارنجی-روی-نارنجی-Solid دیگر خوانا نبود.
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = CinemaTheme.extendedColors.orange.copy(alpha = 0.14f),
+        color = CinemaTheme.extendedColors.orange,
         border = BorderStroke(2.dp, CinemaTheme.extendedColors.orange)
     ) {
         Row(
@@ -338,17 +343,17 @@ private fun SoftLockBanner(language: Language) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = CinemaTheme.extendedColors.orange)
+            Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Color.Black)
             Column {
                 Text(
                     text = uiString("dna.softLockTitle", language),
                     style = MaterialTheme.typography.titleSmall,
-                    color = CinemaTheme.extendedColors.orange
+                    color = Color.Black
                 )
                 Text(
                     text = uiString("dna.softLockMessage", language),
                     style = MaterialTheme.typography.bodySmall,
-                    color = CinemaTheme.extendedColors.orange
+                    color = Color.Black
                 )
             }
         }

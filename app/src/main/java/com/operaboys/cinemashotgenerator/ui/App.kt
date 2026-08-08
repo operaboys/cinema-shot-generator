@@ -14,6 +14,8 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
 import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
+import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
+import com.operaboys.cinemashotgenerator.data.repository.DeviceBackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -76,6 +78,12 @@ fun App() {
     // واحد ۱۶ فاز ۶ — قدم ۱: همان الگو، برای Timer دوره‌ای Auto-Save واقعی
     // (StudioShell) — جزئیات در docs/adr/058-unit16-phase6-step1-settings-autosave.md.
     val autoSaveManager = remember { AutoSaveManager(database.projectDao()) }
+    // واحد ۱۶ فاز ۶ — قدم ۲ (آخرین قدم کل واحد ۱۶): همان الگو، برای Backup واقعی
+    // (StudioShell + صفحه‌ی Backups) — BackupManager خودش per-project است (سازنده‌اش
+    // projectId می‌خواهد)، پس فقط لایه‌ی I/O مشترک (BackupFileStorage) یک‌بار اینجا
+    // ساخته می‌شود؛ خودِ BackupManager هر جا لازم است تازه ساخته می‌شود — جزئیات در
+    // docs/adr/059-unit16-phase6-step2-backups-final-review.md.
+    val backupFileStorage: BackupFileStorage = remember { DeviceBackupFileStorage(application) }
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
@@ -93,7 +101,9 @@ fun App() {
                 shotRepository = shotRepository,
                 projectDnaRepository = projectDnaRepository,
                 promptGenerationRepository = promptGenerationRepository,
-                autoSaveManager = autoSaveManager
+                autoSaveManager = autoSaveManager,
+                backupFileStorage = backupFileStorage,
+                database = database
             )
         }
     }

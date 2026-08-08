@@ -8,8 +8,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
+import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
@@ -20,6 +22,7 @@ import com.operaboys.cinemashotgenerator.ui.assets.AssetsScreen
 import com.operaboys.cinemashotgenerator.ui.assets.CharacterAssetFormScreen
 import com.operaboys.cinemashotgenerator.ui.assets.LocationAssetFormScreen
 import com.operaboys.cinemashotgenerator.ui.assets.ObjectAssetFormScreen
+import com.operaboys.cinemashotgenerator.ui.backups.BackupsScreen
 import com.operaboys.cinemashotgenerator.ui.home.HomeScreen
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.project.ProjectsScreen
@@ -53,6 +56,8 @@ fun AppNavHost(
     projectDnaRepository: ProjectDnaRepository? = null,
     promptGenerationRepository: PromptGenerationRepository? = null,
     autoSaveManager: AutoSaveManager? = null,
+    backupFileStorage: BackupFileStorage? = null,
+    database: AppDatabase? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = Home, modifier = modifier) {
@@ -89,6 +94,8 @@ fun AppNavHost(
                 projectDnaRepository = projectDnaRepository,
                 sceneRepository = sceneRepository,
                 autoSaveManager = autoSaveManager,
+                backupFileStorage = backupFileStorage,
+                database = database,
                 onNavigateToAiBreakdown = { targetProjectId ->
                     navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
                 },
@@ -239,6 +246,27 @@ fun AppNavHost(
                 workflowViewModel = workflowViewModel,
                 onBack = { navController.navigate(Home) { launchSingleTop = true } },
                 onShowMessage = onShowMessage
+            )
+        }
+        composable<Backups> {
+            // Backups per-project است (BackupManager سازنده‌اش projectId می‌خواهد) —
+            // برخلاف Settings، این مسیر خودش هیچ آرگومانی ندارد (هم‌الگو با Assets)
+            // پس projectId فعال از WorkflowState.projectId (Session جاری Studio، اگر
+            // باشد) خوانده می‌شود. جزئیات کامل تصمیم در
+            // docs/adr/059-unit16-phase6-step2-backups-final-review.md.
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
+            val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
+            val activeProjectId = workflowState?.projectId
+            val activeProjectName = summaries.find { it.project.projectId == activeProjectId }?.project?.projectName ?: activeProjectId.orEmpty()
+            BackupsScreen(
+                projectId = activeProjectId,
+                projectName = activeProjectName,
+                language = language,
+                onBack = { navController.navigate(Home) { launchSingleTop = true } },
+                onShowMessage = onShowMessage,
+                backupFileStorage = backupFileStorage,
+                database = database
             )
         }
     }

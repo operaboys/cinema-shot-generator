@@ -16,17 +16,27 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import android.app.Application
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
+import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
+import com.operaboys.cinemashotgenerator.data.repository.BackupKind
+import com.operaboys.cinemashotgenerator.data.repository.BackupManager
+import com.operaboys.cinemashotgenerator.data.repository.DeviceBackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
@@ -60,6 +70,10 @@ import kotlinx.coroutines.isActive
 // دسته‌ی Persisted»)، انتخاب Tab با rememberSaveable محلی نگه داشته می‌شود، نه در
 // WorkflowViewModel/DataStore.
 
+// واحد ۱۶ فاز ۶ — قدم ۲: لازم برای تست End-to-End صفحه‌ی Backups (برگشت از Studio
+// به Home، تنها راه واقعی رسیدن به Drawer — StudioShell خودش دکمه‌ی همبرگری ندارد).
+const val STUDIO_BACK_BUTTON_TAG = "studio.backButton"
+
 @Composable
 fun StudioShell(
     projectId: String,
@@ -71,6 +85,8 @@ fun StudioShell(
     projectDnaRepository: ProjectDnaRepository? = null,
     sceneRepository: SceneRepository? = null,
     autoSaveManager: AutoSaveManager? = null,
+    backupFileStorage: BackupFileStorage? = null,
+    database: AppDatabase? = null,
     onNavigateToAiBreakdown: (String) -> Unit = {},
     onNavigateToScene: (String) -> Unit = {}
 ) {
@@ -79,6 +95,28 @@ fun StudioShell(
     val autoSaveCadenceSeconds by workflowViewModel.autoSaveCadenceSeconds.collectAsStateWithLifecycle()
     val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
     val summary = summaries.find { it.project.projectId == projectId }
+    val application = LocalContext.current.applicationContext as Application
+    // یافته‌ی واقعی این قدم (BackupsFlowTest شکست می‌خورد): اینجا قبلاً همیشه
+    // AppDatabase.getInstance(application) را مستقیم صدا می‌زد — یک Singleton
+    // سراسری جدا از database تزریقی که تست‌ها برای ProjectListViewModel/سایر
+    // ViewModel ها می‌سازند (Room.inMemoryDatabaseBuilder). در تست، پروژه در
+    // آن database تزریقی ساخته می‌شد اما BackupManager از Singleton سراسری
+    // (خالی) DAO می‌گرفت، پس هرگز پروژه را پیدا نمی‌کرد. رفع شد: database اکنون
+    // پارامتر تزریقی است (هم‌الگو با autoSaveManager/backupFileStorage)، فقط
+    // در نبود آن (مسیر واقعی اپ) به Singleton برمی‌گردد.
+    val backupManager = remember(projectId, backupFileStorage, database) {
+        val resolvedDatabase = database ?: AppDatabase.getInstance(application)
+        BackupManager(
+            projectId = projectId,
+            projectDao = resolvedDatabase.projectDao(),
+            sceneDao = resolvedDatabase.sceneDao(),
+            shotDao = resolvedDatabase.shotDao(),
+            assetDao = resolvedDatabase.assetDao(),
+            projectDnaDao = resolvedDatabase.projectDnaDao(),
+            audioContextDao = resolvedDatabase.audioContextDao(),
+            backupFileStorage = backupFileStorage ?: DeviceBackupFileStorage(application)
+        )
+    }
 
     // اتصال واقعی startWorkflowSession (که در فاز ۰ ساخته شد ولی هیچ فراخوان
     // واقعی‌ای نداشت — ADR-042: «فراخوان واقعی این تابع هنگام ورود به Studio کار
@@ -102,6 +140,19 @@ fun StudioShell(
         while (isActive) {
             delay(autoSaveCadenceSeconds * 1000L)
             autoSaveManager.touch(projectId)
+        }
+    }
+
+    // واحد ۱۶ فاز ۶ — قدم ۲ (آخرین قدم کل واحد ۱۶، ADR-059): یافته‌ی صریح بازبینی
+    // نهایی (بخش ب-۶ دستور کار این قدم) — backupIntervalMinutes از واحد ۱۵ تا این
+    // لحظه هرگز واقعاً مصرف نشده بود (grep تأییدشده). هم‌الگو دقیق با Timer بالا:
+    // یک بکاپ خودکار (BackupKind.AUTO، متمایز از بکاپ‌های دستی صفحه‌ی Backups)
+    // هر backupIntervalMinutes، تا وقتی این Composable برای این projectId فعال
+    // است.
+    LaunchedEffect(projectId, backupManager) {
+        while (isActive) {
+            delay(backupManager.backupIntervalMinutes * 60_000L)
+            backupManager.createBackup(BackupKind.AUTO)
         }
     }
 
@@ -159,7 +210,7 @@ private fun StudioHeader(title: String, sceneCount: Int, shotCount: Int, languag
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(onClick = onBack, modifier = Modifier.testTag(STUDIO_BACK_BUTTON_TAG)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
         Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
@@ -170,14 +221,17 @@ private fun StudioHeader(title: String, sceneCount: Int, shotCount: Int, languag
                 color = CinemaTheme.extendedColors.fg3
             )
         }
-        Surface(shape = RoundedCornerShape(18.dp), color = CinemaTheme.extendedColors.success.copy(alpha = 0.16f)) {
+        // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): همان کلاس باگ
+        // Low-opacity Tinted Fill. رفع شد؛ متن سیاه ثابت چون Success (0xFF3DDC97)
+        // به‌اندازه‌ی کافی روشن است — دقیقاً همان استدلال مستندشده‌ی ADR-055.
+        Surface(shape = RoundedCornerShape(18.dp), color = CinemaTheme.extendedColors.success) {
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = CinemaTheme.extendedColors.success, modifier = Modifier.padding(0.dp))
-                Text(text = uiString("studio.saved", language), style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.success)
+                Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.padding(0.dp))
+                Text(text = uiString("studio.saved", language), style = MaterialTheme.typography.labelSmall, color = Color.Black)
             }
         }
     }
