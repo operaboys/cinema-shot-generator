@@ -34,6 +34,9 @@ class ObjectAssetFormViewModel(
     private val projectId: String,
     private val repository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val idProvider: () -> String = { generateAssetFormId("obj") },
+    // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): هم‌الگو
+    // دقیق با CharacterAssetFormViewModel.existingAssetId.
+    private val existingAssetId: String? = null,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -85,6 +88,24 @@ class ObjectAssetFormViewModel(
         name.isNotBlank() && issues.none { it.severity == Severity.BLOCKING }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    init {
+        existingAssetId?.let { id ->
+            ioScope.launch {
+                repository.loadObjectAssets(listOf(id)).getOrNull()?.firstOrNull()?.let { asset -> applyLoadedAsset(asset) }
+            }
+        }
+    }
+
+    private fun applyLoadedAsset(asset: ObjectAsset) {
+        _name.value = asset.name
+        _description.value = asset.description
+        _subtype.value = asset.subtype
+        _size.value = asset.size
+        _materialAndColor.value = asset.materialAndColor
+        _specialTrait.value = asset.specialTrait.orEmpty()
+        _basePrompt.value = asset.basePrompt.orEmpty()
+    }
+
     fun setName(value: String) { _name.value = value }
     fun setDescription(value: String) { _description.value = value }
     fun setSubtype(value: ObjectSubtype) { _subtype.value = value }
@@ -95,7 +116,7 @@ class ObjectAssetFormViewModel(
 
     fun save() {
         if (!canSave.value) return
-        val asset = buildPreviewAsset().copy(assetId = idProvider())
+        val asset = buildPreviewAsset().copy(assetId = existingAssetId ?: idProvider())
         ioScope.launch {
             repository.saveObjectAsset(projectId, asset)
             _saveCompleted.value = true
@@ -103,13 +124,18 @@ class ObjectAssetFormViewModel(
     }
 
     companion object {
-        fun factory(application: Application, projectId: String, repository: AssetRepository? = null): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            projectId: String,
+            repository: AssetRepository? = null,
+            existingAssetId: String? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) ObjectAssetFormViewModel(application, projectId, repository)
-                        else ObjectAssetFormViewModel(application, projectId)
+                        if (repository != null) ObjectAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
+                        else ObjectAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
                     ) as T
             }
     }

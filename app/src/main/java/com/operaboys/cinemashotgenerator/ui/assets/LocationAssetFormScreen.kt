@@ -50,11 +50,12 @@ fun LocationAssetFormScreen(
     onBack: () -> Unit,
     onSaved: () -> Unit,
     assetRepository: AssetRepository? = null,
+    existingAssetId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: LocationAssetFormViewModel = viewModel(
-        factory = LocationAssetFormViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository)
+        factory = LocationAssetFormViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository, existingAssetId)
     )
 
     val name by viewModel.name.collectAsStateWithLifecycle()

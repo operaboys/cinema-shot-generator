@@ -399,6 +399,7 @@ val faStrings: Map<String, String> = mapOf(
     "drawer.outputDelivery" to "تحویل خروجی",
     "drawer.settings" to "تنظیمات",
     "drawer.backups" to "بکاپ‌ها",
+    "drawer.noActiveProject" to "ابتدا یک پروژه را از فهرست انتخاب یا باز کنید.",
     "drawer.comingSoon" to "این بخش به‌زودی در دسترس خواهد بود",
 
     // فاز ۴ — قدم ۱: لیست صحنه‌ها + Scene Detail
@@ -1151,6 +1152,7 @@ val enStrings: Map<String, String> = mapOf(
     "drawer.outputDelivery" to "Output Delivery",
     "drawer.settings" to "Settings",
     "drawer.backups" to "Backups",
+    "drawer.noActiveProject" to "Select or open a project first.",
     "drawer.comingSoon" to "This section is coming soon",
 
     // Phase 4 — Step 1: Scenes list + Scene Detail

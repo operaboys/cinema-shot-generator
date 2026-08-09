@@ -23,23 +23,40 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 // می‌دهند (نه یک ظاهر غیرفعال/خاکستری) — چون حالت Disabled در تست دستی معمولاً به
 // چشم «خراب» می‌آید، در حالی که یک Snackbar واضح می‌گوید این بخش هنوز ساخته
 // نشده، نه اینکه از کار افتاده.
-
-private enum class DrawerAction { COMING_SOON, ASSETS, SETTINGS, BACKUPS }
+//
+// رفع G1 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/061-...):
+// از ۸ لینک COMING_SOON اولیه، ۷ تا اکنون واقعاً Navigate می‌کنند — مسیرهای
+// واقعی‌شان از فاز‌های ۲ تا ۵ همین واحد از قبل وجود داشتند، فقط Drawer هرگز به‌روز
+// نشده بود. «تولید پرامپت» (drawer.promptGenerator) طبق ADR-056 در «تحویل خروجی»
+// ادغام شد و عمداً بدون تغییر COMING_SOON باقی می‌ماند — برچسبش («تولید پرامپت»)
+// گمراه‌کننده نیست (هنوز مفهوم درستی را توصیف می‌کند)، پس دست‌نخورده ماند.
+// STUDIO_STORY/STUDIO_DNA/STUDIO_SCENES هر سه به همان Studio(projectId, initialTab)
+// می‌روند (فقط Tab متفاوت) — به همین دلیل یک callback واحد پارامتردار
+// (onNavigateStudio) به‌جای ۳ callback جدا برایشان کافی است.
+private enum class DrawerAction { COMING_SOON, ASSETS, SETTINGS, BACKUPS, STUDIO_STORY, STUDIO_DNA, STUDIO_SCENES, AI_BREAKDOWN }
 
 private data class DrawerLink(val labelKey: String, val action: DrawerAction = DrawerAction.COMING_SOON)
 
 private val studioLinks = listOf(
-    DrawerLink("drawer.storyWizard"),
-    DrawerLink("drawer.aiBreakdown"),
-    DrawerLink("drawer.dnaManager"),
-    DrawerLink("drawer.scenes"),
-    DrawerLink("drawer.shots"),
+    DrawerLink("drawer.storyWizard", action = DrawerAction.STUDIO_STORY),
+    DrawerLink("drawer.aiBreakdown", action = DrawerAction.AI_BREAKDOWN),
+    DrawerLink("drawer.dnaManager", action = DrawerAction.STUDIO_DNA),
+    DrawerLink("drawer.scenes", action = DrawerAction.STUDIO_SCENES),
+    // «شات‌ها» Tab مستقل خودش را در StudioTab ندارد (فقط STORY/DNA/SCENES/OUTPUT) —
+    // شات‌ها زیرمجموعه‌ی SceneDetail.SHOTS هستند که فقط بعد از انتخاب یک صحنه‌ی
+    // مشخص در دسترس است؛ چون Drawer هیچ صحنه‌ای نمی‌داند، مقصد واقع‌بینانه همان
+    // Tab «صحنه‌ها» است (کاربر از آنجا صحنه را انتخاب می‌کند).
+    DrawerLink("drawer.shots", action = DrawerAction.STUDIO_SCENES),
     DrawerLink("drawer.assets", action = DrawerAction.ASSETS)
 )
 private val toolsLinks = listOf(
-    DrawerLink("drawer.validation"),
+    // «اعتبارسنجی»/«تحویل خروجی» هر دو به یک shotId مشخص نیاز دارند
+    // (AppDestinations.kt: Validation/OutputDelivery غیر-nullable) که Drawer
+    // نمی‌داند؛ مقصد Fallback مستند (docs/adr/061-...) همان Tab «صحنه‌ها» است —
+    // دقیقاً هم‌مقصد با «شات‌ها» بالا.
+    DrawerLink("drawer.validation", action = DrawerAction.STUDIO_SCENES),
     DrawerLink("drawer.promptGenerator"),
-    DrawerLink("drawer.outputDelivery")
+    DrawerLink("drawer.outputDelivery", action = DrawerAction.STUDIO_SCENES)
 )
 // واحد ۱۶ فاز ۶ — قدم ۱/۲: «تنظیمات» و «بکاپ‌ها» اکنون هر دو واقعاً Navigate
 // می‌کنند (نه دیگر «به‌زودی») — هم‌الگو دقیق با «دارایی‌ها».
@@ -54,6 +71,10 @@ fun NavDrawerContent(
     onNavigateAssets: () -> Unit,
     onNavigateSettings: () -> Unit,
     onNavigateBackups: () -> Unit,
+    // رفع G1: `initialTab` رشته‌ی نام StudioTab است ("STORY"/"DNA"/"SCENES") —
+    // هم‌الگو با Studio.initialTab خودش.
+    onNavigateStudio: (initialTab: String) -> Unit,
+    onNavigateAiBreakdown: () -> Unit,
     onComingSoon: () -> Unit
 ) {
     // واحد ۱۶ فاز ۶ — قدم ۱: یافته‌ی واقعی این قدم — با ۱۱ آیتم در ۳ گروه، محتوای
@@ -64,11 +85,11 @@ fun NavDrawerContent(
     // یافته‌ی تست — با پیدایش در تست End-to-End صفحه‌ی Settings (SettingsFlowTest.kt).
     ModalDrawerSheet {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupStudio", links = studioLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onNavigateStudio = onNavigateStudio, onNavigateAiBreakdown = onNavigateAiBreakdown, onComingSoon = onComingSoon)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupTools", links = toolsLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onNavigateStudio = onNavigateStudio, onNavigateAiBreakdown = onNavigateAiBreakdown, onComingSoon = onComingSoon)
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onComingSoon = onComingSoon)
+            DrawerGroup(titleKey = "drawer.groupSystem", links = systemLinks, language = language, onNavigateAssets = onNavigateAssets, onNavigateSettings = onNavigateSettings, onNavigateBackups = onNavigateBackups, onNavigateStudio = onNavigateStudio, onNavigateAiBreakdown = onNavigateAiBreakdown, onComingSoon = onComingSoon)
         }
     }
 }
@@ -81,6 +102,8 @@ private fun DrawerGroup(
     onNavigateAssets: () -> Unit,
     onNavigateSettings: () -> Unit,
     onNavigateBackups: () -> Unit,
+    onNavigateStudio: (String) -> Unit,
+    onNavigateAiBreakdown: () -> Unit,
     onComingSoon: () -> Unit
 ) {
     Text(
@@ -97,6 +120,10 @@ private fun DrawerGroup(
                 DrawerAction.ASSETS -> onNavigateAssets
                 DrawerAction.SETTINGS -> onNavigateSettings
                 DrawerAction.BACKUPS -> onNavigateBackups
+                DrawerAction.STUDIO_STORY -> { { onNavigateStudio("STORY") } }
+                DrawerAction.STUDIO_DNA -> { { onNavigateStudio("DNA") } }
+                DrawerAction.STUDIO_SCENES -> { { onNavigateStudio("SCENES") } }
+                DrawerAction.AI_BREAKDOWN -> onNavigateAiBreakdown
                 DrawerAction.COMING_SOON -> onComingSoon
             },
             modifier = Modifier.padding(horizontal = 12.dp)

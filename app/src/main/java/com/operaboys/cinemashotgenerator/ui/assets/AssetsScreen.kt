@@ -77,6 +77,11 @@ fun AssetsScreen(
     workflowViewModel: WorkflowViewModel,
     assetRepository: AssetRepository? = null,
     onAddAsset: (AssetKind) -> Unit = {},
+    // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): تا این
+    // قدم کارت‌های این صفحه اصلاً onClick نداشتند — لمس یک Asset موجود هیچ
+    // اتفاقی نمی‌افتاد. هم‌الگو دقیق با onAddAsset بالا/onOpenScene معادلش در
+    // ScenesListScreen.kt.
+    onOpenAsset: (AssetKind, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -117,19 +122,22 @@ fun AssetsScreen(
                     characters = characters,
                     selectedTier = selectedCharacterTier,
                     onTierSelected = viewModel::setSelectedCharacterTier,
-                    language = language
+                    language = language,
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.CHARACTER, assetId) }
                 )
                 AssetKind.LOCATION -> LocationAssetList(
                     locations = locations,
                     selectedType = selectedLocationType,
                     onTypeSelected = viewModel::setSelectedLocationType,
-                    language = language
+                    language = language,
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.LOCATION, assetId) }
                 )
                 AssetKind.OBJECT -> ObjectAssetList(
                     objects = objects,
                     selectedSubtype = selectedObjectSubtype,
                     onSubtypeSelected = viewModel::setSelectedObjectSubtype,
-                    language = language
+                    language = language,
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.OBJECT, assetId) }
                 )
             }
         }
@@ -253,8 +261,8 @@ private fun ThumbnailPlaceholder() {
 }
 
 @Composable
-private fun AssetCard(name: String, tierLabel: String, description: String, continuityMeta: String) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun AssetCard(name: String, tierLabel: String, description: String, continuityMeta: String, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ThumbnailPlaceholder()
             Column(modifier = Modifier.weight(1f)) {
@@ -295,7 +303,8 @@ private fun CharacterAssetList(
     characters: List<CharacterAsset>,
     selectedTier: CharacterTier?,
     onTierSelected: (CharacterTier?) -> Unit,
-    language: Language
+    language: Language,
+    onOpenAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -333,7 +342,8 @@ private fun CharacterAssetList(
                     continuityMeta = uiTemplate(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to characterContinuityLevelLabel(character.continuityLockLevel, language)
-                    )
+                    ),
+                    onClick = { onOpenAsset(character.assetId) }
                 )
             }
         }
@@ -345,7 +355,8 @@ private fun LocationAssetList(
     locations: List<LocationAsset>,
     selectedType: LocationType?,
     onTypeSelected: (LocationType?) -> Unit,
-    language: Language
+    language: Language,
+    onOpenAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -383,7 +394,8 @@ private fun LocationAssetList(
                     continuityMeta = uiTemplate(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to locationContinuityLevelLabel(location.continuityLockLevel, language)
-                    )
+                    ),
+                    onClick = { onOpenAsset(location.assetId) }
                 )
             }
         }
@@ -395,7 +407,8 @@ private fun ObjectAssetList(
     objects: List<ObjectAsset>,
     selectedSubtype: ObjectSubtype?,
     onSubtypeSelected: (ObjectSubtype?) -> Unit,
-    language: Language
+    language: Language,
+    onOpenAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -433,7 +446,8 @@ private fun ObjectAssetList(
                     continuityMeta = uiTemplate(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to propContinuityLevelLabel(obj.continuityLockLevel, language)
-                    )
+                    ),
+                    onClick = { onOpenAsset(obj.assetId) }
                 )
             }
         }

@@ -96,6 +96,7 @@ fun AppNavHost(
                 autoSaveManager = autoSaveManager,
                 backupFileStorage = backupFileStorage,
                 database = database,
+                initialTab = studio.initialTab,
                 onNavigateToAiBreakdown = { targetProjectId ->
                     navController.navigate(AiStoryBreakdown(targetProjectId)) { launchSingleTop = true }
                 },
@@ -108,7 +109,12 @@ fun AppNavHost(
             AssetsScreen(
                 workflowViewModel = workflowViewModel,
                 assetRepository = assetRepository,
-                onAddAsset = { kind -> navController.navigate(AssetForm(kind)) { launchSingleTop = true } }
+                onAddAsset = { kind -> navController.navigate(AssetForm(kind)) { launchSingleTop = true } },
+                // رفع G7 ممیزی post-Unit16: تنها راه واقعی رسیدن به یک AssetForm با
+                // existingAssetId غیر-null — لمس یک کارت Asset موجود.
+                onOpenAsset = { kind, assetId ->
+                    navController.navigate(AssetForm(kind, existingAssetId = assetId)) { launchSingleTop = true }
+                }
             )
         }
         composable<AssetForm> { backStackEntry ->
@@ -121,19 +127,22 @@ fun AppNavHost(
                     onBack = onFormBack,
                     onSaved = onFormBack,
                     onShowMessage = onShowMessage,
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    existingAssetId = route.existingAssetId
                 )
                 AssetKind.LOCATION -> LocationAssetFormScreen(
                     language = language,
                     onBack = onFormBack,
                     onSaved = onFormBack,
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    existingAssetId = route.existingAssetId
                 )
                 AssetKind.OBJECT -> ObjectAssetFormScreen(
                     language = language,
                     onBack = onFormBack,
                     onSaved = onFormBack,
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    existingAssetId = route.existingAssetId
                 )
             }
         }

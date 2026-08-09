@@ -18,8 +18,13 @@ data object Home
 @Serializable
 data object Projects
 
+// MIGRATED (رفع G1 ممیزی post-Unit16، docs/adr/061-...): `initialTab` اضافه
+// شد — دقیقاً هم‌الگو با `SceneDetail.initialTab` (رشته‌ی نام `StudioTab`،
+// پیش‌فرض Backward Compatible «STORY» یعنی دقیقاً همان رفتار قبلی برای هر
+// فراخوان موجودی که این پارامتر را نمی‌دهد). لازم برای اتصال واقعی لینک‌های
+// Nav Drawer «مدیریت DNA»/«صحنه‌ها»/«شات‌ها» به Tab درست، نه همیشه Tab «داستان».
 @Serializable
-data class Studio(val projectId: String)
+data class Studio(val projectId: String, val initialTab: String = "STORY")
 
 @Serializable
 data object Assets
@@ -41,8 +46,15 @@ data class AiStoryBreakdown(val projectId: String)
 // موجود دوباره تکرار نشود، نه یک محدودیت تازه. `kind` مشخص می‌کند کدام‌یک از سه
 // فرم (Character/Location/Object) باز شود — طبق فیلتر فعال صفحه‌ی Assets وقتی
 // دکمه‌ی شناور لمس می‌شود.
+//
+// MIGRATED (رفع G7 ممیزی post-Unit16، docs/adr/061-...): `existingAssetId`
+// اضافه شد — دقیقاً هم‌الگو با `ShotComposer.shotId` (واحد ۱۶ فاز ۴ قدم ۲):
+// `null` یعنی «Asset جدید» (رفتار قبلی، بدون تغییر)، غیر-null یعنی «بارگذاری و
+// ویرایش Asset موجود». تا این قدم، لمس یک کارت Asset موجود در صفحه‌ی Assets
+// اصلاً هیچ onClick ای نداشت — این تنها راه واقعی رسیدن به این مسیر با یک
+// شناسه‌ی موجود است.
 @Serializable
-data class AssetForm(val kind: AssetKind)
+data class AssetForm(val kind: AssetKind, val existingAssetId: String? = null)
 
 // واحد ۱۶ فاز ۴ — قدم ۱: مسیر مستقل سطح‌بالا برای Scene Detail — دقیقاً هم‌الگو با
 // AiStoryBreakdown/AssetForm بالا (Header/Back مستقل خودش)، طبق تصریح صریح

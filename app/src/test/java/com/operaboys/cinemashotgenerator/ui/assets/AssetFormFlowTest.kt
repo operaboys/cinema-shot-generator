@@ -8,7 +8,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
@@ -179,5 +181,92 @@ class AssetFormFlowTest {
         composeRule.onNodeWithText(
             uiTemplate("assetForm.continuityLockLevelFixedTemplate", Language.FA, "level" to characterContinuityLevelLabel(CharacterContinuityLevel.MEDIUM, Language.FA))
         ).assertIsDisplayed()
+    }
+
+    // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): تا این قدم
+    // هیچ AssetCard ای اصلاً onClick نداشت — این ۳ تست ثابت می‌کنند که (۱) لمس یک
+    // کارت موجود فرم را با داده‌ی واقعی پیش‌پر می‌کند، (۲) ذخیره‌ی دوباره همان
+    // شناسه‌ی موجود را به‌روزرسانی می‌کند (نه یک رکورد تازه) — با REPLACE بودن
+    // OnConflictStrategy در AssetDao، اثبات «فقط یک رکورد باقی می‌ماند» دقیقاً همان
+    // اثبات «شناسه تکرار نشد» است.
+
+    @Test
+    fun `clicking an existing character card opens the edit form pre-filled, and saving updates the same asset instead of creating a new one`() {
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("characterForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(CHARACTER_FORM_NAME_FIELD_TAG).performTextInput("Captain Amelia")
+        composeRule.onNodeWithTag(CHARACTER_FORM_AGE_RANGE_FIELD_TAG).performTextInput("30-35")
+        composeRule.onNodeWithTag(CHARACTER_FORM_SAVE_BUTTON_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Captain Amelia"), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText("Captain Amelia").performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("characterForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(CHARACTER_FORM_NAME_FIELD_TAG).assertTextContains("Captain Amelia")
+        composeRule.onNodeWithTag(CHARACTER_FORM_AGE_RANGE_FIELD_TAG).assertTextContains("30-35")
+
+        composeRule.onNodeWithTag(CHARACTER_FORM_NAME_FIELD_TAG).performTextClearance()
+        composeRule.onNodeWithTag(CHARACTER_FORM_NAME_FIELD_TAG).performTextInput("Captain Amelia Voss")
+        composeRule.onNodeWithTag(CHARACTER_FORM_SAVE_BUTTON_TAG).performClick()
+
+        composeRule.waitUntilExactlyOneExists(hasText("Captain Amelia Voss"), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("Captain Amelia").assertDoesNotExist()
+    }
+
+    @Test
+    fun `clicking an existing location card opens the edit form pre-filled, and saving updates the same asset instead of creating a new one`() {
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_FILTER_LOCATIONS_TAG).performClick()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("locationForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(LOCATION_FORM_NAME_FIELD_TAG).performTextInput("Bridge of the Ship")
+        composeRule.onNodeWithTag(LOCATION_FORM_DESCRIPTION_FIELD_TAG).performTextInput("the ship's command bridge")
+        composeRule.onNodeWithTag(LOCATION_FORM_SAVE_BUTTON_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("assetLibrary.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(ASSET_FILTER_LOCATIONS_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Bridge of the Ship"), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText("Bridge of the Ship").performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("locationForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(LOCATION_FORM_NAME_FIELD_TAG).assertTextContains("Bridge of the Ship")
+        composeRule.onNodeWithTag(LOCATION_FORM_DESCRIPTION_FIELD_TAG).assertTextContains("the ship's command bridge")
+
+        composeRule.onNodeWithTag(LOCATION_FORM_NAME_FIELD_TAG).performTextClearance()
+        composeRule.onNodeWithTag(LOCATION_FORM_NAME_FIELD_TAG).performTextInput("Engine Room")
+        composeRule.onNodeWithTag(LOCATION_FORM_SAVE_BUTTON_TAG).performClick()
+
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("assetLibrary.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(ASSET_FILTER_LOCATIONS_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Engine Room"), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("Bridge of the Ship").assertDoesNotExist()
+    }
+
+    @Test
+    fun `clicking an existing object card opens the edit form pre-filled, and saving updates the same asset instead of creating a new one`() {
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_FILTER_OBJECTS_TAG).performClick()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("objectForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(OBJECT_FORM_NAME_FIELD_TAG).performTextInput("Brass Compass")
+        composeRule.onNodeWithTag(OBJECT_FORM_SIZE_FIELD_TAG).performTextInput("small")
+        composeRule.onNodeWithTag(OBJECT_FORM_MATERIAL_FIELD_TAG).performTextInput("brass, gold")
+        composeRule.onNodeWithTag(OBJECT_FORM_SAVE_BUTTON_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("assetLibrary.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(ASSET_FILTER_OBJECTS_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Brass Compass"), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText("Brass Compass").performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("objectForm.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(OBJECT_FORM_NAME_FIELD_TAG).assertTextContains("Brass Compass")
+        composeRule.onNodeWithTag(OBJECT_FORM_SIZE_FIELD_TAG).assertTextContains("small")
+
+        composeRule.onNodeWithTag(OBJECT_FORM_NAME_FIELD_TAG).performTextClearance()
+        composeRule.onNodeWithTag(OBJECT_FORM_NAME_FIELD_TAG).performTextInput("Golden Compass")
+        composeRule.onNodeWithTag(OBJECT_FORM_SAVE_BUTTON_TAG).performClick()
+
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("assetLibrary.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(ASSET_FILTER_OBJECTS_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Golden Compass"), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("Brass Compass").assertDoesNotExist()
     }
 }

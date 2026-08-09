@@ -74,6 +74,10 @@ fun MainScaffold(
     val currentDestination = backStackEntry?.destination
 
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
+    // رفع G1 ممیزی post-Unit16 (docs/adr/061-...): هم‌الگو دقیق با
+    // AppNavHost.kt's composable<Backups> — WorkflowState.projectId یعنی «پروژه‌ای
+    // که کاربر همین الان در Studio باز کرده» (اگر باشد)، همان الگوی ADR-048/059.
+    val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
 
     // AiStoryBreakdown/SceneDetail/ShotComposer/Validation/OutputDelivery نمی‌توانند
     // در backTargetsByRouteKey (ui/navigation/BackNavigation.kt) بیایند چون مقصدشان
@@ -117,6 +121,7 @@ fun MainScaffold(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val comingSoonMessage = uiString("drawer.comingSoon", language)
+    val noActiveProjectMessage = uiString("drawer.noActiveProject", language)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -134,6 +139,30 @@ fun MainScaffold(
                 onNavigateBackups = {
                     coroutineScope.launch { drawerState.close() }
                     navController.navigate(Backups) { launchSingleTop = true }
+                },
+                // رفع G1: بدون پروژه‌ی فعال (WorkflowState.projectId == null)، مقصد
+                // Studio(projectId) قابل‌ساخت نیست (projectId غیر-nullable است) —
+                // طبق تصمیم مستند (docs/adr/061-...) کاربر به Projects هدایت می‌شود
+                // تا یک پروژه را باز/انتخاب کند، به‌همراه یک پیام توضیحی.
+                onNavigateStudio = { initialTab ->
+                    coroutineScope.launch { drawerState.close() }
+                    val activeProjectId = workflowState?.projectId
+                    if (activeProjectId != null) {
+                        navController.navigate(Studio(activeProjectId, initialTab)) { launchSingleTop = true }
+                    } else {
+                        navController.navigate(Projects) { launchSingleTop = true }
+                        coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
+                    }
+                },
+                onNavigateAiBreakdown = {
+                    coroutineScope.launch { drawerState.close() }
+                    val activeProjectId = workflowState?.projectId
+                    if (activeProjectId != null) {
+                        navController.navigate(AiStoryBreakdown(activeProjectId)) { launchSingleTop = true }
+                    } else {
+                        navController.navigate(Projects) { launchSingleTop = true }
+                        coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
+                    }
                 },
                 onComingSoon = {
                     coroutineScope.launch {

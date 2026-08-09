@@ -49,11 +49,12 @@ fun CharacterAssetFormScreen(
     onSaved: () -> Unit,
     onShowMessage: (String) -> Unit = {},
     assetRepository: AssetRepository? = null,
+    existingAssetId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: CharacterAssetFormViewModel = viewModel(
-        factory = CharacterAssetFormViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository)
+        factory = CharacterAssetFormViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository, existingAssetId)
     )
 
     val name by viewModel.name.collectAsStateWithLifecycle()

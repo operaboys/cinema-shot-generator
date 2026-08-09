@@ -45,6 +45,10 @@ class CharacterAssetFormViewModel(
     private val projectId: String,
     private val repository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val idProvider: () -> String = { generateAssetFormId("char") },
+    // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): هم‌الگو
+    // دقیق با ShotComposerViewModel.existingShotId — null یعنی «Asset جدید»
+    // (رفتار قبلی، بدون تغییر)، غیر-null یعنی بارگذاری و ویرایش Asset موجود.
+    private val existingAssetId: String? = null,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -114,6 +118,41 @@ class CharacterAssetFormViewModel(
     val canSave: StateFlow<Boolean> = combine(_name, _ageRange) { name, ageRange -> name.isNotBlank() && ageRange.isNotBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    // رفع G7 ممیزی post-Unit16: بارگذاری واقعی Asset موجود برای پیش‌پرکردن فرم —
+    // loadCharacterAssets (نه یک متد load-by-id تازه) بازاستفاده شد، چون از قبل
+    // دقیقاً همین کار را برای یک شناسه‌ی تکی هم انجام می‌دهد (بدون نیاز به
+    // AssetDao/Repository تازه).
+    init {
+        existingAssetId?.let { id ->
+            ioScope.launch {
+                repository.loadCharacterAssets(listOf(id)).getOrNull()?.firstOrNull()?.let { asset -> applyLoadedAsset(asset) }
+            }
+        }
+    }
+
+    private fun applyLoadedAsset(asset: CharacterAsset) {
+        _name.value = asset.name
+        _tier.value = asset.characterTier
+        _continuityLockLevelOverride.value = asset.continuityLockLevel
+        _ageRange.value = asset.physicalAppearance.ageRange
+        _gender.value = asset.physicalAppearance.gender
+        _height.value = asset.physicalAppearance.height.orEmpty()
+        _build.value = asset.physicalAppearance.build.orEmpty()
+        _hairColor.value = asset.physicalAppearance.hair?.color.orEmpty()
+        _hairStyle.value = asset.physicalAppearance.hair?.style.orEmpty()
+        _hairLength.value = asset.physicalAppearance.hair?.length.orEmpty()
+        _facialEyes.value = asset.physicalAppearance.facialFeatures?.eyes.orEmpty()
+        _facialDistinctiveMarks.value = asset.physicalAppearance.facialFeatures?.distinctiveMarks?.joinToString(", ").orEmpty()
+        _physicalFeatures.value = asset.physicalAppearance.physicalFeatures.orEmpty()
+        _defaultMood.value = asset.defaultMood.orEmpty()
+        _basePrompt.value = asset.basePrompt.orEmpty()
+        val defaultOutfit = asset.outfits.find { it.isDefault } ?: asset.outfits.firstOrNull()
+        if (defaultOutfit != null) {
+            _outfitName.value = defaultOutfit.name
+            _outfitDescription.value = defaultOutfit.description
+        }
+    }
+
     fun setName(value: String) { _name.value = value }
     fun setTier(value: CharacterTier) { _tier.value = value }
     fun setContinuityLockLevel(value: CharacterContinuityLevel) { _continuityLockLevelOverride.value = value }
@@ -143,7 +182,7 @@ class CharacterAssetFormViewModel(
         } else null
 
         val asset = CharacterAsset(
-            assetId = idProvider(),
+            assetId = existingAssetId ?: idProvider(),
             characterTier = _tier.value,
             name = _name.value,
             physicalAppearance = PhysicalAppearance(
@@ -168,13 +207,18 @@ class CharacterAssetFormViewModel(
     }
 
     companion object {
-        fun factory(application: Application, projectId: String, repository: AssetRepository? = null): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            projectId: String,
+            repository: AssetRepository? = null,
+            existingAssetId: String? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) CharacterAssetFormViewModel(application, projectId, repository)
-                        else CharacterAssetFormViewModel(application, projectId)
+                        if (repository != null) CharacterAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
+                        else CharacterAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
                     ) as T
             }
     }

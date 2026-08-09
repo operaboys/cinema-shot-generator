@@ -87,6 +87,12 @@ fun StudioShell(
     autoSaveManager: AutoSaveManager? = null,
     backupFileStorage: BackupFileStorage? = null,
     database: AppDatabase? = null,
+    // رفع G1 ممیزی post-Unit16: هم‌الگو دقیق با SceneDetailScreen.initialTab —
+    // فقط برای مقداردهی اولیه‌ی rememberSaveable پایین استفاده می‌شود (طبق
+    // Studio.initialTab)؛ تغییرش بعد از اولین Composition اثری ندارد (چون
+    // Tab «فعال» طبق docs/design/README.md بخش State Management عمداً
+    // Persisted نیست).
+    initialTab: String = "STORY",
     onNavigateToAiBreakdown: (String) -> Unit = {},
     onNavigateToScene: (String) -> Unit = {}
 ) {
@@ -156,7 +162,9 @@ fun StudioShell(
         }
     }
 
-    var selectedTab by rememberSaveable { mutableStateOf(StudioTab.STORY) }
+    var selectedTab by rememberSaveable {
+        mutableStateOf(StudioTab.entries.find { it.name == initialTab } ?: StudioTab.STORY)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         StudioHeader(

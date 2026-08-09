@@ -39,6 +39,9 @@ class LocationAssetFormViewModel(
     private val projectId: String,
     private val repository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val idProvider: () -> String = { generateAssetFormId("loc") },
+    // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): هم‌الگو
+    // دقیق با CharacterAssetFormViewModel.existingAssetId.
+    private val existingAssetId: String? = null,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -86,6 +89,27 @@ class LocationAssetFormViewModel(
     val canSave: StateFlow<Boolean> = combine(_name, _description) { name, description -> name.isNotBlank() && description.isNotBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    init {
+        existingAssetId?.let { id ->
+            ioScope.launch {
+                repository.loadLocationAssets(listOf(id)).getOrNull()?.firstOrNull()?.let { asset -> applyLoadedAsset(asset) }
+            }
+        }
+    }
+
+    private fun applyLoadedAsset(asset: LocationAsset) {
+        _name.value = asset.name
+        _description.value = asset.description
+        _locationType.value = asset.locationType
+        _environmentType.value = asset.environment.type
+        _environmentSize.value = asset.environment.size
+        _environmentLighting.value = asset.environment.lightingCondition
+        _timeCompatibility.value = asset.timeCompatibility
+        _weatherCompatibility.value = asset.weatherCompatibility
+        _keyElements.value = asset.keyElements
+        _basePrompt.value = asset.basePrompt.orEmpty()
+    }
+
     fun setName(value: String) { _name.value = value }
     fun setDescription(value: String) { _description.value = value }
     fun setLocationType(value: LocationType) { _locationType.value = value }
@@ -103,7 +127,7 @@ class LocationAssetFormViewModel(
     fun save() {
         if (!canSave.value) return
         val asset = LocationAsset(
-            assetId = idProvider(),
+            assetId = existingAssetId ?: idProvider(),
             name = _name.value,
             description = _description.value,
             environment = Environment(type = _environmentType.value, size = _environmentSize.value, lightingCondition = _environmentLighting.value),
@@ -121,13 +145,18 @@ class LocationAssetFormViewModel(
     }
 
     companion object {
-        fun factory(application: Application, projectId: String, repository: AssetRepository? = null): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            projectId: String,
+            repository: AssetRepository? = null,
+            existingAssetId: String? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) LocationAssetFormViewModel(application, projectId, repository)
-                        else LocationAssetFormViewModel(application, projectId)
+                        if (repository != null) LocationAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
+                        else LocationAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
                     ) as T
             }
     }
