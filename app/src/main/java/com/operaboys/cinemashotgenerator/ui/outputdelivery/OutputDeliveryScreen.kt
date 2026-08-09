@@ -37,6 +37,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.ALL_MODEL_PROFILE
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.RenderedOutput
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ModelProfile
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckResult
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
@@ -117,6 +118,8 @@ fun OutputDeliveryScreen(
                         renderedOutput = currentState.renderedOutput,
                         profile = profile,
                         language = language,
+                        tokenCheck = currentState.tokenCheck,
+                        cleaningSucceeded = currentState.cleaningSucceeded,
                         onCopy = {
                             clipboardManager.setText(AnnotatedString(currentState.renderedOutput.formattedPrompt))
                             onShowMessage(uiString("outputDelivery.copiedMessage", language))
@@ -175,6 +178,8 @@ private fun OutputPreviewCard(
     renderedOutput: RenderedOutput,
     profile: ModelProfile,
     language: Language,
+    tokenCheck: TokenCheckResult?,
+    cleaningSucceeded: Boolean,
     onCopy: () -> Unit,
     onRegenerate: () -> Unit,
     onExport: () -> Unit
@@ -190,22 +195,36 @@ private fun OutputPreviewCard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
-                Surface(shape = RoundedCornerShape(8.dp), color = CinemaTheme.extendedColors.solidSurface, border = BorderStroke(1.dp, CinemaTheme.extendedColors.cardBorder)) {
-                    Text(
-                        text = uiString("outputDelivery.cleanedFinalizedBadge", language),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CinemaTheme.extendedColors.fg3,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                // رفع G17 ممیزی post-Unit16: این بج تا این قدم بدون قید و شرط نمایش
+                // داده می‌شد، بدون اینکه پاک‌سازی/بررسی توکن واقعی (واحد ۱۳) اجرا شده
+                // باشد. اکنون فقط وقتی cleaningSucceeded=true (یعنی finalizePrompt
+                // واقعاً و بدون خطا اجرا شده) نمایش داده می‌شود.
+                if (cleaningSucceeded) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = CinemaTheme.extendedColors.solidSurface, border = BorderStroke(1.dp, CinemaTheme.extendedColors.cardBorder)) {
+                        Text(
+                            text = uiString("outputDelivery.cleanedFinalizedBadge", language),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CinemaTheme.extendedColors.fg3,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
             Text(text = renderedOutput.formattedPrompt, style = MaterialTheme.typography.bodySmall)
 
+            // رفع G17: قبلاً همیشه فقط maxTokens (سقف پروفایل) نمایش داده می‌شد، بدون
+            // هیچ عدد Estimated واقعی. اکنون که tokenCheck واقعی در دسترس است، تعداد
+            // توکن تخمینی واقعی/سقف نمایش داده می‌شود؛ اگر Pipeline اجرا نشده باشد
+            // (tokenCheck=null)، به همان متن قبلی (فقط سقف) Fallback می‌کند.
             Text(
-                text = "${uiString("outputDelivery.tokenCostLabel", language)}: ${profile.constraints.maxTokens}",
+                text = if (tokenCheck != null) {
+                    "${uiString("outputDelivery.tokenCostLabel", language)}: ${tokenCheck.estimatedTokens}/${tokenCheck.maxTokens}"
+                } else {
+                    "${uiString("outputDelivery.tokenCostLabel", language)}: ${profile.constraints.maxTokens}"
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = CinemaTheme.extendedColors.fg3
+                color = if (tokenCheck?.withinLimit == false) MaterialTheme.colorScheme.error else CinemaTheme.extendedColors.fg3
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

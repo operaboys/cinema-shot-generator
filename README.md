@@ -1016,9 +1016,9 @@ Backups، نه صرفاً یک محدودیت تست): `BackupsViewModel`/`Studi
 و مستقیماً `StudioShell`)، هم‌الگو دقیق با `autoSaveManager`/
 `backupFileStorage`.
 
-**محدودیت شناخته‌شده‌ی تازه:** Restore/Delete در صفحه‌ی Backups بدون
-دیالوگ تأیید هستند — هر دو مخرب‌اند (سند طراحی چنین دیالوگی را الزام
-نکرده، پس این یک شکاف UX مستندشده است، نه انحراف از Scope).
+~~**محدودیت شناخته‌شده‌ی تازه:** Restore/Delete در صفحه‌ی Backups بدون
+دیالوگ تأیید هستند~~ — **رفع شد** در قدم بعدی (ممیزی post-Unit16، پایین
+را ببینید).
 
 `gradle :app:testDebugUnitTest :app:assembleDebug` → `BUILD SUCCESSFUL`،
 ۶۵۵ تست (۶۴۹→۶۵۵، ۶ تست جدید)، ۰ Failure، ۰ Error، ۰ Skipped. APK واقعی
@@ -1028,6 +1028,45 @@ Backups، نه صرفاً یک محدودیت تست): `BackupsViewModel`/`Studi
 فاز (App Shell، Story+DNA، Asset Library، Scene+Shot Composer،
 Validation→Output Delivery، Settings+Backups) اکنون منطق واقعی، UI واقعی،
 و تست End-to-End واقعی دارند.**
+
+### 🎯 نقطه‌ی عطف: ممیزی جامع post-Unit16 + رفع هر ۴ یافته‌ی 🔴 بحرانی
+
+بعد از تکمیل کامل واحد ۱۶، یک ممیزی جامع کل پروژه (`docs/audit/post-unit16-full-audit.md`،
+واحد ۰۱ تا ۱۶، نه فقط مطابقت بلوپرینت) ۲۲ یافته‌ی تازه ثبت کرد — ۴ مورد
+🔴 بحرانی، در همین قدم بعدی رفع شدند:
+
+1. **بج «پاک‌سازی‌شده· نهایی‌شده» صفحه‌ی Output Delivery دروغ بود** — تا
+   این قدم Pipeline واقعی واحد ۱۳ (Prompt Cleaner + Token Cost Calculator)
+   هرگز از `OutputDeliveryViewModel` صدا زده نمی‌شد؛ متن نمایش/Copy/Export
+   شده هرگز واقعاً پاک‌سازی یا از نظر توکن بررسی نمی‌شد. `finalizePrompt`
+   اکنون واقعاً در `regenerate()` اجرا می‌شود؛ بج فقط با موفقیت واقعی
+   نمایش داده می‌شود؛ `validateConflictsResolved`/`validateCompressionRatio`
+   به Warnings اضافه شدند؛ خط «هزینه‌ی توکن» اکنون عدد Estimated واقعی
+   نشان می‌دهد (نه فقط سقف ثابت پروفایل).
+2. **آرشیو پروژه بدون تأیید و بدون بازگشت** — طبق
+   `ALLOWED_TRANSITIONS[ARCHIVED]=emptyList()` (`StateMachine.kt`)، آرشیو
+   یک وضعیت کاملاً پایانی است؛ اکنون یک `AlertDialog` تأیید واقعی
+   (هم‌الگو با Delete پروژه‌ی موجود) پیش از اجرا نشان داده می‌شود.
+3-4. **Restore/Delete بکاپ بدون تأیید** — هر دو اکنون `AlertDialog` تأیید
+   واقعی دارند (بالا هم اشاره شد).
+
+هیچ الگوی UI تازه‌ای اختراع نشد — هر سه دیالوگ از الگوی موجود
+`RenameProjectDialog`/`DeleteProjectDialog` پیروی می‌کنند. جزئیات کامل
+تصمیمات (خصوصاً تغییر امضای `finalizePrompt` از `Pair` به
+`FinalizationResult` برای دسترسی به `CleaningReport`) در
+`docs/adr/060-post-unit16-audit-critical-fixes.md`.
+
+`gradle :app:testDebugUnitTest :app:assembleDebug` → ۶۶۱ تست (۶۵۵→۶۶۱، ۶
+تست جدید)، ۶۶۰ موفق. یک شکست (`ScenesFlowTest`، `SQLiteConnectionPool`)
+تأییدشده پیش‌ازاین/غیرمرتبط با این قدم است — در اجرای مجزا (بدون بقیه‌ی
+Test Suite) دو بار پیاپی ۱۰۰٪ موفق بود؛ یک Flake شناخته‌شده‌ی محیط
+Robolectric تحت بار کامل Test Suite، نه Regression این قدم. APK واقعی هم
+ساخته شد.
+
+**۱۸ یافته‌ی 🟠/🟡/⚪ باقی‌مانده‌ی همان ممیزی** (از جمله بخش زیادی از Rule
+های Validation یتیم، الگوی DI باقی‌مانده در دو نقطه، ۸ لینک Nav Drawer
+هنوز «به‌زودی»، عدم وجود مسیر ویرایش Asset) هنوز باز و مستند هستند —
+جزئیات و اولویت‌بندی پیشنهادی در خودِ `docs/audit/post-unit16-full-audit.md`.
 
 ## Stack
 
@@ -1166,11 +1205,11 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   هیچ File Picker ای در کدبیس نیست (هم‌کلاس محدودیت Attached
   References/Export). جزئیات کامل در
   `docs/adr/058-unit16-phase6-step1-settings-autosave.md`.
-- **Backups — Restore/Delete بدون دیالوگ تأیید** — هر دو عملیات مخرب‌اند
-  (Restore داده‌ی جاری را جایگزین می‌کند، Delete غیرقابل‌بازگشت است)؛ سند
-  طراحی چنین دیالوگی را الزام نکرده، پس این یک شکاف UX مستندشده است، نه
-  انحراف از Scope. جزئیات در
-  `docs/adr/059-unit16-phase6-step2-backups-final-review.md`.
+- ~~Backups — Restore/Delete بدون دیالوگ تأیید~~ — **رفع شد** (یافته‌ی 🔴
+  G19/G20 ممیزی `docs/audit/post-unit16-full-audit.md`): هر دو عملیات
+  اکنون یک `AlertDialog` تأیید واقعی دارند (هم‌الگو با Delete پروژه‌ی
+  موجود) پیش از اجرا. جزئیات در
+  `docs/adr/060-post-unit16-audit-critical-fixes.md`.
 - **Toast/Snackbar — مدت‌زمان دقیق «~۲ ثانیه»ی سند طراحی رفع نشد** —
   `SnackbarDuration` استاندارد Material3 فقط سه مقدار گسسته
   (Short/Long/Indefinite) دارد، نه میلی‌ثانیه‌ی دلخواه؛ Short نزدیک‌ترین

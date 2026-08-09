@@ -54,6 +54,13 @@ val faStrings: Map<String, String> = mapOf(
     "project.delete.message" to "این پروژه و تمام صحنه‌ها/شات‌های آن برای همیشه حذف می‌شوند. این عمل قابل بازگشت نیست.",
     "project.delete.confirm" to "حذف کن",
     "project.delete.cancel" to "انصراف",
+    // رفع یافته‌ی 🔴 G21 ممیزی post-Unit16: آرشیو قبلاً بدون هیچ دیالوگ تأیید اجرا
+    // می‌شد؛ طبق ALLOWED_TRANSITIONS[ARCHIVED]=emptyList() در StateMachine.kt، آرشیو
+    // یک وضعیت کاملاً پایانی است — هیچ Unarchive ای در کل اپ وجود ندارد.
+    "project.archive.title" to "آرشیو پروژه",
+    "project.archive.message" to "این پروژه به‌طور دائم آرشیو می‌شود. طبق قوانین وضعیت پروژه، هیچ راهی برای بازگرداندن پروژه از حالت آرشیو وجود ندارد — این عمل قابل بازگشت نیست.",
+    "project.archive.confirm" to "آرشیو کن",
+    "project.archive.cancel" to "انصراف",
 
     // فاز ۱ — Studio Shell
     "studio.saved" to "ذخیره شد",
@@ -739,6 +746,17 @@ val faStrings: Map<String, String> = mapOf(
     "backups.restoredMessage" to "پروژه از این بکاپ بازیابی شد",
     "backups.restoreFailedMessage" to "بازیابی از این بکاپ ناموفق بود",
     "backups.deletedMessage" to "بکاپ حذف شد",
+    // رفع یافته‌های 🔴 G19/G20 ممیزی post-Unit16: Restore/Delete بدون هیچ دیالوگ
+    // تأیید اجرا می‌شدند — Restore داده‌ی جاری پروژه را بی‌بازگشت جایگزین می‌کند؛
+    // Delete یک بکاپ را غیرقابل‌بازگشت پاک می‌کند.
+    "backups.restoreConfirmTitle" to "بازیابی از بکاپ",
+    "backups.restoreConfirmMessage" to "داده‌ی جاری این پروژه با محتوای این بکاپ جایگزین می‌شود. این عمل قابل بازگشت نیست.",
+    "backups.restoreConfirmButton" to "بازیابی کن",
+    "backups.restoreConfirmCancel" to "انصراف",
+    "backups.deleteConfirmTitle" to "حذف بکاپ",
+    "backups.deleteConfirmMessage" to "این بکاپ برای همیشه حذف می‌شود. این عمل قابل بازگشت نیست.",
+    "backups.deleteConfirmButton" to "حذف کن",
+    "backups.deleteConfirmCancel" to "انصراف",
     "backups.ageJustNow" to "همین الان",
     "backups.ageMinutesTemplate" to "{minutes} دقیقه پیش",
     "backups.ageHoursTemplate" to "{hours} ساعت پیش",
@@ -791,6 +809,10 @@ val enStrings: Map<String, String> = mapOf(
     "project.delete.message" to "This project and all of its scenes/shots will be permanently deleted. This cannot be undone.",
     "project.delete.confirm" to "Delete",
     "project.delete.cancel" to "Cancel",
+    "project.archive.title" to "Archive project",
+    "project.archive.message" to "This project will be permanently archived. Per the project state rules, there is no way to bring a project back from the archived state — this cannot be undone.",
+    "project.archive.confirm" to "Archive",
+    "project.archive.cancel" to "Cancel",
 
     // Phase 1 — Studio Shell
     "studio.saved" to "Saved",
@@ -1476,6 +1498,14 @@ val enStrings: Map<String, String> = mapOf(
     "backups.restoredMessage" to "Project restored from this backup",
     "backups.restoreFailedMessage" to "Restoring from this backup failed",
     "backups.deletedMessage" to "Backup deleted",
+    "backups.restoreConfirmTitle" to "Restore from backup",
+    "backups.restoreConfirmMessage" to "This project's current data will be replaced with the contents of this backup. This cannot be undone.",
+    "backups.restoreConfirmButton" to "Restore",
+    "backups.restoreConfirmCancel" to "Cancel",
+    "backups.deleteConfirmTitle" to "Delete backup",
+    "backups.deleteConfirmMessage" to "This backup will be permanently deleted. This cannot be undone.",
+    "backups.deleteConfirmButton" to "Delete",
+    "backups.deleteConfirmCancel" to "Cancel",
     "backups.ageJustNow" to "just now",
     "backups.ageMinutesTemplate" to "{minutes}m ago",
     "backups.ageHoursTemplate" to "{hours}h ago",

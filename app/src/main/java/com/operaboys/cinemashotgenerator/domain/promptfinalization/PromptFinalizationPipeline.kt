@@ -31,24 +31,36 @@ import kotlinx.serialization.json.JsonPrimitive
  * ۱۴، RenderedOutput فقط سه فیلد (modelProfileId, formattedPrompt, language) دارد —
  * افزودن فیلد به آن نوع خارج از Scope این قدم بود (فقط مصرف واحد ۱۴، بدون تغییرش).
  *
- * CleaningReport میانی این تابع نگه داشته نمی‌شود (فقط متن و نتیجه‌ی توکن لازم است
- * برای اتصال به composeOutput)؛ در صورت نیاز به جزئیات تمیزکاری، cleanPrompt مستقیماً
- * قابل فراخوانی است.
+ * MIGRATED (رفع G17 ممیزی post-Unit16، docs/adr/060-...): این تابع تا این قدم هیچ
+ * فراخوان واقعی‌ای در ui/ نداشت — OutputDeliveryViewModel هرگز آن را صدا نمی‌زد، پس
+ * بج «Cleaned · Finalized» صفحه‌ی Output Delivery همیشه نمایش داده می‌شد بدون اینکه
+ * پاک‌سازی/بررسی توکن واقعی اتفاق بیفتد. برای وصل‌شدن به Rule های
+ * `validateConflictsResolved`/`validateCompressionRatio` (هر دو در PromptCleaner.kt،
+ * که یکی به کل CleaningReport نیاز دارد)، خروجی این تابع از Pair به FinalizationResult
+ * تغییر کرد تا CleaningReport هم (نه فقط متن/TokenCheckResult) بیرون بدهد — نه یک
+ * Breaking Change واقعی، چون این تابع تا این لحظه صفر فراخوان‌کننده در کل پروژه
+ * داشت (فقط `PromptFinalizationPipelineTest.kt` که در همین قدم به‌روزرسانی شد).
  */
+data class FinalizationResult(
+    val rendered: RenderedOutput,
+    val tokenCheck: TokenCheckResult,
+    val cleaningReport: CleaningReport
+)
+
 fun finalizePrompt(
     rendered: RenderedOutput,
     profile: ModelProfile,
     options: CleaningOptions = CleaningOptions()
-): Pair<RenderedOutput, TokenCheckResult> {
-    val cleanedText = if (profile.format.type == "json") {
+): FinalizationResult {
+    val (cleanedText, report) = if (profile.format.type == "json") {
         cleanJsonPromptValues(rendered.formattedPrompt, options)
-            ?: cleanPrompt(rendered.formattedPrompt, options).first
+            ?: cleanPrompt(rendered.formattedPrompt, options)
     } else {
-        cleanPrompt(rendered.formattedPrompt, options).first
+        cleanPrompt(rendered.formattedPrompt, options)
     }
     val tokenCheck = checkTokenLimit(cleanedText, profile)
     val cleanedRendered = rendered.copy(formattedPrompt = cleanedText)
-    return cleanedRendered to tokenCheck
+    return FinalizationResult(cleanedRendered, tokenCheck, report)
 }
 
 /**
@@ -67,16 +79,42 @@ fun finalizePrompt(
  * تشخیص تضاد (detectConflicts) بین‌فیلدی را از دست می‌دهد (مثلاً «آفتابی» در یک فیلد
  * و «بارانی» در فیلدی دیگر دیگر با هم دیده نمی‌شوند) — فقط تضاد درون یک فیلد واحد
  * تشخیص داده می‌شود. رفع این محدودیت خارج از Scope این قدم است.
+ *
+ * MIGRATED (رفع G17 ممیزی post-Unit16): علاوه‌بر متن Clean‌شده، یک CleaningReport
+ * تجمیعی هم برمی‌گرداند (جمع شمارنده‌های هر فیلد + طول کل رشته‌ی JSON قبل/بعد) —
+ * لازم برای `validateCompressionRatio` که به یک CleaningReport واحد نیاز دارد، نه
+ * فیلد به فیلد. `conflictsDetected`/`redundancyRemoved`/`stopWordsRemoved` مجموع
+ * واقعی همه‌ی فیلدهاست؛ compressionRatio از طول کل JSON (نه مجموع طول فیلدها)
+ * محاسبه می‌شود چون همان چیزی است که واقعاً به کاربر/مدل تحویل داده می‌شود.
  */
-private fun cleanJsonPromptValues(rawJson: String, options: CleaningOptions): String? {
+private fun cleanJsonPromptValues(rawJson: String, options: CleaningOptions): Pair<String, CleaningReport>? {
     val root = runCatching { Json.parseToJsonElement(rawJson) }.getOrNull() as? JsonObject ?: return null
     val fieldOptions = options.copy(applyFinalPolish = false)
+    var conflictsDetected = 0
+    val conflictsResolved = mutableListOf<String>()
+    var redundancyRemoved = 0
+    var stopWordsRemoved = 0
     val cleanedEntries = root.mapValues { (_, value) ->
         if (value is JsonPrimitive && value.isString) {
-            JsonPrimitive(cleanPrompt(value.content, fieldOptions).first)
+            val (cleanedValue, fieldReport) = cleanPrompt(value.content, fieldOptions)
+            conflictsDetected += fieldReport.conflictsDetected
+            conflictsResolved += fieldReport.conflictsResolved
+            redundancyRemoved += fieldReport.redundancyRemoved
+            stopWordsRemoved += fieldReport.stopWordsRemoved
+            JsonPrimitive(cleanedValue)
         } else {
             value // weightedEmphasis و هر مقدار غیر-رشته‌ای دیگر دست‌نخورده می‌ماند
         }
     }
-    return JsonObject(cleanedEntries).toString()
+    val cleanedJson = JsonObject(cleanedEntries).toString()
+    val report = CleaningReport(
+        conflictsDetected = conflictsDetected,
+        conflictsResolved = conflictsResolved,
+        redundancyRemoved = redundancyRemoved,
+        stopWordsRemoved = stopWordsRemoved,
+        originalLength = rawJson.length,
+        cleanedLength = cleanedJson.length,
+        compressionRatio = (rawJson.length - cleanedJson.length).toFloat() / rawJson.length
+    )
+    return cleanedJson to report
 }

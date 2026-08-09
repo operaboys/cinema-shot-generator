@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -18,8 +19,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -87,6 +92,13 @@ fun BackupsScreen(
         )
         val backups by viewModel.backups.collectAsStateWithLifecycle()
 
+        // رفع یافته‌های 🔴 G19/G20 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md):
+        // Restore/Delete بدون هیچ دیالوگ تأیید مستقیماً اجرا می‌شدند. هم‌الگو دقیق با
+        // renameTarget/deleteTarget موجود در ui/project/ProjectListSection.kt — یک
+        // Target نگه‌داشته می‌شود تا کلیک واقعی، دیالوگ باز شود، نه عملیات فوری.
+        var restoreTarget by remember { mutableStateOf<BackupSummary?>(null) }
+        var deleteTarget by remember { mutableStateOf<BackupSummary?>(null) }
+
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -114,22 +126,62 @@ fun BackupsScreen(
                         backup = backup,
                         projectName = projectName,
                         language = language,
-                        onRestore = {
-                            viewModel.restore(backup.backupId) { success ->
-                                onShowMessage(
-                                    uiString(if (success) "backups.restoredMessage" else "backups.restoreFailedMessage", language)
-                                )
-                            }
-                        },
-                        onDelete = {
-                            viewModel.delete(backup.backupId)
-                            onShowMessage(uiString("backups.deletedMessage", language))
-                        }
+                        onRestore = { restoreTarget = backup },
+                        onDelete = { deleteTarget = backup }
                     )
                 }
             }
         }
+
+        restoreTarget?.let { target ->
+            RestoreBackupDialog(
+                language = language,
+                onConfirm = {
+                    viewModel.restore(target.backupId) { success ->
+                        onShowMessage(
+                            uiString(if (success) "backups.restoredMessage" else "backups.restoreFailedMessage", language)
+                        )
+                    }
+                    restoreTarget = null
+                },
+                onDismiss = { restoreTarget = null }
+            )
+        }
+
+        deleteTarget?.let { target ->
+            DeleteBackupDialog(
+                language = language,
+                onConfirm = {
+                    viewModel.delete(target.backupId)
+                    onShowMessage(uiString("backups.deletedMessage", language))
+                    deleteTarget = null
+                },
+                onDismiss = { deleteTarget = null }
+            )
+        }
     }
+}
+
+@Composable
+private fun RestoreBackupDialog(language: Language, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("backups.restoreConfirmTitle", language)) },
+        text = { Text(uiString("backups.restoreConfirmMessage", language)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(uiString("backups.restoreConfirmButton", language)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(uiString("backups.restoreConfirmCancel", language)) } }
+    )
+}
+
+@Composable
+private fun DeleteBackupDialog(language: Language, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("backups.deleteConfirmTitle", language)) },
+        text = { Text(uiString("backups.deleteConfirmMessage", language)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(uiString("backups.deleteConfirmButton", language)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(uiString("backups.deleteConfirmCancel", language)) } }
+    )
 }
 
 @Composable

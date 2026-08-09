@@ -43,13 +43,14 @@ class PromptFinalizationPipelineTest {
             language = "en"
         )
 
-        val (cleanedRendered, tokenCheck) = finalizePrompt(rendered, profile)
+        val result = finalizePrompt(rendered, profile)
 
-        assertEquals("veo_3_1", cleanedRendered.modelProfileId)
-        assertEquals("en", cleanedRendered.language)
-        assertFalse(cleanedRendered.formattedPrompt.contains("rainy", ignoreCase = true))
-        assertFalse(cleanedRendered.formattedPrompt.contains("pretty", ignoreCase = true))
-        assertTrue(tokenCheck.withinLimit)
+        assertEquals("veo_3_1", result.rendered.modelProfileId)
+        assertEquals("en", result.rendered.language)
+        assertFalse(result.rendered.formattedPrompt.contains("rainy", ignoreCase = true))
+        assertFalse(result.rendered.formattedPrompt.contains("pretty", ignoreCase = true))
+        assertTrue(result.tokenCheck.withinLimit)
+        assertTrue(result.cleaningReport.conflictsDetected > 0)
     }
 
     // --- رفع محدودیت ADR-025/026: finalizePrompt نباید JSON واقعی را خراب کند ---
@@ -59,7 +60,7 @@ class PromptFinalizationPipelineTest {
         val rawJson = """{"subject":"a detective","scene":"tense atmosphere","camera":"eye level, medium shot"}"""
         val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = rawJson, language = "en")
 
-        val (cleanedRendered, _) = finalizePrompt(rendered, profile)
+        val cleanedRendered = finalizePrompt(rendered, profile).rendered
 
         val parsed = Json.parseToJsonElement(cleanedRendered.formattedPrompt).jsonObject
         assertTrue(parsed.containsKey("subject"))
@@ -72,7 +73,7 @@ class PromptFinalizationPipelineTest {
         val rawJson = """{"subject":"a beautiful gorgeous detective","scene":"tense atmosphere"}"""
         val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = rawJson, language = "en")
 
-        val (cleanedRendered, _) = finalizePrompt(rendered, profile)
+        val cleanedRendered = finalizePrompt(rendered, profile).rendered
 
         val parsed = Json.parseToJsonElement(cleanedRendered.formattedPrompt).jsonObject
         val subject = parsed.getValue("subject").jsonPrimitive.content
@@ -87,7 +88,7 @@ class PromptFinalizationPipelineTest {
         val rawJson = """{"camera":"eye level, medium shot"}"""
         val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = rawJson, language = "en")
 
-        val (cleanedRendered, _) = finalizePrompt(rendered, profile)
+        val cleanedRendered = finalizePrompt(rendered, profile).rendered
 
         val parsed = Json.parseToJsonElement(cleanedRendered.formattedPrompt).jsonObject
         assertEquals("eye level, medium shot", parsed.getValue("camera").jsonPrimitive.content)
@@ -98,7 +99,7 @@ class PromptFinalizationPipelineTest {
         val rawJson = """{"subject":"a beautiful gorgeous detective","weightedEmphasis":{"cinematic lighting":1.2}}"""
         val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = rawJson, language = "en")
 
-        val (cleanedRendered, _) = finalizePrompt(rendered, profile)
+        val cleanedRendered = finalizePrompt(rendered, profile).rendered
 
         val parsed = Json.parseToJsonElement(cleanedRendered.formattedPrompt).jsonObject
         val weights = parsed.getValue("weightedEmphasis").jsonObject
@@ -112,10 +113,23 @@ class PromptFinalizationPipelineTest {
         val text = "a sunny rainy day with a very very beautiful pretty scene"
         val rendered = RenderedOutput(modelProfileId = "universal_default", formattedPrompt = text, language = "en")
 
-        val (cleanedRendered, tokenCheck) = finalizePrompt(rendered, plainTextProfile)
+        val result = finalizePrompt(rendered, plainTextProfile)
         val expectedCleaned = cleanPrompt(text, CleaningOptions()).first
 
-        assertEquals(expectedCleaned, cleanedRendered.formattedPrompt)
-        assertEquals(checkTokenLimit(expectedCleaned, plainTextProfile), tokenCheck)
+        assertEquals(expectedCleaned, result.rendered.formattedPrompt)
+        assertEquals(checkTokenLimit(expectedCleaned, plainTextProfile), result.tokenCheck)
+    }
+
+    @Test
+    fun `finalizePrompt aggregates a CleaningReport across JSON fields for validateCompressionRatio`() {
+        val rawJson = """{"subject":"a very very beautiful gorgeous detective","scene":"tense atmosphere"}"""
+        val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = rawJson, language = "en")
+
+        val result = finalizePrompt(rendered, profile)
+
+        assertTrue(result.cleaningReport.redundancyRemoved > 0)
+        assertTrue(result.cleaningReport.stopWordsRemoved > 0)
+        assertEquals(rawJson.length, result.cleaningReport.originalLength)
+        assertEquals(result.rendered.formattedPrompt.length, result.cleaningReport.cleanedLength)
     }
 }

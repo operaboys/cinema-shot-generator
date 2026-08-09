@@ -191,11 +191,39 @@ class BackupsFlowTest {
             database.projectDao().saveProject(beforeRestore.copy(projectName = "Edited After Backup"))
         }
 
+        // رفع یافته‌ی 🔴 G19 ممیزی post-Unit16: Restore اکنون یک دیالوگ تأیید دارد —
+        // کلیک اول دیالوگ را باز می‌کند، تأیید واقعی عملیات را اجرا می‌کند.
         composeRule.onNodeWithText(uiString("backups.restoreButton", Language.FA)).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("backups.restoreConfirmButton", Language.FA)), timeoutMillis = 10_000)
+        composeRule.onNodeWithText(uiString("backups.restoreConfirmButton", Language.FA)).performClick()
         composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.restoredMessage", Language.FA)), timeoutMillis = 10_000)
 
         val afterRestore = runBlocking { database.projectDao().loadProject(PROJECT_ID) }
         assertEquals("Backups Flow Test", afterRestore?.projectName)
+    }
+
+    /** رفع یافته‌ی 🔴 G19 ممیزی post-Unit16: Cancel دیالوگ Restore نباید هیچ اثری داشته باشد. */
+    @Test
+    fun `cancelling the restore confirmation dialog does not change the project's data`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.kindManual", Language.FA)), timeoutMillis = 10_000)
+
+        val beforeRestore = runBlocking { database.projectDao().loadProject(PROJECT_ID) }!!
+        runBlocking {
+            database.projectDao().saveProject(beforeRestore.copy(projectName = "Edited After Backup"))
+        }
+
+        composeRule.onNodeWithText(uiString("backups.restoreButton", Language.FA)).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("backups.restoreConfirmButton", Language.FA)), timeoutMillis = 10_000)
+        composeRule.onNodeWithText(uiString("backups.restoreConfirmCancel", Language.FA)).performClick()
+        composeRule.waitUntilDoesNotExist(hasText(uiString("backups.restoreConfirmButton", Language.FA)), timeoutMillis = 10_000)
+
+        val afterCancel = runBlocking { database.projectDao().loadProject(PROJECT_ID) }
+        assertEquals("Edited After Backup", afterCancel?.projectName)
     }
 
     @Test
@@ -207,9 +235,31 @@ class BackupsFlowTest {
         composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
         composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.kindManual", Language.FA)), timeoutMillis = 10_000)
 
+        // رفع یافته‌ی 🔴 G20 ممیزی post-Unit16: Delete اکنون یک دیالوگ تأیید دارد.
         composeRule.onNodeWithText(uiString("backups.deleteButton", Language.FA)).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("backups.deleteConfirmButton", Language.FA)), timeoutMillis = 10_000)
+        composeRule.onNodeWithText(uiString("backups.deleteConfirmButton", Language.FA)).performClick()
         composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.emptyState", Language.FA)), timeoutMillis = 10_000)
 
         assertTrue(runBlocking { fakeBackupStorage.listFiles("backup_${PROJECT_ID.length}_${PROJECT_ID}_") }.isEmpty())
+    }
+
+    /** رفع یافته‌ی 🔴 G20 ممیزی post-Unit16: Cancel دیالوگ Delete نباید بکاپ را حذف کند. */
+    @Test
+    fun `cancelling the delete confirmation dialog leaves the backup in the list`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.kindManual", Language.FA)), timeoutMillis = 10_000)
+
+        composeRule.onNodeWithText(uiString("backups.deleteButton", Language.FA)).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("backups.deleteConfirmButton", Language.FA)), timeoutMillis = 10_000)
+        composeRule.onNodeWithText(uiString("backups.deleteConfirmCancel", Language.FA)).performClick()
+        composeRule.waitUntilDoesNotExist(hasText(uiString("backups.deleteConfirmButton", Language.FA)), timeoutMillis = 10_000)
+
+        composeRule.onNodeWithText(uiString("backups.kindManual", Language.FA)).assertIsDisplayed()
+        assertTrue(runBlocking { fakeBackupStorage.listFiles("backup_${PROJECT_ID.length}_${PROJECT_ID}_") }.isNotEmpty())
     }
 }

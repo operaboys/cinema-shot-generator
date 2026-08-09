@@ -40,13 +40,18 @@ fun ProjectListSection(
 ) {
     var renameTarget by remember { mutableStateOf<ProjectSummary?>(null) }
     var deleteTarget by remember { mutableStateOf<ProjectSummary?>(null) }
+    // رفع یافته‌ی 🔴 G21 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md):
+    // آرشیو قبلاً مستقیماً از onArchive صدا زده می‌شد، بدون هیچ دیالوگ تأیید —
+    // برخلاف Delete در همان منو که از قبل یک AlertDialog تأیید داشت. هم‌الگو دقیق
+    // با renameTarget/deleteTarget بالا.
+    var archiveTarget by remember { mutableStateOf<ProjectSummary?>(null) }
 
     val actions = remember(viewModel) {
         ProjectCardActions(
             onOpen = onOpenProject,
             onRename = { projectId -> renameTarget = summaries.find { it.project.projectId == projectId } },
             onDuplicate = { projectId -> viewModel.duplicateProject(projectId) },
-            onArchive = { projectId -> viewModel.archiveProject(projectId) },
+            onArchive = { projectId -> archiveTarget = summaries.find { it.project.projectId == projectId } },
             onExport = { projectId -> viewModel.exportProject(projectId) },
             onDeleteRequested = { projectId -> deleteTarget = summaries.find { it.project.projectId == projectId } }
         )
@@ -78,6 +83,17 @@ fun ProjectListSection(
                 deleteTarget = null
             },
             onDismiss = { deleteTarget = null }
+        )
+    }
+
+    archiveTarget?.let { target ->
+        ArchiveProjectDialog(
+            language = language,
+            onConfirm = {
+                viewModel.archiveProject(target.project.projectId)
+                archiveTarget = null
+            },
+            onDismiss = { archiveTarget = null }
         )
     }
 }
@@ -113,5 +129,21 @@ private fun DeleteProjectDialog(language: Language, onConfirm: () -> Unit, onDis
         text = { Text(uiString("project.delete.message", language)) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(uiString("project.delete.confirm", language)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(uiString("project.delete.cancel", language)) } }
+    )
+}
+
+/**
+ * رفع یافته‌ی 🔴 G21 ممیزی post-Unit16: طبق ALLOWED_TRANSITIONS[ARCHIVED]=emptyList()
+ * در domain/stateversioning/StateMachine.kt، آرشیو یک انتقال کاملاً پایانی است — هیچ
+ * Unarchive ای در کل اپ وجود ندارد. متن دیالوگ صریحاً همین را بیان می‌کند.
+ */
+@Composable
+private fun ArchiveProjectDialog(language: Language, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("project.archive.title", language)) },
+        text = { Text(uiString("project.archive.message", language)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(uiString("project.archive.confirm", language)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(uiString("project.archive.cancel", language)) } }
     )
 }

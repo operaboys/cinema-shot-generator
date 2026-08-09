@@ -19,6 +19,10 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.renderBlueprintTo
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.validatePromptLength
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.validateUnsupportedFeatureUsage
 import com.operaboys.cinemashotgenerator.domain.promptengine.assemblePromptBlueprint
+import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckResult
+import com.operaboys.cinemashotgenerator.domain.promptfinalization.finalizePrompt
+import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateCompressionRatio
+import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateConflictsResolved
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
@@ -39,8 +43,16 @@ sealed class OutputDeliveryState {
     data object Loading : OutputDeliveryState()
     data class Error(val message: String) : OutputDeliveryState()
     data class Ready(
+        // MIGRATED (رفع G17 ممیزی post-Unit16، docs/adr/060): این فیلد تا این قدم
+        // متن خام render() بود؛ اکنون متن واقعاً پاک‌سازی‌شده (finalizePrompt، واحد
+        // ۱۳) است — دقیقاً همان متنی که Copy/Export/نمایش می‌شود.
         val renderedOutput: RenderedOutput,
-        val warnings: List<ValidationIssue>
+        val warnings: List<ValidationIssue>,
+        val tokenCheck: TokenCheckResult?,
+        // فقط وقتی finalizePrompt واقعاً بدون خطا اجرا شده باشد true است — بج
+        // «پاک‌سازی‌شده· نهایی‌شده» صفحه فقط وقتی این true است نمایش داده می‌شود
+        // (نه یک Badge ثابت که همیشه نمایش داده می‌شد، طبق دستور کار این قدم).
+        val cleaningSucceeded: Boolean
     ) : OutputDeliveryState()
 }
 
@@ -94,10 +106,16 @@ class OutputDeliveryViewModel(
      * نمی‌کند — پس با داده‌ی یکسان، نتیجه‌ی متن همیشه یکسان است (یک ابزار Refresh
      * مفید اگر کاربر Shot را در صفحه‌ای دیگر ویرایش کرده و به این‌جا برگشته، نه
      * یک تولیدکننده‌ی تصادفی).
+     *
+     * Job برگردانده‌شده (نه Unit) — هم‌الگو با WorkflowViewModel.setLanguage/... —
+     * فقط برای اینکه تست‌های مستقیم ViewModel (بدون Compose، OutputDeliveryViewModelTest.kt)
+     * بتوانند `.join()` کنند و مطمئن شوند زنجیره‌ی regenerate واقعاً قبل از خواندن
+     * state.value کامل شده؛ فراخوان‌های موجود (init، selectProfile، دکمه‌ی UI) مقدار
+     * برگشتی را نادیده می‌گیرند — بدون تغییر رفتار.
      */
-    fun regenerate() {
+    fun regenerate(): Job {
         regenerateJob?.cancel()
-        regenerateJob = ioScope.launch {
+        val job = ioScope.launch {
             _state.value = OutputDeliveryState.Loading
             val input = promptGenerationRepository.collectData(shotId).getOrElse {
                 _state.value = OutputDeliveryState.Error(it.message ?: "خطای نامشخص در بارگذاری داده‌های شات")
@@ -136,11 +154,38 @@ class OutputDeliveryViewModel(
                 validateUnsupportedFeatureUsage(blueprint, profile)
             )
 
+            // MIGRATED (رفع G17 ممیزی post-Unit16، docs/adr/060): تا این قدم واحد ۱۳
+            // (Prompt Finalization Pipeline) هرگز از اینجا صدا زده نمی‌شد — متن خام
+            // render() مستقیم به کاربر نمایش/Copy/Export می‌شد، در حالی که بج
+            // «پاک‌سازی‌شده· نهایی‌شده» بدون قید و شرط نمایش داده می‌شد. finalizePrompt
+            // روی renderedOutput.formattedPrompt (نه preTruncationText) اجرا می‌شود —
+            // طبق ترتیب مستندشده‌ی Renderer.kt (ADR-026: Cleaning بعد از Render، چون
+            // برای پروفایل‌های JSON باید روی خروجی نهایی JSON-آگاه عمل کند، نه متن
+            // مسطح‌نشده‌ی پیش از رندر). runCatching صرفاً یک محافظ دفاعی است (نه
+            // انتظار خطای واقعی) — اگر finalizePrompt به هر دلیل نامنتظره شکست بخورد،
+            // به متن خام Fallback می‌کنیم (بدون Crash کل صفحه) و بج نمایش داده
+            // نمی‌شود، دقیقاً طبق دستور کار.
+            val finalization = runCatching { finalizePrompt(renderedOutput, profile) }.getOrNull()
+
+            val cleaningWarnings = if (finalization != null) {
+                listOfNotNull(
+                    validateConflictsResolved(finalization.rendered.formattedPrompt),
+                    validateCompressionRatio(finalization.cleaningReport),
+                    finalization.tokenCheck.warning?.let { ValidationIssue(severity = Severity.WARNING, message = it) }
+                )
+            } else {
+                emptyList()
+            }
+
             _state.value = OutputDeliveryState.Ready(
-                renderedOutput = renderedOutput,
-                warnings = blueprint.warnings + renderWarnings
+                renderedOutput = finalization?.rendered ?: renderedOutput,
+                warnings = blueprint.warnings + renderWarnings + cleaningWarnings,
+                tokenCheck = finalization?.tokenCheck,
+                cleaningSucceeded = finalization != null
             )
         }
+        regenerateJob = job
+        return job
     }
 
     fun profileFor(profileId: String): ModelProfile = ALL_MODEL_PROFILES.first { it.profileId == profileId }

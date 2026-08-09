@@ -208,4 +208,56 @@ class HomeProjectsStudioFlowTest {
 
         composeRule.waitUntilDoesNotExist(hasText("To Be Deleted"), timeoutMillis = 5_000)
     }
+
+    /**
+     * رفع یافته‌ی 🔴 G21 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md):
+     * آرشیو قبلاً بدون هیچ دیالوگ تأیید مستقیماً اجرا می‌شد. این تست هر دو مسیر
+     * دیالوگ را واقعاً می‌سنجد: (۱) Cancel → هیچ فراخوان واقعی archiveProject رخ
+     * نمی‌دهد (lastActionMessage دست‌نخورده می‌ماند، پروژه هنوز در فهرست است)؛
+     * (۲) Confirm → archiveProject واقعاً صدا زده می‌شود. چون پروژه‌ی تازه‌ساخته‌شده
+     * در وضعیت DRAFT است (نه FINAL)، طبق ALLOWED_TRANSITIONS واقعی StateMachine.kt،
+     * این فراخوان با شکست State Machine مواجه می‌شود — که خودش یک اثبات غیرمستقیم
+     * اما واقعی است که واقعاً اجرا شد (نه فقط دیالوگ بسته شد): lastActionMessage
+     * واقعی ViewModel با پیام خطای واقعی State Machine پر می‌شود.
+     */
+    @Test
+    fun `archiving a project requires confirmation — cancel does nothing, confirm actually calls archiveProject`() {
+        composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
+        composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("To Be Archived")
+        composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
+        composeRule.waitUntilAtLeastOneExists(hasText("To Be Archived"), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(BOTTOM_NAV_HOME_TAG).performClick()
+        composeRule.onNodeWithText("To Be Archived").assertIsDisplayed()
+
+        composeRule.onNodeWithContentDescription(uiString("project.overflowMenu", Language.FA)).performScrollTo().performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("project.overflow.archive", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("project.overflow.archive", Language.FA)).performClick()
+
+        // (۱) لغو — دیالوگ تأیید ظاهر می‌شود؛ Cancel هیچ تغییری اعمال نمی‌کند.
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("project.archive.confirm", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("project.archive.cancel", Language.FA)).performClick()
+        composeRule.waitUntilDoesNotExist(hasText(uiString("project.archive.confirm", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("To Be Archived").assertIsDisplayed()
+        assert(projectListViewModel.lastActionMessage.value == null) {
+            "لغو دیالوگ نباید هیچ فراخوان واقعی archiveProject ای ایجاد کند"
+        }
+
+        // (۲) تأیید — اکنون archiveProject واقعاً صدا زده می‌شود.
+        composeRule.onNodeWithContentDescription(uiString("project.overflowMenu", Language.FA)).performScrollTo().performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("project.overflow.archive", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("project.overflow.archive", Language.FA)).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("project.archive.confirm", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("project.archive.confirm", Language.FA)).performClick()
+
+        composeRule.waitUntilDoesNotExist(hasText(uiString("project.archive.confirm", Language.FA)), timeoutMillis = 5_000)
+        // یافته‌ی واقعی دیباگ این تست: ProjectListViewModel.lastActionMessage خودش
+        // یک StateFlow خام است، بدون UI متناظر برای Poll مستقیم قابل‌اتکا (بدون
+        // تغییری قابل‌مشاهده در درخت Compose، هماهنگی خودکار ComposeTestRule تضمینی
+        // برای رسیدن Coroutine واقعی به پایان ندارد). این ViewModel از قبل به یک
+        // Snackbar واقعی وصل است (HomeScreen.kt: LaunchedEffect(lastActionMessage))
+        // — پس انتظار روی همان متن واقعی Snackbar (نه Poll مستقیم StateFlow) هم
+        // قابل‌اتکاتر است و هم واقعاً اثبات می‌کند archiveProject به کاربر گزارش شد.
+        composeRule.waitUntilAtLeastOneExists(hasText("DRAFT", substring = true), timeoutMillis = 5_000)
+    }
 }
