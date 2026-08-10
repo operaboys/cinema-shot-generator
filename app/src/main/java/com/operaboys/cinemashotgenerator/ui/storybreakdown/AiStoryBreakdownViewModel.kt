@@ -20,6 +20,7 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.processAiResponse
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.smartCombineChunks
 import com.operaboys.cinemashotgenerator.ui.story.defaultStoryContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -208,10 +209,17 @@ class AiStoryBreakdownViewModel(
      * دکمه‌ی «تأیید و ادامه» فاز ۳ — ذخیره‌ی واقعی در سه Repository. ترتیب Scene قبل
      * از Shot عمدی است (طبق هشدار ADR-017: ForeignKey Shot→Scene، باید Scene قبلاً
      * وجود داشته باشد).
+     *
+     * Job برگردانده می‌شود (نه Unit) — هم‌الگو با exportProject/regenerate (رفع G16
+     * ممیزی post-Unit16، docs/adr/063-...) — فقط تا AiStoryBreakdownViewModelFactoryTest.kt
+     * بتواند .join() کند و مطمئن شود همه‌ی نوشتن‌ها (که با تزریق جزئی، بین چند
+     * Repository/دیتابیس متفاوت پخش می‌شوند) واقعاً قبل از خواندن نتیجه کامل شده‌اند.
+     * تنها فراخوان تولیدی (AiStoryBreakdownScreen.kt، `viewModel::confirmAndSave`)
+     * مقدار برگشتی را نادیده می‌گیرد — بدون تغییر رفتار.
      */
-    fun confirmAndSave() {
-        val result = _breakdownResult.value ?: return
-        ioScope.launch {
+    fun confirmAndSave(): Job {
+        val result = _breakdownResult.value ?: return Job().apply { complete() }
+        return ioScope.launch {
             result.characters.forEach { assetRepository.saveCharacterAsset(projectId, it) }
             result.locations.forEach { assetRepository.saveLocationAsset(projectId, it) }
             result.objects.forEach { assetRepository.saveObjectAsset(projectId, it) }
@@ -222,22 +230,47 @@ class AiStoryBreakdownViewModel(
     }
 
     companion object {
+        // رفع G16 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md،
+        // docs/adr/063-...): قبلاً با `if (args.size == 4)` رفتار همه‌یا‌هیچ داشت —
+        // اگر فقط ۱ تا ۳ از ۴ Repository داده می‌شد، هر ۴ تا (حتی آن‌هایی که واقعاً
+        // تزریق شده بودند) بی‌صدا دور ریخته می‌شدند و به‌جایش پیش‌فرض
+        // AppDatabase.getInstance ساخته می‌شد. رفع شد: هم‌الگو دقیق با
+        // SceneDetailViewModel.factory (که همین باگ را قبلاً برای دو Repository
+        // داشت و رفع شد) — هرکدام مستقل با ?: به پیش‌فرض خودش می‌رسد.
         fun factory(
             application: Application,
             projectId: String,
             storyRepository: StoryRepository? = null,
             assetRepository: AssetRepository? = null,
             sceneRepository: SceneRepository? = null,
-            shotRepository: ShotRepository? = null
+            shotRepository: ShotRepository? = null,
+            // فقط برای تست مستقیم factory (نه Compose) — رفع G16 نیازمند اثبات
+            // رفتاری است که تزریق جزئی واقعاً استفاده می‌شود، نه دور ریخته شدن؛ بدون
+            // این پارامتر، init{} این ViewModel (که یک DAO Suspend واقعی صدا می‌زند)
+            // روی viewModelScope واقعی اجرا می‌شود و تست را غیرقابل‌اطمینان می‌کند —
+            // هم‌دلیل دقیق مستندشده در OutputDeliveryViewModelTest. فراخوان تولیدی
+            // (AiStoryBreakdownScreen.kt) این پارامتر را نمی‌دهد — بدون تغییر رفتار.
+            ioScopeOverride: CoroutineScope? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val args = listOfNotNull(storyRepository, assetRepository, sceneRepository, shotRepository)
-                    return if (args.size == 4) {
-                        AiStoryBreakdownViewModel(application, projectId, storyRepository!!, assetRepository!!, sceneRepository!!, shotRepository!!)
+                    val anyInjected = storyRepository != null || assetRepository != null || sceneRepository != null || shotRepository != null
+                    return if (anyInjected) {
+                        AiStoryBreakdownViewModel(
+                            application = application,
+                            projectId = projectId,
+                            storyRepository = storyRepository ?: StoryRepository(
+                                AppDatabase.getInstance(application).storyDao(),
+                                AppDatabase.getInstance(application).storyBreakdownSessionDao()
+                            ),
+                            assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                            sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
+                            shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao()),
+                            ioScopeOverride = ioScopeOverride
+                        )
                     } else {
-                        AiStoryBreakdownViewModel(application, projectId)
+                        AiStoryBreakdownViewModel(application, projectId, ioScopeOverride = ioScopeOverride)
                     } as T
                 }
             }

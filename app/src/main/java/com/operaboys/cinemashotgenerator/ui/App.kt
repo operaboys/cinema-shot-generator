@@ -47,12 +47,17 @@ import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 fun App() {
     val application = LocalContext.current.applicationContext as Application
     val workflowViewModel: WorkflowViewModel = viewModel(factory = WorkflowViewModel.factory(application))
-    val projectListViewModel: ProjectListViewModel = viewModel(factory = ProjectListViewModel.factory(application))
     // واحد ۱۶ فاز ۲ — قدم ۱: هم‌الگو با workflowViewModel/projectListViewModel — یک
     // نمونه‌ی مشترک ساخته و به کل درخت تزریق می‌شود (نه هر Composable مصرف‌کننده
     // خودش از AppDatabase.getInstance بسازد)، دقیقاً برای همان دلیل تست‌پذیری —
     // جزئیات کامل در docs/adr/045-unit16-phase2-step1-story-tab.md.
+    //
+    // MIGRATED (رفع G15 ممیزی post-Unit16، docs/adr/063-...): قبل از
+    // projectListViewModel ساخته می‌شود (نه بعدش) تا بتواند به factory آن تزریق
+    // شود — ProjectListViewModel.exportProject دیگر خودش AppDatabase.getInstance
+    // را مستقیماً صدا نمی‌زند.
     val database = remember { AppDatabase.getInstance(application) }
+    val projectListViewModel: ProjectListViewModel = viewModel(factory = ProjectListViewModel.factory(application, database))
     val storyRepository = remember { StoryRepository(database.storyDao(), database.storyBreakdownSessionDao()) }
     // واحد ۱۶ فاز ۲ — قدم ۲: همان الگو، برای ذخیره‌ی واقعی خروجی AI Story Breakdown
     // (Character/Location/Object Asset + Scene + Shot) — جزئیات در

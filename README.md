@@ -1127,6 +1127,35 @@ Robolectric تحت بار کامل Test Suite، نه Regression این قدم. A
 **۱۴ یافته‌ی 🟡/⚪ باقی‌مانده‌ی همان ممیزی** هنوز باز و مستند هستند —
 جزئیات و اولویت‌بندی پیشنهادی در `docs/audit/post-unit16-full-audit.md`.
 
+### 🎯 نقطه‌ی عطف: رفع G15 و G16 (آخرین دو نمونه‌ی الگوی باگ DI)
+
+1. **G15 — `ProjectListViewModel.exportProject` اکنون `database` تزریقی
+   می‌گیرد** (نه دیگر `AppDatabase.getInstance` مستقیم داخل خودِ تابع) —
+   هم‌الگو دقیق با ADR-059 (`BackupsViewModel`/`SceneDetailViewModel`).
+   این ViewModel اولین تست مستقل خودش را هم گرفت.
+2. **G16 — `AiStoryBreakdownViewModel.factory` دیگر همه‌یا‌هیچ نیست:**
+   قبلاً با `if (args.size == 4)` اگر فقط ۱ تا ۳ از ۴ Repository داده
+   می‌شد، هر ۴ تا (حتی تزریق‌شده‌ها) بی‌صدا دور ریخته می‌شدند. اکنون هرکدام
+   مستقل با `?:` به پیش‌فرض خودش می‌رسد — هم‌الگو با
+   `SceneDetailViewModel.factory`.
+
+هر دو یافته طبق خودِ ممیزی روی Production فعلی بی‌اثر بودند (فقط
+تست‌پذیری/یکدستی الگو)؛ با این قدم، این کلاس باگ DI کاملاً از پروژه پاک
+شد. جزئیات کامل تصمیمات (خصوصاً افزودن `ioScopeOverride`/بازگشت `Job`
+به هر دو ViewModel به‌عنوان زیرساخت لازم تست، فراتر از متن صریح دستور
+کار) در `docs/adr/063-post-unit16-audit-g15-g16-fixes.md`.
+
+`gradle :app:testDebugUnitTest` → ۶۸۳ تست (۶۸۱→۶۸۳، ۲ تست جدید)، ۶۸۲
+موفق. یک شکست، همان Flake محیطی از‌پیش‌مستند در ADR-062
+(`ShotsFlowTest > deleting a scene that still has a shot is blocked...`)
+— `git diff` این قدم تأیید می‌کند هیچ فایلی در مسیر وابستگی آن تست دست
+نخورده. `gradle :app:assembleDebug` جداگانه → موفق.
+
+**۱۲ یافته‌ی 🟡/⚪ باقی‌مانده‌ی همان ممیزی** هنوز باز و مستند هستند —
+جزئیات و اولویت‌بندی پیشنهادی در `docs/audit/post-unit16-full-audit.md`.
+طبق ترتیب رسمی خودِ ممیزی (اولویت ۳ بند ۷)، قدم بعدی تصمیم آگاهانه درباره‌ی
+Rule های یتیم G14 است.
+
 ## Stack
 
 - **زبان:** Kotlin
