@@ -74,6 +74,9 @@ const val AI_BREAKDOWN_PASTE_FIELD_TAG = "aiBreakdown.pasteField"
 /** یافته‌ی واقعی تست: متن این دکمه («تولید پرامپت») عیناً با کلید موجود «drawer.promptGenerator» یکسان است — و چون محتوای Drawer همیشه در Composition زنده می‌ماند (طبق یادداشت BottomNavBar.kt)، onNodeWithText روی این متن Ambiguous می‌شود؛ این دکمه به testTag جدا نیاز دارد. */
 const val AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG = "aiBreakdown.generatePromptButton"
 
+/** رفع G14 ممیزی post-Unit16 — کارت خطای واقعی validateTargetShotCountRange (به‌جای کوتاه‌سازی خاموش). */
+const val AI_BREAKDOWN_TARGET_SHOT_COUNT_ERROR_TAG = "aiBreakdown.targetShotCountError"
+
 @Composable
 fun AiStoryBreakdownScreen(
     projectId: String,
@@ -96,6 +99,7 @@ fun AiStoryBreakdownScreen(
     val phase by viewModel.phase.collectAsStateWithLifecycle()
     val freeformStory by viewModel.freeformStory.collectAsStateWithLifecycle()
     val targetShotCount by viewModel.targetShotCount.collectAsStateWithLifecycle()
+    val targetShotCountError by viewModel.targetShotCountError.collectAsStateWithLifecycle()
     val defaultShotDurationSeconds by viewModel.defaultShotDurationSeconds.collectAsStateWithLifecycle()
     val generatedPrompt by viewModel.generatedPrompt.collectAsStateWithLifecycle()
     val chunks by viewModel.chunks.collectAsStateWithLifecycle()
@@ -131,6 +135,7 @@ fun AiStoryBreakdownScreen(
                     onFreeformStoryChange = viewModel::setFreeformStory,
                     targetShotCount = targetShotCount,
                     onTargetShotCountChange = viewModel::setTargetShotCount,
+                    targetShotCountError = targetShotCountError,
                     defaultShotDurationSeconds = defaultShotDurationSeconds,
                     onDefaultShotDurationSecondsChange = viewModel::setDefaultShotDurationSeconds,
                     generatedPrompt = generatedPrompt,
@@ -255,6 +260,7 @@ private fun Phase1WriteStory(
     onFreeformStoryChange: (String) -> Unit,
     targetShotCount: Int,
     onTargetShotCountChange: (Int) -> Unit,
+    targetShotCountError: String?,
     defaultShotDurationSeconds: Float,
     onDefaultShotDurationSecondsChange: (Float) -> Unit,
     generatedPrompt: String?,
@@ -279,6 +285,24 @@ private fun Phase1WriteStory(
         step = 1
     )
 
+    if (targetShotCountError != null) {
+        Card(modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_TARGET_SHOT_COUNT_ERROR_TAG)) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Text(
+                    text = targetShotCountError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+
     FloatStepperField(
         label = uiString("story.secondsPerShotLabel", language),
         value = defaultShotDurationSeconds,
@@ -288,6 +312,7 @@ private fun Phase1WriteStory(
 
     Button(
         onClick = onGeneratePrompt,
+        enabled = targetShotCountError == null,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG)

@@ -18,6 +18,7 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.attemptAutoFix
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.buildStoryBreakdownPrompt
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.processAiResponse
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.smartCombineChunks
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateTargetShotCountRange
 import com.operaboys.cinemashotgenerator.ui.story.defaultStoryContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -60,6 +61,15 @@ class AiStoryBreakdownViewModel(
     private val _targetShotCount = MutableStateFlow(10)
     val targetShotCount: StateFlow<Int> = _targetShotCount.asStateFlow()
 
+    // رفع G14 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، بخش الف،
+    // تنها یافته‌ی 🟠 آن بخش): قبلاً setTargetShotCount با coerceIn(1,150) مقدار
+    // خارج از محدوده را بی‌صدا کوتاه می‌کرد — validateTargetShotCountRange
+    // (Rule 2 واقعی، PromptBuilder.kt) هرگز صدا زده نمی‌شد. اکنون مقدار خام کاربر
+    // نگه داشته می‌شود و خطای واقعی این Rule در targetShotCountError نمایش
+    // داده می‌شود؛ دکمه‌ی «تولید Prompt» تا وقتی خطا برطرف نشود غیرفعال است.
+    private val _targetShotCountError = MutableStateFlow<String?>(null)
+    val targetShotCountError: StateFlow<String?> = _targetShotCountError.asStateFlow()
+
     private val _defaultShotDurationSeconds = MutableStateFlow(4f)
     val defaultShotDurationSeconds: StateFlow<Float> = _defaultShotDurationSeconds.asStateFlow()
 
@@ -90,6 +100,7 @@ class AiStoryBreakdownViewModel(
             storyRepository.loadBreakdownSession(projectId).getOrNull()?.let { session ->
                 _freeformStory.value = session.freeformStory
                 _targetShotCount.value = session.targetShotCount
+                _targetShotCountError.value = validateTargetShotCountRange(session.targetShotCount)?.message
                 _defaultShotDurationSeconds.value = session.defaultShotDurationSeconds
             }
         }
@@ -105,7 +116,8 @@ class AiStoryBreakdownViewModel(
     }
 
     fun setTargetShotCount(count: Int) {
-        _targetShotCount.value = count.coerceIn(1, 150)
+        _targetShotCount.value = count
+        _targetShotCountError.value = validateTargetShotCountRange(count)?.message
         saveSession()
     }
 
@@ -131,6 +143,7 @@ class AiStoryBreakdownViewModel(
      * استفاده می‌شود (defaultStoryContext مشترک).
      */
     fun generatePrompt() {
+        if (_targetShotCountError.value != null) return
         ioScope.launch {
             val storyContext = storyRepository.loadStoryContext(projectId).getOrNull() ?: defaultStoryContext(clock)
             val request = StoryBreakdownRequest(
