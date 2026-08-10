@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -33,6 +34,7 @@ class SceneDetailViewModel(
     private val sceneId: String,
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    private val shotRepository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao()),
     private val idProvider: () -> String = ::generateSceneId,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
@@ -52,6 +54,9 @@ class SceneDetailViewModel(
     /** برای دکمه‌ی «اتصال به کتابخانه» — طبق فاز ۳ قدم ۱ (AssetRepository.loadAllLocationAssets). */
     val locationAssets: StateFlow<List<LocationAsset>> = assetRepository.loadAllLocationAssets(projectId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _deleteBlockedMessage = MutableStateFlow<String?>(null)
+    val deleteBlockedMessage: StateFlow<String?> = _deleteBlockedMessage.asStateFlow()
 
     init {
         ioScope.launch {
@@ -120,6 +125,33 @@ class SceneDetailViewModel(
 
     fun clearLastActionMessage() { _lastActionMessage.value = null }
 
+    /**
+     * رفع G22 ممیزی post-Unit16: تنها مسیر واقعی حذف Scene از UI. Rule واقعی
+     * (`SceneRepository.deleteScene` → `domain.scene.deleteScene`) خودش تصمیم
+     * می‌گیرد — اگر صحنه هنوز Shot دارد، Blocking واقعی برمی‌گرداند (نه فقط یک
+     * تأیید قوی‌تر) و `onDeleted` هرگز صدا زده نمی‌شود.
+     *
+     * یافته‌ی دیباگ واقعی: شمار Shot ها عمداً از یک StateFlow جدا (WhileSubscribed)
+     * خوانده نمی‌شود — چون هیچ UI ای هرگز آن را collect نمی‌کند (فقط برای همین
+     * تابع لازم است، نه نمایش)، آن Flow هرگز واقعاً شروع به کار نمی‌کرد و مقدارش
+     * همیشه ۰ (پیش‌فرض اولیه) می‌ماند — یعنی Rule هرگز واقعاً مسدود نمی‌کرد. رفع
+     * شد با یک خواندن مستقیم و یک‌باره (`.first()`) در همین‌جا.
+     */
+    fun deleteScene(onDeleted: () -> Unit) {
+        val current = _scene.value ?: return
+        ioScope.launch {
+            val shotCount = shotRepository.loadAllShots(sceneId).first().size
+            val result = sceneRepository.deleteScene(current, shotCount)
+            if (result.isSuccess) {
+                onDeleted()
+            } else {
+                _deleteBlockedMessage.value = result.exceptionOrNull()?.message
+            }
+        }
+    }
+
+    fun clearDeleteBlockedMessage() { _deleteBlockedMessage.value = null }
+
     private fun updateAndSave(transform: (Scene) -> Scene) {
         val current = _scene.value ?: return
         val updated = transform(current)
@@ -133,7 +165,8 @@ class SceneDetailViewModel(
             projectId: String,
             sceneId: String,
             sceneRepository: SceneRepository? = null,
-            assetRepository: AssetRepository? = null
+            assetRepository: AssetRepository? = null,
+            shotRepository: ShotRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -147,13 +180,15 @@ class SceneDetailViewModel(
                         // با یک دیتابیس کاملاً متفاوت و خالی کار می‌کرد، بدون هیچ خطای
                         // قابل‌مشاهده (loadScene همیشه null برمی‌گرداند). رفع شد: هرکدام
                         // مستقل بررسی می‌شود، هم‌راستا با پیش‌فرض‌های خودِ سازنده‌ی کلاس.
-                        if (sceneRepository != null || assetRepository != null) {
+                        // shotRepository (رفع G22) هم‌الگو با همین قاعده اضافه شد.
+                        if (sceneRepository != null || assetRepository != null || shotRepository != null) {
                             SceneDetailViewModel(
                                 application = application,
                                 projectId = projectId,
                                 sceneId = sceneId,
                                 sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
-                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao())
+                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao())
                             )
                         } else {
                             SceneDetailViewModel(application, projectId, sceneId)

@@ -31,6 +31,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -72,10 +73,15 @@ class AssetFormFlowTest {
             ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
         )
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        val projectRepository = ProjectRepository(database.projectDao(), idProvider = { "proj_asset_form_test" })
         projectListViewModel = ProjectListViewModel(
             application = context.applicationContext as Application,
-            repository = ProjectRepository(database.projectDao(), idProvider = { "proj_asset_form_test" })
+            repository = projectRepository
         )
+        // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): AssetsScreen دیگر به
+        // PLACEHOLDER_ACTIVE_PROJECT_ID متکی نیست — resolveActiveOrRecentProjectId
+        // یک ردیف Project واقعی در projectSummaries لازم دارد.
+        runBlocking { projectRepository.createProject("Asset Form Test").getOrThrow() }
 
         val assetRepository = AssetRepository(database.assetDao())
 

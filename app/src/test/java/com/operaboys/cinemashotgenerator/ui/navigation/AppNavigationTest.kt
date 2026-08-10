@@ -20,6 +20,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -41,6 +42,8 @@ import java.util.UUID
 // یافته‌ی فاز ۱: NavDrawer همیشه در Composition حاضر است (حتی بسته)، پس برچسب‌های
 // تکراری بین Drawer و نوار پایین/Tab (مثل «استودیو»، «دارایی‌ها»، «صحنه‌ها») با
 // onNodeWithText به یک نتیجه‌ی Ambiguous می‌رسند — جزئیات کامل در BottomNavBar.kt.
+
+private const val PROJECT_ID = "proj_nav_test"
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -68,10 +71,16 @@ class AppNavigationTest {
             ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
         )
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        val projectRepository = ProjectRepository(database.projectDao(), idProvider = { PROJECT_ID })
         projectListViewModel = ProjectListViewModel(
             application = context.applicationContext as Application,
-            repository = ProjectRepository(database.projectDao())
+            repository = projectRepository
         )
+        // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): دکمه‌ی Studio نوار پایین
+        // دیگر به PLACEHOLDER_ACTIVE_PROJECT_ID متکی نیست — resolveActiveOrRecentProjectId
+        // یک ردیف Project واقعی در projectSummaries لازم دارد تا بدون Session فعال
+        // هم به Studio واقعی برسد (نه Projects).
+        runBlocking { projectRepository.createProject("Nav Test Project").getOrThrow() }
     }
 
     @After
@@ -93,6 +102,19 @@ class AppNavigationTest {
         }
     }
 
+    /**
+     * رفع G6 ممیزی post-Unit16: یافته‌ی واقعی دیباگ — projectSummaries از یک Flow
+     * واقعی Room می‌آید که روی Executor داخلی خودش (نه Dispatcher تزریق‌شده) دوباره
+     * Query می‌شود (همان یافته‌ی مستندشده‌ی ADR-044). بدون این انتظار صریح، دکمه‌ی
+     * Studio ممکن است پیش از رسیدن اولین نتیجه‌ی واقعی کلیک شود و (طبق رفتار درست
+     * تازه‌ی resolveActiveOrRecentProjectId) به‌جای Studio به Projects برود —
+     * چون هنوز هیچ پروژه‌ای در لیست دیده نشده. تحت بار کامل Test Suite این Race
+     * واقعاً رخ می‌داد (شکست واقعی مشاهده‌شده، نه فرضی).
+     */
+    private fun waitForProjectListToLoad() {
+        composeRule.waitUntil(timeoutMillis = 5_000) { projectListViewModel.projectSummaries.value.isNotEmpty() }
+    }
+
     @Test
     fun `the app-level bottom nav is always visible on the Home root screen`() {
         setContentUnderTest()
@@ -106,6 +128,7 @@ class AppNavigationTest {
     @Test
     fun `the in-project top tab row is hidden on Home and appears only after entering Studio`() {
         setContentUnderTest()
+        waitForProjectListToLoad()
 
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.STORY)).assertDoesNotExist()
 
@@ -120,6 +143,7 @@ class AppNavigationTest {
     @Test
     fun `the bottom nav stays visible while inside Studio too (complementary layers, not alternatives)`() {
         setContentUnderTest()
+        waitForProjectListToLoad()
 
         composeRule.onNodeWithTag(BOTTOM_NAV_STUDIO_TAG).performClick()
 
@@ -130,6 +154,7 @@ class AppNavigationTest {
     @Test
     fun `the top tab row disappears again after leaving Studio for another root screen`() {
         setContentUnderTest()
+        waitForProjectListToLoad()
 
         composeRule.onNodeWithTag(BOTTOM_NAV_STUDIO_TAG).performClick()
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.STORY)).assertIsDisplayed()

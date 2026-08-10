@@ -52,4 +52,26 @@ class ShotRepository(private val shotDao: ShotDao) {
             json.decodeFromString(ShotDto.serializer(), it.shotDataJson).toDomain()
         }
     }
+
+    // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):
+    // ShotDao.deleteShot از قبل موجود بود اما هیچ Repository/UI ای صدایش نمی‌زد.
+    // برخلاف Scene/Asset، هیچ Rule دامنه‌ای حذف Shot را مشروط نکرده (بلوپرینت‌های
+    // ۰۴/۰۶ فقط برای Scene/Asset چنین Ruleای دارند) — پس هیچ Validation ای اینجا
+    // لازم نیست، فقط I/O مستقیم.
+    suspend fun deleteShot(shotId: String): Result<Unit> = runCatching {
+        shotDao.loadShot(shotId)?.let { shotDao.deleteShot(it) }
+        Unit
+    }
+
+    /**
+     * برای Rule واقعی حذف Asset (validateAssetDeletion، AssetValidation.kt) — کدام
+     * Shot های این پروژه از این assetId (Character/Location/Object) استفاده
+     * می‌کنند. shotDataJson یک Blob است، پس فیلتر بعد از Deserialize کامل انجام
+     * می‌شود، نه با SQL (getShotsForProject).
+     */
+    suspend fun findShotIdsUsingAsset(projectId: String, assetId: String): List<String> =
+        shotDao.getShotsForProject(projectId)
+            .map { json.decodeFromString(ShotDto.serializer(), it.shotDataJson).toDomain() }
+            .filter { assetId in it.characterIds || assetId in it.objectIds || assetId in it.locationIds }
+            .map { it.shotId }
 }

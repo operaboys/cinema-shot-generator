@@ -11,6 +11,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 // واحد ۱۶ فاز ۴ — قدم ۲ — بخش الف: ViewModel واقعی Tab «شات‌ها» صفحه‌ی Scene
 // Detail — اولین اتصال UI به ShotRepository.loadAllShots (تازه در همین قدم اضافه
@@ -19,11 +20,16 @@ import kotlinx.coroutines.flow.stateIn
 class ShotListViewModel(
     application: Application,
     private val sceneId: String,
-    repository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao())
+    private val repository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao())
 ) : AndroidViewModel(application) {
 
     val shots: StateFlow<List<Shot>> = repository.loadAllShots(sceneId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** رفع G22 ممیزی post-Unit16: تنها مسیر واقعی حذف Shot از UI. */
+    fun deleteShot(shotId: String) {
+        viewModelScope.launch { repository.deleteShot(shotId) }
+    }
 
     companion object {
         fun factory(application: Application, sceneId: String, repository: ShotRepository? = null): ViewModelProvider.Factory =

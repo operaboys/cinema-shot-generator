@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -106,24 +107,45 @@ fun AppNavHost(
             )
         }
         composable<Assets> {
+            // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): هم‌الگو دقیق با
+            // MainScaffold.kt — دیگر به PLACEHOLDER_ACTIVE_PROJECT_ID متکی نیست.
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
+            val projectSummaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
+            val activeProjectId = resolveActiveOrRecentProjectId(workflowState, projectSummaries)
             AssetsScreen(
                 workflowViewModel = workflowViewModel,
+                projectId = activeProjectId,
                 assetRepository = assetRepository,
+                shotRepository = shotRepository,
                 onAddAsset = { kind -> navController.navigate(AssetForm(kind)) { launchSingleTop = true } },
                 // رفع G7 ممیزی post-Unit16: تنها راه واقعی رسیدن به یک AssetForm با
                 // existingAssetId غیر-null — لمس یک کارت Asset موجود.
                 onOpenAsset = { kind, assetId ->
                     navController.navigate(AssetForm(kind, existingAssetId = assetId)) { launchSingleTop = true }
-                }
+                },
+                onNavigateToProjects = { navController.navigate(Projects) { launchSingleTop = true } },
+                onShowMessage = onShowMessage
             )
         }
         composable<AssetForm> { backStackEntry ->
             val route: AssetForm = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
+            val projectSummaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
+            val activeProjectId = resolveActiveOrRecentProjectId(workflowState, projectSummaries)
             val onFormBack = { navController.navigate(Assets) { launchSingleTop = true } }
+            // این مسیر فقط از داخل AssetsScreen (شاخه‌ی projectId != null) قابل‌دسترس
+            // است (grep تأیید کرد هیچ نقطه‌ی ورود دیگری در کل کدبیس وجود ندارد) — پس
+            // این حالت در عمل هرگز رخ نمی‌دهد؛ فقط یک محافظ دفاعی است، نه یک مسیر
+            // واقعی کاربر.
+            if (activeProjectId == null) {
+                LaunchedEffect(Unit) { onFormBack() }
+                return@composable
+            }
             when (route.kind) {
                 AssetKind.CHARACTER -> CharacterAssetFormScreen(
                     language = language,
+                    projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
                     onShowMessage = onShowMessage,
@@ -132,6 +154,7 @@ fun AppNavHost(
                 )
                 AssetKind.LOCATION -> LocationAssetFormScreen(
                     language = language,
+                    projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
                     assetRepository = assetRepository,
@@ -139,6 +162,7 @@ fun AppNavHost(
                 )
                 AssetKind.OBJECT -> ObjectAssetFormScreen(
                     language = language,
+                    projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
                     assetRepository = assetRepository,

@@ -16,14 +16,23 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,8 +56,11 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 const val SHOTS_LIST_NEW_SHOT_FAB_TAG = "shotsList.newShotFab"
 const val SHOTS_LIST_GRID_TOGGLE_TAG = "shotsList.gridToggle"
 const val SHOTS_LIST_TIMELINE_TOGGLE_TAG = "shotsList.timelineToggle"
+const val SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG = "shotsList.deleteConfirmButton"
 
 fun shotCardTag(shotId: String): String = "shotsList.card.$shotId"
+fun shotCardMenuButtonTag(shotId: String): String = "shotsList.card.$shotId.menuButton"
+fun shotCardDeleteMenuItemTag(shotId: String): String = "shotsList.card.$shotId.deleteMenuItem"
 
 @Composable
 fun ShotListScreen(
@@ -67,6 +79,10 @@ fun ShotListScreen(
         factory = ShotListViewModel.factory(application, sceneId, shotRepository)
     )
     val shots by viewModel.shots.collectAsStateWithLifecycle()
+    // رفع G22 ممیزی post-Unit16 (docs/adr/062-...): هم‌الگو با archiveTarget/
+    // restoreTarget موجود (ProjectListSection.kt/BackupsScreen.kt) — کلیک روی
+    // «حذف» فقط هدف را ست می‌کند، دیالوگ تأیید واقعی خودِ حذف را انجام می‌دهد.
+    var deleteTarget by remember { mutableStateOf<Shot?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -102,7 +118,13 @@ fun ShotListScreen(
                     contentPadding = PaddingValues(bottom = 96.dp)
                 ) {
                     items(shots, key = { it.shotId }) { shot ->
-                        ShotCard(shot = shot, sceneNumber = sceneNumber, language = language, onClick = { onOpenShot(shot.shotId) })
+                        ShotCard(
+                            shot = shot,
+                            sceneNumber = sceneNumber,
+                            language = language,
+                            onClick = { onOpenShot(shot.shotId) },
+                            onDeleteClick = { deleteTarget = shot }
+                        )
                     }
                 }
             } else {
@@ -112,7 +134,13 @@ fun ShotListScreen(
                     contentPadding = PaddingValues(bottom = 96.dp)
                 ) {
                     items(shots, key = { it.shotId }) { shot ->
-                        ShotCard(shot = shot, sceneNumber = sceneNumber, language = language, onClick = { onOpenShot(shot.shotId) })
+                        ShotCard(
+                            shot = shot,
+                            sceneNumber = sceneNumber,
+                            language = language,
+                            onClick = { onOpenShot(shot.shotId) },
+                            onDeleteClick = { deleteTarget = shot }
+                        )
                     }
                 }
             }
@@ -128,6 +156,43 @@ fun ShotListScreen(
             Icon(Icons.Filled.Add, contentDescription = uiString("shotsList.newShot", language))
         }
     }
+
+    val target = deleteTarget
+    if (target != null) {
+        DeleteShotDialog(
+            language = language,
+            onDismiss = { deleteTarget = null },
+            onConfirm = {
+                viewModel.deleteShot(target.shotId)
+                deleteTarget = null
+            }
+        )
+    }
+}
+
+/**
+ * رفع G22 ممیزی post-Unit16: هم‌الگو دقیق با DeleteSceneDialog
+ * (SceneDetailScreen.kt)/DeleteBackupDialog (BackupsScreen.kt). برخلاف Scene،
+ * هیچ Rule دامنه‌ای حذف Shot را مسدود نمی‌کند — پس فقط تأیید ساده، بدون شاخه‌ی
+ * Blocked.
+ */
+@Composable
+private fun DeleteShotDialog(language: Language, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("shotsList.delete.title", language)) },
+        text = { Text(uiString("shotsList.delete.message", language)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG)) {
+                Text(uiString("shotsList.delete.confirm", language))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString("shotsList.delete.cancel", language))
+            }
+        }
+    )
 }
 
 /**
@@ -138,7 +203,8 @@ private fun Shot.hasOverriddenSettings(): Boolean =
     camera.source == "override" || lighting.source == "override" || environment.source == "override"
 
 @Composable
-private fun ShotCard(shot: Shot, sceneNumber: Int, language: Language, onClick: () -> Unit) {
+private fun ShotCard(shot: Shot, sceneNumber: Int, language: Language, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(shotCardTag(shot.shotId))) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -150,6 +216,18 @@ private fun ShotCard(shot: Shot, sceneNumber: Int, language: Language, onClick: 
                         tint = CinemaTheme.extendedColors.orange,
                         modifier = Modifier.testTag("shotsList.card.${shot.shotId}.overrideIndicator")
                     )
+                }
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    IconButton(onClick = { menuExpanded = true }, modifier = Modifier.testTag(shotCardMenuButtonTag(shot.shotId))) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = null)
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(uiString("shotsList.deleteMenuItem", language)) },
+                            onClick = { menuExpanded = false; onDeleteClick() },
+                            modifier = Modifier.testTag(shotCardDeleteMenuItemTag(shot.shotId))
+                        )
+                    }
                 }
             }
             Text(

@@ -29,7 +29,6 @@ import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
-import com.operaboys.cinemashotgenerator.ui.navigation.PLACEHOLDER_ACTIVE_PROJECT_ID
 
 // واحد ۱۶ فاز ۳ — قدم ۲ — بخش الف: صفحه‌ی فرم ساخت Character. طبق
 // docs/blueprints/16-user-workflow-v2.md «مرحله ۳» + docs/design/README.md بخش
@@ -45,6 +44,9 @@ const val CHARACTER_FORM_SAVE_BUTTON_TAG = "characterForm.saveButton"
 @Composable
 fun CharacterAssetFormScreen(
     language: Language,
+    // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): دیگر PLACEHOLDER_ACTIVE_PROJECT_ID
+    // نیست — از AppNavHost.kt (resolveActiveOrRecentProjectId) تزریق می‌شود.
+    projectId: String,
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onShowMessage: (String) -> Unit = {},
@@ -54,7 +56,7 @@ fun CharacterAssetFormScreen(
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: CharacterAssetFormViewModel = viewModel(
-        factory = CharacterAssetFormViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository, existingAssetId)
+        factory = CharacterAssetFormViewModel.factory(application, projectId, assetRepository, existingAssetId)
     )
 
     val name by viewModel.name.collectAsStateWithLifecycle()

@@ -35,10 +35,13 @@ import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 // دقیق آیکون Google Symbols کار فاز ساخت واقعی صفحات (Visual Polish) است، نه این
 // فاز ساختاری (همان محدودیت مستند فونت در Type.kt).
 //
-// projectId پیش‌فرض ورودی به Studio از نوار پایین (نه از یک Project Card مشخص)
-// فعلاً یک Placeholder ثابت است — تا وقتی مفهوم «آخرین/فعال پروژه» (کار فاز بعدی،
-// وابسته به واحد ۱۵) وجود نداشته باشد، هیچ projectId واقعی برای انتخاب نیست.
-internal const val PLACEHOLDER_ACTIVE_PROJECT_ID = "placeholder_active_project"
+// MIGRATED (رفع G6 ممیزی post-Unit16، docs/audit/post-unit16-full-audit.md،
+// docs/adr/062-...): `PLACEHOLDER_ACTIVE_PROJECT_ID` (رشته‌ی جعلی ثابت که این
+// دکمه قبلاً همیشه به آن Navigate می‌کرد، مستقل از این‌که کاربر واقعاً کدام
+// پروژه را باز کرده بود) کاملاً حذف شد. مقصد واقعی این دکمه اکنون توسط
+// `onNavigateStudio` (محاسبه‌شده در MainScaffold.kt با
+// `resolveActiveOrRecentProjectId` — ActiveProject.kt) تعیین می‌شود، نه یک
+// رشته‌ی هاردکد اینجا.
 
 // یافته‌ی فاز ۱ (docs/adr/044-...md): ModalNavigationDrawer محتوای drawerContent را
 // همیشه در درخت Composition نگه می‌دارد (حتی وقتی بسته است، فقط بیرون از دید
@@ -57,6 +60,7 @@ fun AppBottomNavBar(
     currentDestination: NavDestination?,
     language: Language,
     onNavigate: (Any) -> Unit,
+    onNavigateStudio: () -> Unit,
     onQuickCreate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -86,7 +90,7 @@ fun AppBottomNavBar(
             )
             NavigationBarItem(
                 selected = currentDestination.matches<Studio>(),
-                onClick = { onNavigate(Studio(PLACEHOLDER_ACTIVE_PROJECT_ID)) },
+                onClick = onNavigateStudio,
                 icon = { Icon(Icons.Filled.Movie, contentDescription = null) },
                 label = { Text(uiString("nav.studio", language)) },
                 modifier = Modifier.testTag(BOTTOM_NAV_STUDIO_TAG)

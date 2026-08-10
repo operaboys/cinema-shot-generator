@@ -122,6 +122,11 @@ fun MainScaffold(
     val snackbarHostState = remember { SnackbarHostState() }
     val comingSoonMessage = uiString("drawer.comingSoon", language)
     val noActiveProjectMessage = uiString("drawer.noActiveProject", language)
+    // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): هم‌الگو با workflowState بالا —
+    // projectSummaries از قبل توسط ProjectDao.getAllProjectsWithCounts روی
+    // lastModified DESC مرتب می‌شود؛ اولین آیتم یعنی «آخرین پروژه‌ی تغییریافته».
+    val projectSummaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
+    val activeOrRecentProjectId = resolveActiveOrRecentProjectId(workflowState, projectSummaries)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -140,15 +145,15 @@ fun MainScaffold(
                     coroutineScope.launch { drawerState.close() }
                     navController.navigate(Backups) { launchSingleTop = true }
                 },
-                // رفع G1: بدون پروژه‌ی فعال (WorkflowState.projectId == null)، مقصد
-                // Studio(projectId) قابل‌ساخت نیست (projectId غیر-nullable است) —
-                // طبق تصمیم مستند (docs/adr/061-...) کاربر به Projects هدایت می‌شود
-                // تا یک پروژه را باز/انتخاب کند، به‌همراه یک پیام توضیحی.
+                // رفع G1 (docs/adr/061-...)/G6 (docs/adr/062-...): بدون Session فعال
+                // Studio، مقصد اکنون آخرین پروژه‌ی واقعی (lastModified) است — نه
+                // بلافاصله Projects؛ فقط وقتی اصلاً هیچ پروژه‌ای وجود ندارد
+                // (activeOrRecentProjectId هم null است) کاربر به Projects هدایت
+                // می‌شود، به‌همراه یک پیام توضیحی.
                 onNavigateStudio = { initialTab ->
                     coroutineScope.launch { drawerState.close() }
-                    val activeProjectId = workflowState?.projectId
-                    if (activeProjectId != null) {
-                        navController.navigate(Studio(activeProjectId, initialTab)) { launchSingleTop = true }
+                    if (activeOrRecentProjectId != null) {
+                        navController.navigate(Studio(activeOrRecentProjectId, initialTab)) { launchSingleTop = true }
                     } else {
                         navController.navigate(Projects) { launchSingleTop = true }
                         coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
@@ -156,9 +161,8 @@ fun MainScaffold(
                 },
                 onNavigateAiBreakdown = {
                     coroutineScope.launch { drawerState.close() }
-                    val activeProjectId = workflowState?.projectId
-                    if (activeProjectId != null) {
-                        navController.navigate(AiStoryBreakdown(activeProjectId)) { launchSingleTop = true }
+                    if (activeOrRecentProjectId != null) {
+                        navController.navigate(AiStoryBreakdown(activeOrRecentProjectId)) { launchSingleTop = true }
                     } else {
                         navController.navigate(Projects) { launchSingleTop = true }
                         coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
@@ -202,6 +206,16 @@ fun MainScaffold(
                     language = language,
                     onNavigate = { route ->
                         navController.navigate(route) { launchSingleTop = true }
+                    },
+                    // رفع G6: هم‌الگو دقیق با Drawer بالا — بدون Session فعال، آخرین
+                    // پروژه‌ی واقعی؛ بدون هیچ پروژه‌ای، Projects + پیام.
+                    onNavigateStudio = {
+                        if (activeOrRecentProjectId != null) {
+                            navController.navigate(Studio(activeOrRecentProjectId)) { launchSingleTop = true }
+                        } else {
+                            navController.navigate(Projects) { launchSingleTop = true }
+                            coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
+                        }
                     },
                     onQuickCreate = {
                         // MIGRATED (فاز بعدی): رفتار «ایجاد سریع» Context-aware (کدام نوع

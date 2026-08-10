@@ -19,14 +19,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
@@ -45,7 +57,6 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
-import com.operaboys.cinemashotgenerator.ui.navigation.PLACEHOLDER_ACTIVE_PROJECT_ID
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 
@@ -57,11 +68,13 @@ import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 //   Notes): فیلتر Segmented بالا و هر Badge/Chip این صفحه Opaque و با حاشیه‌ی
 //   واضح‌اند (رنگ `solidSurface`/`cardBorder` توکن‌های همان دستورالعمل رسمی —
 //   #212B4A تیره/سفید روشن — نه هیچ `alpha` کم روی رنگ زمینه).
-// - `projectId` این صفحه (مسیر ریشه‌ی Assets، بدون آرگومان) از همان
-//   `PLACEHOLDER_ACTIVE_PROJECT_ID` استفاده می‌کند که نقطه‌ی ورود Studio از نوار
-//   پایین از قبل استفاده می‌کرد (BottomNavBar.kt) — تا مفهوم «آخرین/فعال پروژه»
-//   واقعی ساخته شود (کار فاز بعدی)، این صفحه هم دقیقاً همان محدودیت شناخته‌شده‌ی
-//   موجود Studio را به ارث می‌برد، نه یک محدودیت تازه.
+// - MIGRATED (رفع G6 ممیزی post-Unit16، docs/adr/062-...): `projectId` این صفحه
+//   (مسیر ریشه‌ی Assets، بدون آرگومان) دیگر یک PLACEHOLDER ثابت نیست — از
+//   `AppNavHost.kt` (با `resolveActiveOrRecentProjectId`، هم‌الگو دقیق با نقطه‌ی
+//   ورود Studio از نوار پایین) به‌عنوان یک پارامتر واقعی `String?` تزریق می‌شود.
+//   `null` (فقط وقتی اصلاً هیچ پروژه‌ای در کل اپ وجود ندارد) یک محتوای جایگزین
+//   با دکمه‌ی «برو به Projects» نشان می‌دهد، به‌جای ساخت ViewModel با یک شناسه‌ی
+//   جعلی.
 // - واحد ۱۶ فاز ۳ — قدم ۲: دکمه‌ی شناور «افزودن Asset جدید» اکنون به فرم واقعی
 //   نوع فعال (Character/Location/Object) Navigate می‌کند — دیگر فقط Snackbar
 //   «به‌زودی» نیست (کار همین قدم بود). جزئیات کامل در
@@ -71,24 +84,58 @@ const val ASSET_FILTER_CHARACTERS_TAG = "assetLibrary.filter.characters"
 const val ASSET_FILTER_LOCATIONS_TAG = "assetLibrary.filter.locations"
 const val ASSET_FILTER_OBJECTS_TAG = "assetLibrary.filter.objects"
 const val ASSET_LIBRARY_FAB_TAG = "assetLibrary.fab"
+const val ASSET_LIBRARY_DELETE_CONFIRM_BUTTON_TAG = "assetLibrary.deleteConfirmButton"
+
+fun assetCardTag(assetId: String): String = "assetLibrary.card.$assetId"
+fun assetCardMenuButtonTag(assetId: String): String = "assetLibrary.card.$assetId.menuButton"
+fun assetCardDeleteMenuItemTag(assetId: String): String = "assetLibrary.card.$assetId.deleteMenuItem"
 
 @Composable
 fun AssetsScreen(
     workflowViewModel: WorkflowViewModel,
+    // رفع G6 ممیزی post-Unit16: `null` فقط وقتی اصلاً هیچ پروژه‌ای در کل اپ
+    // وجود ندارد (resolveActiveOrRecentProjectId در AppNavHost.kt).
+    projectId: String?,
     assetRepository: AssetRepository? = null,
+    // رفع G22 ممیزی post-Unit16: برای Rule واقعی حذف Asset (validateAssetDeletion) —
+    // هم‌الگو با AssetLibraryViewModel.factory.
+    shotRepository: ShotRepository? = null,
     onAddAsset: (AssetKind) -> Unit = {},
     // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): تا این
     // قدم کارت‌های این صفحه اصلاً onClick نداشتند — لمس یک Asset موجود هیچ
     // اتفاقی نمی‌افتاد. هم‌الگو دقیق با onAddAsset بالا/onOpenScene معادلش در
     // ScenesListScreen.kt.
     onOpenAsset: (AssetKind, String) -> Unit = { _, _ -> },
+    onNavigateToProjects: () -> Unit = {},
+    onShowMessage: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val language by workflowViewModel.language.collectAsStateWithLifecycle()
+
+    if (projectId == null) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = uiString("assetLibrary.noActiveProject", language),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CinemaTheme.extendedColors.fg2
+            )
+            Button(onClick = onNavigateToProjects, modifier = Modifier.padding(top = 16.dp)) {
+                Text(uiString("assetLibrary.goToProjectsButton", language))
+            }
+        }
+        return
+    }
+
     val application = LocalContext.current.applicationContext as Application
     val viewModel: AssetLibraryViewModel = viewModel(
-        factory = AssetLibraryViewModel.factory(application, PLACEHOLDER_ACTIVE_PROJECT_ID, assetRepository)
+        factory = AssetLibraryViewModel.factory(application, projectId, assetRepository, shotRepository)
     )
-    val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val selectedKind by viewModel.selectedKind.collectAsStateWithLifecycle()
     val characters by viewModel.characters.collectAsStateWithLifecycle()
     val locations by viewModel.locations.collectAsStateWithLifecycle()
@@ -96,6 +143,14 @@ fun AssetsScreen(
     val selectedCharacterTier by viewModel.selectedCharacterTier.collectAsStateWithLifecycle()
     val selectedLocationType by viewModel.selectedLocationType.collectAsStateWithLifecycle()
     val selectedObjectSubtype by viewModel.selectedObjectSubtype.collectAsStateWithLifecycle()
+    val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
+    // رفع G22: هم‌الگو با deleteTarget موجود ShotListScreen.kt — کلیک روی «حذف»
+    // فقط هدف را ست می‌کند، دیالوگ تأیید واقعی خودِ حذف را انجام می‌دهد.
+    var deleteTargetId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(deleteBlockedMessage) {
+        deleteBlockedMessage?.let { onShowMessage(it); viewModel.clearDeleteBlockedMessage() }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -123,21 +178,24 @@ fun AssetsScreen(
                     selectedTier = selectedCharacterTier,
                     onTierSelected = viewModel::setSelectedCharacterTier,
                     language = language,
-                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.CHARACTER, assetId) }
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.CHARACTER, assetId) },
+                    onDeleteAsset = { assetId -> deleteTargetId = assetId }
                 )
                 AssetKind.LOCATION -> LocationAssetList(
                     locations = locations,
                     selectedType = selectedLocationType,
                     onTypeSelected = viewModel::setSelectedLocationType,
                     language = language,
-                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.LOCATION, assetId) }
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.LOCATION, assetId) },
+                    onDeleteAsset = { assetId -> deleteTargetId = assetId }
                 )
                 AssetKind.OBJECT -> ObjectAssetList(
                     objects = objects,
                     selectedSubtype = selectedObjectSubtype,
                     onSubtypeSelected = viewModel::setSelectedObjectSubtype,
                     language = language,
-                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.OBJECT, assetId) }
+                    onOpenAsset = { assetId -> onOpenAsset(AssetKind.OBJECT, assetId) },
+                    onDeleteAsset = { assetId -> deleteTargetId = assetId }
                 )
             }
         }
@@ -152,6 +210,42 @@ fun AssetsScreen(
             Icon(Icons.Filled.Add, contentDescription = uiString("assetLibrary.addAsset", language))
         }
     }
+
+    val targetId = deleteTargetId
+    if (targetId != null) {
+        DeleteAssetDialog(
+            language = language,
+            onDismiss = { deleteTargetId = null },
+            onConfirm = {
+                viewModel.deleteAsset(targetId)
+                deleteTargetId = null
+            }
+        )
+    }
+}
+
+/**
+ * رفع G22 ممیزی post-Unit16: هم‌الگو دقیق با DeleteShotDialog
+ * (ShotListScreen.kt)/DeleteSceneDialog (SceneDetailScreen.kt). Rule واقعی
+ * «Asset در حال استفاده» در ViewModel اجرا می‌شود (نه اینجا).
+ */
+@Composable
+private fun DeleteAssetDialog(language: Language, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("assetLibrary.delete.title", language)) },
+        text = { Text(uiString("assetLibrary.delete.message", language)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag(ASSET_LIBRARY_DELETE_CONFIRM_BUTTON_TAG)) {
+                Text(uiString("assetLibrary.delete.confirm", language))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString("assetLibrary.delete.cancel", language))
+            }
+        }
+    )
 }
 
 @Composable
@@ -261,14 +355,36 @@ private fun ThumbnailPlaceholder() {
 }
 
 @Composable
-private fun AssetCard(name: String, tierLabel: String, description: String, continuityMeta: String, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+private fun AssetCard(
+    assetId: String,
+    name: String,
+    tierLabel: String,
+    description: String,
+    continuityMeta: String,
+    language: Language,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(assetCardTag(assetId))) {
         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ThumbnailPlaceholder()
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
                     TierBadge(label = tierLabel)
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }, modifier = Modifier.testTag(assetCardMenuButtonTag(assetId))) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = null)
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text(uiString("assetLibrary.deleteMenuItem", language)) },
+                                onClick = { menuExpanded = false; onDeleteClick() },
+                                modifier = Modifier.testTag(assetCardDeleteMenuItemTag(assetId))
+                            )
+                        }
+                    }
                 }
                 Text(
                     text = description,
@@ -304,7 +420,8 @@ private fun CharacterAssetList(
     selectedTier: CharacterTier?,
     onTierSelected: (CharacterTier?) -> Unit,
     language: Language,
-    onOpenAsset: (String) -> Unit
+    onOpenAsset: (String) -> Unit,
+    onDeleteAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -336,6 +453,7 @@ private fun CharacterAssetList(
         ) {
             items(filtered, key = { it.assetId }) { character ->
                 AssetCard(
+                    assetId = character.assetId,
                     name = character.name,
                     tierLabel = characterTierLabel(character.characterTier, language),
                     description = character.basePrompt ?: character.physicalAppearance.toPromptString(),
@@ -343,7 +461,9 @@ private fun CharacterAssetList(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to characterContinuityLevelLabel(character.continuityLockLevel, language)
                     ),
-                    onClick = { onOpenAsset(character.assetId) }
+                    language = language,
+                    onClick = { onOpenAsset(character.assetId) },
+                    onDeleteClick = { onDeleteAsset(character.assetId) }
                 )
             }
         }
@@ -356,7 +476,8 @@ private fun LocationAssetList(
     selectedType: LocationType?,
     onTypeSelected: (LocationType?) -> Unit,
     language: Language,
-    onOpenAsset: (String) -> Unit
+    onOpenAsset: (String) -> Unit,
+    onDeleteAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -388,6 +509,7 @@ private fun LocationAssetList(
         ) {
             items(filtered, key = { it.assetId }) { location ->
                 AssetCard(
+                    assetId = location.assetId,
                     name = location.name,
                     tierLabel = locationTypeLabel(location.locationType, language),
                     description = location.basePrompt ?: location.description,
@@ -395,7 +517,9 @@ private fun LocationAssetList(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to locationContinuityLevelLabel(location.continuityLockLevel, language)
                     ),
-                    onClick = { onOpenAsset(location.assetId) }
+                    language = language,
+                    onClick = { onOpenAsset(location.assetId) },
+                    onDeleteClick = { onDeleteAsset(location.assetId) }
                 )
             }
         }
@@ -408,7 +532,8 @@ private fun ObjectAssetList(
     selectedSubtype: ObjectSubtype?,
     onSubtypeSelected: (ObjectSubtype?) -> Unit,
     language: Language,
-    onOpenAsset: (String) -> Unit
+    onOpenAsset: (String) -> Unit,
+    onDeleteAsset: (String) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -440,6 +565,7 @@ private fun ObjectAssetList(
         ) {
             items(filtered, key = { it.assetId }) { obj ->
                 AssetCard(
+                    assetId = obj.assetId,
                     name = obj.name,
                     tierLabel = objectSubtypeLabel(obj.subtype, language),
                     description = obj.basePrompt ?: obj.description,
@@ -447,7 +573,9 @@ private fun ObjectAssetList(
                         "assetLibrary.continuityMetaTemplate", language,
                         "level" to propContinuityLevelLabel(obj.continuityLockLevel, language)
                     ),
-                    onClick = { onOpenAsset(obj.assetId) }
+                    language = language,
+                    onClick = { onOpenAsset(obj.assetId) },
+                    onDeleteClick = { onDeleteAsset(obj.assetId) }
                 )
             }
         }

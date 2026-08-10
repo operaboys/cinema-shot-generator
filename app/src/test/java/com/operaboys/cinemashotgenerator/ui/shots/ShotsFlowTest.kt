@@ -44,6 +44,9 @@ import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.studioTabTestTag
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.scenes.SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG
+import com.operaboys.cinemashotgenerator.ui.scenes.SCENE_DETAIL_DELETE_MENU_ITEM_TAG
+import com.operaboys.cinemashotgenerator.ui.scenes.SCENE_DETAIL_MENU_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.scenes.SCENE_DETAIL_SHOTS_TAB_TAG
 import com.operaboys.cinemashotgenerator.ui.scenes.sceneDisplayTitle
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
@@ -392,6 +395,78 @@ class ShotsFlowTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val sounds = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.soundProfile?.ambientSounds }
             sounds != null && sounds.isNotEmpty()
+        }
+    }
+
+    // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):
+    // تا این قدم Delete Scene/Shot اصلاً از UI قابل‌دسترس نبودند.
+
+    @Test
+    fun `cancelling shot deletion leaves it untouched, confirming actually removes it from the list and database`() {
+        createProjectAndOpenShotsTab()
+
+        composeRule.onNodeWithTag(shotCardMenuButtonTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(shotCardDeleteMenuItemTag("shot_seed")), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(shotCardDeleteMenuItemTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("shotsList.delete.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("shotsList.delete.cancel", Language.FA)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(SEEDED_SHOT_TITLE).assertExists()
+        assertEquals(SEEDED_SHOT_TITLE, runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.shotTitle })
+
+        composeRule.onNodeWithTag(shotCardMenuButtonTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(shotCardDeleteMenuItemTag("shot_seed")), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(shotCardDeleteMenuItemTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG).performClick()
+
+        composeRule.waitUntilDoesNotExist(hasText(SEEDED_SHOT_TITLE), timeoutMillis = 5_000)
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull() } == null
+        }
+    }
+
+    @Test
+    fun `deleting a scene that still has a shot is blocked with a real message, deleting after the shot is removed actually deletes it`() {
+        createProjectAndOpenShotsTab()
+
+        // منوی سه‌نقطه‌ی Scene Detail در هدر است — مستقل از Tab انتخاب‌شده در دسترس.
+        composeRule.onNodeWithTag(SCENE_DETAIL_MENU_BUTTON_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SCENE_DETAIL_DELETE_MENU_ITEM_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SCENE_DETAIL_DELETE_MENU_ITEM_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.delete.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG).performClick()
+
+        // Blocking واقعی (SceneValidation.deleteScene) — صحنه هنوز ۱ شات دارد، پس
+        // صفحه نباید عوض شود و شات همچنان در فهرست باشد. متن دقیق پیام واقعی
+        // Exception (نه یک رشته‌ی جعلی تست) — SceneValidation.kt:63.
+        composeRule.waitUntilExactlyOneExists(hasText("ابتدا شات‌ها را حذف کنید", substring = true), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(SEEDED_SHOT_TITLE).assertExists()
+        assertEquals(seededScene.sceneTitle, runBlocking { sceneRepository.loadScene(SCENE_ID).getOrNull()?.sceneTitle })
+        // یافته‌ی واقعی دیباگ: بدون این waitForIdle، تلاش بعدی حذف Shot گاهی
+        // Timeout می‌داد — Coroutine مربوط به تلاش ناموفق حذف Scene (Snackbar) هنوز
+        // کاملاً ته‌نشین نشده بود، هم‌الگو با یافته‌ی مستندشده‌ی تب دوربین
+        // (چند Auto-Save ناهمگام پشت‌سرهم).
+        composeRule.waitForIdle()
+
+        // شات را حذف می‌کنیم تا Rule دیگر مسدود نکند.
+        composeRule.onNodeWithTag(shotCardMenuButtonTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(shotCardDeleteMenuItemTag("shot_seed")), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(shotCardDeleteMenuItemTag("shot_seed")).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { shotRepository.loadShot("shot_seed").getOrNull() } == null
+        }
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_MENU_BUTTON_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SCENE_DETAIL_DELETE_MENU_ITEM_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SCENE_DETAIL_DELETE_MENU_ITEM_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG).performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { sceneRepository.loadScene(SCENE_ID).getOrNull() } == null
         }
     }
 }

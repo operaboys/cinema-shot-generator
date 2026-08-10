@@ -88,6 +88,9 @@ const val SCENE_DETAIL_ASSETS_TAB_TAG = "sceneDetail.tab.assets"
 const val SCENE_DETAIL_SETTINGS_TITLE_FIELD_TAG = "sceneDetail.settings.titleField"
 const val SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG = "sceneDetail.settings.saveButton"
 const val SCENE_DETAIL_BACK_BUTTON_TAG = "sceneDetail.backButton"
+const val SCENE_DETAIL_MENU_BUTTON_TAG = "sceneDetail.menuButton"
+const val SCENE_DETAIL_DELETE_MENU_ITEM_TAG = "sceneDetail.deleteMenuItem"
+const val SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG = "sceneDetail.deleteConfirmButton"
 
 fun sceneDetailLocationPickerItemTag(assetId: String): String = "sceneDetail.locationPicker.item.$assetId"
 
@@ -112,21 +115,28 @@ fun SceneDetailScreen(
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: SceneDetailViewModel = viewModel(
-        factory = SceneDetailViewModel.factory(application, projectId, sceneId, sceneRepository, assetRepository)
+        factory = SceneDetailViewModel.factory(application, projectId, sceneId, sceneRepository, assetRepository, shotRepository)
     )
     val scene by viewModel.scene.collectAsStateWithLifecycle()
     val isLoaded by viewModel.isLoaded.collectAsStateWithLifecycle()
     val locationAssets by viewModel.locationAssets.collectAsStateWithLifecycle()
     val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
+    val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
 
     LaunchedEffect(lastActionMessage) {
         lastActionMessage?.let { onShowMessage(it); viewModel.clearLastActionMessage() }
+    }
+    LaunchedEffect(deleteBlockedMessage) {
+        deleteBlockedMessage?.let { onShowMessage(it); viewModel.clearDeleteBlockedMessage() }
     }
 
     var selectedTab by remember { mutableStateOf(SceneDetailTab.entries.find { it.name == initialTab } ?: SceneDetailTab.OVERVIEW) }
     var showLocationPicker by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    // رفع G22 ممیزی post-Unit16: هم‌الگو دقیق با ArchiveProjectDialog/DeleteBackupDialog
+    // (docs/adr/060-...) — یک AlertDialog تأیید واقعی، نه حذف بی‌واسطه از منو.
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         SceneDetailHeader(
@@ -135,7 +145,8 @@ fun SceneDetailScreen(
             onBack = onBack,
             menuExpanded = showOverflowMenu,
             onMenuExpandedChange = { showOverflowMenu = it },
-            onHistoryClick = { showOverflowMenu = false; onShowMessage(uiString("sceneDetail.historyComingSoon", language)) }
+            onHistoryClick = { showOverflowMenu = false; onShowMessage(uiString("sceneDetail.historyComingSoon", language)) },
+            onDeleteClick = { showOverflowMenu = false; showDeleteDialog = true }
         )
 
         SecondaryTabRow(selectedTabIndex = selectedTab.ordinal) {
@@ -215,6 +226,42 @@ fun SceneDetailScreen(
             }
         )
     }
+
+    if (showDeleteDialog) {
+        DeleteSceneDialog(
+            language = language,
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                showDeleteDialog = false
+                viewModel.deleteScene(onDeleted = onBack)
+            }
+        )
+    }
+}
+
+/**
+ * رفع G22 ممیزی post-Unit16: هم‌الگو دقیق با ArchiveProjectDialog
+ * (ProjectListSection.kt)/RestoreBackupDialog (BackupsScreen.kt) — متن هشدار
+ * صریح غیرقابل‌بازگشت‌بودن. Rule واقعی «صحنه‌ی دارای Shot» در ViewModel اجرا
+ * می‌شود (نه اینجا) — این دیالوگ فقط تأیید Confirm/Cancel است.
+ */
+@Composable
+private fun DeleteSceneDialog(language: Language, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("sceneDetail.delete.title", language)) },
+        text = { Text(uiString("sceneDetail.delete.message", language)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG)) {
+                Text(uiString("sceneDetail.delete.confirm", language))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString("sceneDetail.delete.cancel", language))
+            }
+        }
+    )
 }
 
 @Composable
@@ -224,7 +271,8 @@ private fun SceneDetailHeader(
     onBack: () -> Unit,
     menuExpanded: Boolean,
     onMenuExpandedChange: (Boolean) -> Unit,
-    onHistoryClick: () -> Unit
+    onHistoryClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
@@ -235,11 +283,16 @@ private fun SceneDetailHeader(
         }
         Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 4.dp))
         Box {
-            IconButton(onClick = { onMenuExpandedChange(true) }) {
+            IconButton(onClick = { onMenuExpandedChange(true) }, modifier = Modifier.testTag(SCENE_DETAIL_MENU_BUTTON_TAG)) {
                 Icon(Icons.Filled.MoreVert, contentDescription = null)
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { onMenuExpandedChange(false) }) {
                 DropdownMenuItem(text = { Text(uiString("sceneDetail.historyMenuItem", language)) }, onClick = onHistoryClick)
+                DropdownMenuItem(
+                    text = { Text(uiString("sceneDetail.deleteMenuItem", language)) },
+                    onClick = onDeleteClick,
+                    modifier = Modifier.testTag(SCENE_DETAIL_DELETE_MENU_ITEM_TAG)
+                )
             }
         }
     }

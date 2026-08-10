@@ -73,6 +73,7 @@ import kotlinx.coroutines.isActive
 // واحد ۱۶ فاز ۶ — قدم ۲: لازم برای تست End-to-End صفحه‌ی Backups (برگشت از Studio
 // به Home، تنها راه واقعی رسیدن به Drawer — StudioShell خودش دکمه‌ی همبرگری ندارد).
 const val STUDIO_BACK_BUTTON_TAG = "studio.backButton"
+const val STUDIO_TITLE_TAG = "studio.title"
 
 @Composable
 fun StudioShell(
@@ -222,7 +223,7 @@ private fun StudioHeader(title: String, sceneCount: Int, shotCount: Int, languag
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
         Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag(STUDIO_TITLE_TAG))
             Text(
                 text = uiTemplate("project.metaTemplate", language, "scenes" to sceneCount.toString(), "shots" to shotCount.toString()),
                 style = MaterialTheme.typography.labelSmall,

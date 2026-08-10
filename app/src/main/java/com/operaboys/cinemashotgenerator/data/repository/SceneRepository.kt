@@ -3,6 +3,7 @@ package com.operaboys.cinemashotgenerator.data.repository
 import com.operaboys.cinemashotgenerator.data.dao.SceneDao
 import com.operaboys.cinemashotgenerator.data.entity.SceneEntity
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.scene.deleteScene as validateSceneDeletion
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -36,5 +37,16 @@ class SceneRepository(private val sceneDao: SceneDao) {
         sceneDao.loadScene(sceneId)?.let {
             json.decodeFromString(SceneDto.serializer(), it.sceneDataJson).toDomain()
         }
+    }
+
+    // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):
+    // domain.scene.deleteScene (SceneValidation.kt) از قبل Rule واقعی «صحنه‌ی
+    // دارای Shot قابل حذف نیست» را پیاده کرده بود، اما هیچ Repository/UI ای آن را
+    // صدا نمی‌زد. اینجا فقط لایه‌ی نازک I/O روی همان Rule است — منطق واقعی همان‌جا
+    // (دامنه) می‌ماند.
+    suspend fun deleteScene(scene: Scene, existingShotsCount: Int): Result<Unit> = runCatching {
+        validateSceneDeletion(scene, existingShotsCount).getOrThrow()
+        sceneDao.loadScene(scene.sceneId)?.let { sceneDao.deleteScene(it) }
+        Unit
     }
 }

@@ -7,18 +7,21 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
+import com.operaboys.cinemashotgenerator.domain.asset.validateAssetDeletion
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 // واحد ۱۶ فاز ۳ — قدم ۱: ViewModel واقعی صفحه‌ی Asset Library — اولین اتصال UI به
 // AssetRepository.loadAllCharacterAssets/loadAllLocationAssets/loadAllObjectAssets
@@ -36,7 +39,11 @@ enum class AssetKind { CHARACTER, LOCATION, OBJECT }
 class AssetLibraryViewModel(
     application: Application,
     private val projectId: String,
-    private val repository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao())
+    private val repository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    // رفع G22 ممیزی post-Unit16: برای Rule واقعی «Asset در حال استفاده قابل حذف
+    // نیست» (validateAssetDeletion، AssetValidation.kt) — هم‌الگو با DnaViewModel که
+    // برای dependentShotsCount به یک ShotRepository جدا نیاز داشت (ADR-054).
+    private val shotRepository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao())
 ) : AndroidViewModel(application) {
 
     private val _selectedKind = MutableStateFlow(AssetKind.CHARACTER)
@@ -75,14 +82,49 @@ class AssetLibraryViewModel(
         _selectedObjectSubtype.value = subtype
     }
 
+    private val _deleteBlockedMessage = MutableStateFlow<String?>(null)
+    val deleteBlockedMessage: StateFlow<String?> = _deleteBlockedMessage.asStateFlow()
+
+    /**
+     * رفع G22 ممیزی post-Unit16: تنها مسیر واقعی حذف Asset از UI. Rule واقعی
+     * (validateAssetDeletion) اینجا اجرا می‌شود — اگر شات‌هایی این Asset را
+     * استفاده می‌کنند، حذف Blocking واقعی است (نه فقط یک تأیید قوی‌تر).
+     */
+    fun deleteAsset(assetId: String) {
+        viewModelScope.launch {
+            val shotsUsingAsset = shotRepository.findShotIdsUsingAsset(projectId, assetId)
+            val blocking = validateAssetDeletion(assetId, shotsUsingAsset)
+            if (blocking != null) {
+                _deleteBlockedMessage.value = blocking.message
+            } else {
+                repository.deleteAsset(assetId)
+            }
+        }
+    }
+
+    fun clearDeleteBlockedMessage() { _deleteBlockedMessage.value = null }
+
     companion object {
-        fun factory(application: Application, projectId: String, repository: AssetRepository? = null): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            projectId: String,
+            repository: AssetRepository? = null,
+            shotRepository: ShotRepository? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) AssetLibraryViewModel(application, projectId, repository)
-                        else AssetLibraryViewModel(application, projectId)
+                        if (repository != null || shotRepository != null) {
+                            AssetLibraryViewModel(
+                                application = application,
+                                projectId = projectId,
+                                repository = repository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao())
+                            )
+                        } else {
+                            AssetLibraryViewModel(application, projectId)
+                        }
                     ) as T
             }
     }

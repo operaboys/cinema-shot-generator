@@ -102,4 +102,18 @@ class AssetRepository(private val assetDao: AssetDao) {
         assetDao.getAssetsForProjectByType(projectId, AssetType.OBJECT.name).map { entities ->
             entities.map { json.decodeFromString(ObjectAssetDto.serializer(), it.assetDataJson).toDomain() }
         }
+
+    // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):
+    // AssetDao.deleteAsset از قبل موجود بود اما هیچ Repository/UI ای صدایش نمی‌زد.
+    // Rule واقعی «Asset در حال استفاده قابل حذف نیست» (validateAssetDeletion،
+    // AssetValidation.kt) اینجا اجرا نمی‌شود — چون نیاز به لیست Shot های استفاده‌کننده
+    // دارد که در پروژه‌ای دیگر (ShotRepository) زندگی می‌کند؛ این Repository عمداً
+    // به Repository دیگری وابسته نمی‌شود (هم‌الگو با بقیه‌ی Repository های این
+    // پروژه، هرکدام فقط یک DAO). Rule در سطح ViewModel (AssetLibraryViewModel، که
+    // هر دو Repository را دارد) اجرا می‌شود — همان الگوی DnaViewModel با
+    // dependentShotsCount (ADR-054).
+    suspend fun deleteAsset(assetId: String): Result<Unit> = runCatching {
+        assetDao.loadAsset(assetId)?.let { assetDao.deleteAsset(it) }
+        Unit
+    }
 }
