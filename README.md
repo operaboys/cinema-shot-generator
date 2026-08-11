@@ -1220,6 +1220,39 @@ Import کند — `importProject` (تابع دامنه‌ی موجود و کام
 کلاس Flake محیطی از‌پیش‌مستند (`ShotsFlowTest`). `gradle :app:assembleDebug`
 جداگانه → موفق.
 
+### 🎯 نقطه‌ی عطف: یکسان‌سازی معماری State Machine/Lock (بدهی فنی مستند در ADR-064)
+
+`domain/project/ProjectLifecycle.kt` (`archiveProject`) و
+`domain/scene/SceneLifecycle.kt` (`lockScene`) به‌جای `validateStateTransition`
+(لایه‌ی `ValidationIssue`-برگردان واحد ۱۲ که دقیقاً برای همین منظور ساخته
+شده بود)، مستقیماً از `canTransition` خام استفاده می‌کردند — تکرار همان
+بررسی «آیا این انتقال مجاز است» در دو جای مجزا. رفتار کاربر همیشه درست
+بود (پیام Blocking واقعی)؛ این فقط بدهی فنی معماری بود، نه یک باگ.
+
+**تصمیم معماری:** `validateStateTransition` یک پارامتر اختیاری
+`customMessage: String? = null` گرفت. `archiveProject`/`lockScene`
+اکنون از این تابع (تنها فراخوان‌کننده‌ی `canTransition` در کل پروژه —
+تأیید با grep) عبور می‌کنند و پیام سفارشی دقیق خودشان را پاس می‌دهند —
+بدون هیچ افت کیفیت پیام برای کاربر واقعی، و بدون هیچ تغییری در امضا/
+رفتار عمومی این دو تابع (تأیید شد `ProjectRepository`/`SceneDetailViewModel`
+بدون تغییر کار می‌کنند). جزئیات کامل (و گزینه‌های رد‌شده) در
+`docs/adr/066-state-machine-lock-unification.md`.
+
+تست‌ها: ۳ تست تازه برای `customMessage` (`StateMachineTest.kt`)، ۱ تست
+تازه در `ProjectLifecycleTest.kt` (تأیید حفظ دقیق پیام سفارشی)، و
+`SceneLifecycleTest.kt` **تازه** (۵ تست — این تابع تا این قدم هیچ تست
+مستقلی نداشت، فقط غیرمستقیم از طریق UI).
+
+`gradle :app:testDebugUnitTest` → ۶۹۹ تست (۶۹۰→۶۹۹، ۹ تست جدید)، ۶۹۷
+موفق در دو اجرا (هر بار یک شکست، هر بار تست‌های متفاوت و نامرتبط —
+`AppNavigationTest`/`ShotsFlowTest` در اجرای اول، `ShotsFlowTest`/
+`AssetFormFlowTest` در اجرای دوم — همان کلاس Flake محیطی از‌پیش‌مستند در
+ADR-044/۰۶۲، تأییدشده با `git diff` که هیچ فایلی در مسیر وابستگی
+این تست‌ها دست نخورده). `gradle :app:assembleDebug` جداگانه → موفق.
+
+**طبق ترتیب رسمی ممیزی، تنها بند باقی‌مانده اکنون اولویت ۳ بند ۸ است**
+(باقی موارد 🟡 بدون فوریت: G3-G5, G8, G12, G18).
+
 ## Stack
 
 - **زبان:** Kotlin

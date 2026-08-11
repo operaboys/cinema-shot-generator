@@ -27,11 +27,20 @@ fun canTransition(current: EntityState, target: EntityState): Boolean =
  * هستند، نه سه Rule مستقل. یک تابع مشترک نوشته شد؛ جزئیات در
  * docs/adr/014-unit12-state-and-versioning-deviations.md.
  */
-fun validateStateTransition(current: EntityState, target: EntityState): ValidationIssue? {
+/**
+ * رفع بدهی فنی مستند در docs/adr/064-g14-orphaned-rules-decisions.md (تصمیم ۳) و
+ * docs/adr/066-...: `customMessage` اختیاری — `ProjectLifecycle.archiveProject`/
+ * `SceneLifecycle.lockScene` قبلاً مستقیماً `canTransition` را صدا می‌زدند (نه این
+ * تابع) دقیقاً چون این تابع فقط پیام عمومی «انتقال از X به Y مجاز نیست» تولید
+ * می‌کرد، در حالی که هر دو پیام سفارشی و مفیدتری برای کاربر واقعی دارند. اکنون
+ * هر دو از این تابع (تنها منبع حقیقت `canTransition`) عبور می‌کنند اما پیام
+ * سفارشی خودشان را حفظ می‌کنند — بدون تکرار خودِ بررسی مجاز/غیرمجاز.
+ */
+fun validateStateTransition(current: EntityState, target: EntityState, customMessage: String? = null): ValidationIssue? {
     if (canTransition(current, target)) return null
     return ValidationIssue(
         severity = Severity.BLOCKING,
-        message = "انتقال از $current به $target مجاز نیست"
+        message = customMessage ?: "انتقال از $current به $target مجاز نیست"
     )
 }
 

@@ -55,6 +55,27 @@ class StateMachineTest {
         assertEquals(Severity.BLOCKING, issue!!.severity)
     }
 
+    // رفع بدهی فنی مستند در docs/adr/064-...-orphaned-rules-decisions.md
+    // (تصمیم ۳) و docs/adr/066-...: customMessage اختیاری — بدون آن، پیام
+    // عمومی پیش‌فرض؛ با آن، پیام سفارشی فراخوان (مثل archiveProject/lockScene)
+    // جایگزین می‌شود.
+    @Test
+    fun `validateStateTransition uses the generic message when customMessage is not given`() {
+        val issue = validateStateTransition(EntityState.DRAFT, EntityState.FINAL)
+        assertEquals("انتقال از DRAFT به FINAL مجاز نیست", issue!!.message)
+    }
+
+    @Test
+    fun `validateStateTransition uses customMessage when given`() {
+        val issue = validateStateTransition(EntityState.DRAFT, EntityState.FINAL, customMessage = "پیام سفارشی تست")
+        assertEquals("پیام سفارشی تست", issue!!.message)
+    }
+
+    @Test
+    fun `validateStateTransition ignores customMessage when the transition is actually allowed`() {
+        assertNull(validateStateTransition(EntityState.DRAFT, EntityState.REVIEW, customMessage = "هرگز نباید دیده شود"))
+    }
+
     // --- validateReviewReadiness ---
 
     @Test

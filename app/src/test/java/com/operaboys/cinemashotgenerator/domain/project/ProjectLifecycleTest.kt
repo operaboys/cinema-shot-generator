@@ -45,4 +45,19 @@ class ProjectLifecycleTest {
     fun `archiveProject on an already-archived project fails (ARCHIVED has no outgoing transitions)`() {
         assertTrue(archiveProject(sampleProject(EntityState.ARCHIVED)).isFailure)
     }
+
+    // رفع بدهی فنی مستند در docs/adr/064-...-orphaned-rules-decisions.md
+    // (تصمیم ۳) و docs/adr/066-...: archiveProject اکنون از
+    // validateStateTransition(customMessage=...) عبور می‌کند، نه canTransition
+    // خام — این تست تأیید می‌کند پیام سفارشی دقیقاً حفظ شده، نه جایگزین‌شده با
+    // پیام عمومی «انتقال از X به Y مجاز نیست».
+    @Test
+    fun `archiveProject failure keeps the exact custom message, not the generic validateStateTransition wording`() {
+        val result = archiveProject(sampleProject(EntityState.DRAFT))
+
+        assertEquals(
+            "پروژه در وضعیت DRAFT است — طبق قوانین State Machine واحد ۱۲، فقط پروژه‌های FINAL قابل آرشیو شدن‌اند",
+            result.exceptionOrNull()?.message
+        )
+    }
 }
