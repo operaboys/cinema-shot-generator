@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.project
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -9,6 +10,7 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.DeviceBackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.exportProject as exportProjectFile
+import com.operaboys.cinemashotgenerator.data.repository.importProject as importProjectFile
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.project.Project
 import com.operaboys.cinemashotgenerator.domain.project.ProjectSummary
@@ -106,6 +108,47 @@ class ProjectListViewModel(
                 projectDnaDao = db.projectDnaDao(),
                 audioContextDao = db.audioContextDao(),
                 backupFileStorage = DeviceBackupFileStorage(getApplication())
+            ).onFailure { _lastActionMessage.value = it.message }
+        }
+    }
+
+    /**
+     * رفع یافته‌ی معماری «عدم قرینگی Export/Import» (کشف‌شده در G14، مستند در
+     * docs/adr/064-...) — importProject (تابع دامنه‌ی موجود،
+     * ExportImportRepository.kt) مستقیماً بازاستفاده شد، هم‌الگو دقیق با
+     * exportProject بالا؛ هیچ منطق دامنه‌ی تازه‌ای اضافه نشد.
+     *
+     * تصمیم مستقل: fileUri از File Picker سیستم همیشه یک content:// Uri است
+     * (نه یک مسیر فایل خام)، اما BackupFileStorage.readFile(path) طبق قرارداد
+     * موجودش (DeviceBackupFileStorage) مستقیماً java.io.File(path) می‌سازد —
+     * که با content:// کار نمی‌کند. راه‌حل: محتوای فایل انتخاب‌شده از طریق
+     * ContentResolver خوانده و در همان backupDir این اپ Stage می‌شود (با همان
+     * backupFileStorage.writeFile موجود، بدون تغییر) — سپس importProject
+     * دامنه دقیقاً طبق قرارداد مستندش (مسیر فایل واقعی) صدا زده می‌شود. جزئیات
+     * کامل در ADR.
+     */
+    fun importProject(fileUri: String): Job {
+        return ioScope.launch {
+            val storage = DeviceBackupFileStorage(getApplication())
+            val stagedPath = runCatching {
+                val content = getApplication<Application>().contentResolver.openInputStream(Uri.parse(fileUri))
+                    ?.bufferedReader()?.use { it.readText() }
+                    ?: throw IllegalStateException("فایل انتخاب‌شده قابل خواندن نیست")
+                storage.writeFile("import_staging_${System.currentTimeMillis()}.json", content)
+            }.getOrElse {
+                _lastActionMessage.value = it.message
+                return@launch
+            }
+
+            importProjectFile(
+                fileUri = stagedPath,
+                backupFileStorage = storage,
+                projectDao = db.projectDao(),
+                sceneDao = db.sceneDao(),
+                shotDao = db.shotDao(),
+                assetDao = db.assetDao(),
+                projectDnaDao = db.projectDnaDao(),
+                audioContextDao = db.audioContextDao()
             ).onFailure { _lastActionMessage.value = it.message }
         }
     }

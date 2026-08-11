@@ -1194,6 +1194,32 @@ Rule های یتیم G14 است.
 G3-G5, G8, G12, G18) آخرین بند فهرست رسمی است** — به‌علاوه‌ی دو یافته‌ی
 بالا که برای تصمیم مشترک علامت‌گذاری شدند.
 
+### 🎯 نقطه‌ی عطف: رفع «عدم قرینگی Export/Import» (یافته‌ی معماری G14/ADR-064)
+
+کاربر می‌توانست پروژه Export کند اما هرگز نمی‌توانست فایل Export را دوباره
+Import کند — `importProject` (تابع دامنه‌ی موجود و کاملاً تست‌شده،
+`ExportImportRepository.kt`) هیچ فراخوان‌کننده‌ای در UI نداشت. رفع شد:
+
+1. **`ProjectListViewModel.importProject(fileUri: String): Job`** —
+   هم‌الگو دقیق با `exportProject`. **تصمیم مستقل مهم:** File Picker
+   استاندارد Android همیشه یک `content://` Uri برمی‌گرداند، اما
+   `BackupFileStorage.readFile` طبق قرارداد موجودش یک مسیر فایل خام
+   انتظار دارد — این تضاد با Stage‌کردن محتوای انتخاب‌شده (از طریق
+   `ContentResolver`) در همان `backupDir` اپ حل شد، بدون هیچ تغییری در
+   `ExportImportRepository.kt`/`BackupFileStorage.kt`.
+2. **دکمه‌ی «وارد کردن پروژه»** در Header صفحه‌ی Projects — سطح-فهرست
+   (نه Per-Card مثل Export)، چون Import پروژه‌ی تازه می‌سازد.
+3. خطاهای واقعی (فایل خراب، یکپارچگی ارجاعی نقض‌شده) از طریق همان
+   `lastActionMessage` موجود نمایش داده می‌شوند — بدون هیچ لایه‌ی خطای
+   جدید.
+
+جزئیات کامل تصمیمات در `docs/adr/065-project-import-export-symmetry.md`.
+
+`gradle :app:testDebugUnitTest` → ۶۹۰ تست (۶۸۷→۶۹۰، ۳ تست جدید: Round-Trip
+واقعی، فایل خراب، یکپارچگی ارجاعی نقض‌شده)، ۶۸۹ موفق. یک شکست، همان
+کلاس Flake محیطی از‌پیش‌مستند (`ShotsFlowTest`). `gradle :app:assembleDebug`
+جداگانه → موفق.
+
 ## Stack
 
 - **زبان:** Kotlin
