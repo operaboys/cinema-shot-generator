@@ -55,18 +55,25 @@ private val LightColorScheme = lightColorScheme(
  * می‌شود، نه از CompositionLocal) را دنبال می‌کند — بدون نیاز به یک لایه‌ی
  * انتزاعی جدید.
  */
+// MIGRATED (رفع بخشی G12 ممیزی post-Unit16، اولویت ۳ بند ۸): minTouchTargetEnabled
+// اضافه شد — پیش‌فرض false، پس فراخوان‌های تست/قدیمی موجود بدون تغییر رفتار
+// کار می‌کنند. هم‌الگو با ExtendedColors (CompositionLocal برای Composable های
+// عمیقاً تودرتو مثل AiStoryBreakdownScreen.PhaseCircle).
 @Composable
 fun CinemaShotGeneratorTheme(
     darkTheme: Boolean,
     language: Language,
+    minTouchTargetEnabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
     ProvideExtendedColors(colors = extendedColors) {
-        MaterialTheme(
-            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-            typography = cinemaTypography(language),
-            content = content
-        )
+        ProvideAccessibilityLocals(minTouchTargetEnabled = minTouchTargetEnabled) {
+            MaterialTheme(
+                colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+                typography = cinemaTypography(language),
+                content = content
+            )
+        }
     }
 }

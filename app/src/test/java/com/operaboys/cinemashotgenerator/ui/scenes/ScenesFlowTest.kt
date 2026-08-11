@@ -175,4 +175,31 @@ class ScenesFlowTest {
 
         composeRule.waitUntilExactlyOneExists(hasText("Bridge of the Ship"), timeoutMillis = 5_000)
     }
+
+    /**
+     * رفع G8 ممیزی post-Unit16 (اولویت ۳ بند ۸): location قبلاً فقط از Quick Action
+     * جدا («اتصال به کتابخانه»، Overview) قابل تغییر بود، نه از SceneSettingsDialog.
+     * این تست ثابت می‌کند همان LocationPickerDialog از داخل Settings هم واقعاً
+     * ذخیره می‌کند و بعد از بستن Dialog در Overview دیده می‌شود (ذخیره و بازیابی صحیح).
+     */
+    @Test
+    fun `changing location from inside SceneSettingsDialog saves it and shows it in the Overview`() {
+        createProjectAndOpenScenesTab("Scenes Settings Location Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_EDIT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.settingsDialogTitle", Language.FA)), timeoutMillis = 5_000)
+        // هم پشت Dialog (Overview) و هم داخل خودِ SceneSettingsDialog همین متن
+        // «هنوز به کتابخانه وصل نشده» را نشان می‌دهند (طبق رفع G8) — پس اینجا
+        // assertExists با «دقیقاً یک گره» بی‌معنا است؛ فقط جریان اصلی زیر تست
+        // می‌شود (کلیک دکمه‌ی تغییر Location داخل Settings → انتخاب → ذخیره).
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_CHANGE_LOCATION_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.locationPicker.title", Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(sceneDetailLocationPickerItemTag(SEEDED_LOCATION_ID)).clickViaSemantics()
+
+        composeRule.waitUntilExactlyOneExists(hasText("Bridge of the Ship"), timeoutMillis = 5_000)
+    }
 }

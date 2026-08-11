@@ -87,6 +87,8 @@ const val SCENE_DETAIL_SHOTS_TAB_TAG = "sceneDetail.tab.shots"
 const val SCENE_DETAIL_ASSETS_TAB_TAG = "sceneDetail.tab.assets"
 const val SCENE_DETAIL_SETTINGS_TITLE_FIELD_TAG = "sceneDetail.settings.titleField"
 const val SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG = "sceneDetail.settings.saveButton"
+/** رفع G8 ممیزی post-Unit16 — دکمه‌ی تغییر Location از داخل SceneSettingsDialog. */
+const val SCENE_DETAIL_SETTINGS_CHANGE_LOCATION_BUTTON_TAG = "sceneDetail.settings.changeLocationButton"
 const val SCENE_DETAIL_BACK_BUTTON_TAG = "sceneDetail.backButton"
 const val SCENE_DETAIL_MENU_BUTTON_TAG = "sceneDetail.menuButton"
 const val SCENE_DETAIL_DELETE_MENU_ITEM_TAG = "sceneDetail.deleteMenuItem"
@@ -219,6 +221,8 @@ fun SceneDetailScreen(
         SceneSettingsDialog(
             scene = sceneForSettings,
             language = language,
+            connectedLocationName = locationAssets.find { it.assetId == sceneForSettings.locationAssetId }?.name,
+            onChangeLocationClick = { showSettingsDialog = false; showLocationPicker = true },
             onDismiss = { showSettingsDialog = false },
             onSave = { title, role, time, primary, secondary ->
                 viewModel.saveSceneSettings(title, role, time, primary, secondary)
@@ -432,10 +436,20 @@ private fun LocationPickerDialog(
     )
 }
 
+// رفع G8 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، اولویت ۳ بند ۸):
+// location قبلاً از SceneSettingsDialog قابل ویرایش نبود — فقط از یک Quick Action
+// جدا («اتصال به کتابخانه»، OverviewTab). به‌جای ساخت یک انتخابگر تازه، همان
+// LocationPickerDialog/connectLocationAsset موجود (فاز ۴ واحد ۱۶) از داخل همین
+// Dialog هم قابل‌فراخوانی شد — تصمیم مستقل: تغییر location بلافاصله ذخیره می‌شود
+// (هم‌الگو دقیق با رفتار موجود Quick Action)، نه منتظر دکمه‌ی «ذخیره» عمومی این
+// Dialog — چون connectLocationAsset از قبل یک عملیات مستقل و فوری است، نه بخشی
+// از saveSceneSettings؛ تغییر این رفتار موجود خارج از Scope این قدم بود.
 @Composable
 private fun SceneSettingsDialog(
     scene: Scene,
     language: Language,
+    connectedLocationName: String?,
+    onChangeLocationClick: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (String?, NarrativeRole, TimeOfDay, Atmosphere, Atmosphere?) -> Unit
 ) {
@@ -457,6 +471,23 @@ private fun SceneSettingsDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag(SCENE_DETAIL_SETTINGS_TITLE_FIELD_TAG)
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = uiString("sceneDetail.overview.locationLabel", language), style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            text = connectedLocationName ?: uiString("sceneDetail.overview.noLocationConnected", language),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CinemaTheme.extendedColors.fg3
+                        )
+                    }
+                    TextButton(onClick = onChangeLocationClick, modifier = Modifier.testTag(SCENE_DETAIL_SETTINGS_CHANGE_LOCATION_BUTTON_TAG)) {
+                        Text(uiString("sceneDetail.overview.connectLocationButton", language))
+                    }
+                }
                 AssetFormEnumDropdownField(
                     label = uiString("sceneDetail.overview.narrativeRoleLabel", language),
                     selectedLabel = narrativeRoleLabel(narrativeRole, language),

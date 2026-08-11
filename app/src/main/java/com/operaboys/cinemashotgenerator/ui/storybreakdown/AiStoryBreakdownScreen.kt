@@ -60,6 +60,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
+import com.operaboys.cinemashotgenerator.ui.theme.minTouchTargetIfEnabled
 
 // واحد ۱۶ فاز ۲ — قدم ۲: صفحه‌ی واقعی AI Story Breakdown — اولین UI کل زنجیره‌ی
 // PromptBuilder→ChunkCombiner→JsonDoctor→StoryToDomainMapper (واحد ۰۱ب). سه فاز
@@ -236,20 +237,29 @@ private fun PhaseCircle(number: Int, active: Boolean, enabled: Boolean, onClick:
     val contentColor = if (active) MaterialTheme.colorScheme.onPrimary else CinemaTheme.extendedColors.fg2
     val borderColor = if (active) MaterialTheme.colorScheme.primary else CinemaTheme.extendedColors.cardBorder
 
+    // رفع بخشی G12 ممیزی post-Unit16 (اولویت ۳ بند ۸): minTouchTargetEnabled —
+    // Box بیرونی (نه دایره‌ی ۳۲dp خودش) حداقل اندازه‌ی لمس را می‌گیرد تا شکل
+    // بصری دایره وقتی سوییچ فعال است بزرگ نشود، فقط ناحیه‌ی واقعی لمس.
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-            .background(background, CircleShape)
-            .border(1.dp, borderColor, CircleShape),
+            .minTouchTargetIfEnabled()
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = number.toString(),
-            color = contentColor,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(2.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(background, CircleShape)
+                .border(1.dp, borderColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = number.toString(),
+                color = contentColor,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(2.dp)
+            )
+        }
     }
 }
 
