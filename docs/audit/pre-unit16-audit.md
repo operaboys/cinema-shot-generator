@@ -1,6 +1,9 @@
 # ممیزی پیش از واحد ۱۶ (User Workflow / UI)
 
 **تاریخ:** 2026-07-28
+**وضعیت (به‌روزرسانی 2026-08-13):** هر ۱۲ یافته‌ی این ممیزی رفع شده‌اند — جدول و
+جزئیات کامل در بخش «۵. وضعیت نهایی رفع یافته‌ها» در انتهای این سند. متن اصلی زیر
+بدون تغییر باقی مانده (سند تاریخی معتبر از وضعیت زمان نگارش)؛ فقط بخش ۵ جدید است.
 **نقش:** این فایل صرفاً یک گزارش است — هیچ کد یا بلوپرینتی در این قدم تغییر نکرد.
 **محدوده:** مطابقت `docs/blueprints/16-user-workflow-v2.md` و بلوپرینت‌های ارجاع‌داده‌شده
 (۰۱، ۰۱ب، ۰۲، ۰۳، ۰۴، ۰۵، ۰۶، ۰۷، ۰۸، ۰۹، ۱۰، ۱۱، ۱۲، ۱۳، ۱۴، ۱۵) با کد واقعی
@@ -445,3 +448,35 @@ enum class EntityState { DRAFT, REVIEW, LOCKED, FINAL, ARCHIVED }
    واحد ۱۶ گرفته شوند (نیازی به یک قدم مجزای پیش از UI ندارند).
 6. F3/F4/F9 می‌توانند به یک Migration جداگانه‌ی «اتصال Mood/enum های واقعی به
    Mapping های موجود» موکول شوند — غیرمسدودکننده برای شروع.
+
+---
+
+## ۵. وضعیت نهایی رفع یافته‌ها (به‌روزرسانی 2026-08-13)
+
+**زمینه:** بعد از تکمیل واحد ۱۶ و ممیزی جامع post-unit16 (که جدا از این سند است،
+در `docs/audit/post-unit16-full-audit.md`)، یک دور کامل بازبینی مستقل روی همین
+۱۲ یافته‌ی این سند انجام شد — هر مورد با `grep`/خواندن مستقیم کد واقعی در رپو
+(commit `bdd2f78` به بعد) راستی‌آزمایی شد، نه فقط بر مبنای ADR/README. **هر ۱۲
+یافته بدون استثنا رفع شده‌اند.**
+
+| # | یافته | وضعیت | رفع‌شده در |
+|---|---|---|---|
+| F1 | `domain/workflow/` غایب | ✅ رفع شد | `domain/workflow/WorkflowModels.kt` موجود؛ `docs/adr/037-unit16-workflow-models-quality-score.md`، `docs/adr/042-unit16-phase0-shared-foundation.md` (فاز ۰ واحد ۱۶) |
+| F2 | `Scene`↔`LocationAsset` بدون ارجاع | ✅ رفع شد | `Scene.locationAssetId: String? = null` اضافه شد (در کنار `SceneLocation` موجود، نه جایگزین آن)؛ `docs/adr/038-unit04-scene-location-asset-link.md` |
+| F3 | `mapMoodToLighting` رشته‌ی خام + مقادیر `style` نامعتبر | ✅ رفع شد | امضا به `mapMoodToLighting(mood: Mood): LightingPreset` (غیر-nullable، Total روی `MoodCategory`) تغییر کرد؛ `docs/adr/039-unit03-unit08-mood-type-safety-migration.md` |
+| F4 | `getPacingFromEmotion` رشته‌ی خام | ✅ رفع شد | امضا به `getPacingFromEmotion(emotion: Mood): CinematicMode` تغییر کرد؛ همان `ADR-039` |
+| F5 | `CharacterAsset.outfits` لیست ساختاریافته، فرم بلوپرینت ۱۶ TextField تکی فرض کرده | ✅ رفع شد | حین طراحی UI واقعی واحد ۱۶ حل شد (طبق پیش‌بینی خودِ این سند در بخش «پیشنهاد ترتیب رفع»، مورد ۵) |
+| F6 | فیلدهای Location (Time/Weather چندانتخابی، `environment`/`keyElements` غایب از فرم) | ✅ رفع شد | حین طراحی UI واقعی واحد ۱۶ حل شد؛ فاز ۳ (`docs/unit16-execution-plan.md`) صریحاً به تصمیم F6 (Chip چندانتخابی، نه Dropdown تکی) ارجاع می‌دهد |
+| F7 | `type-registry.md`: `LightingSettings` فاقد `lightSourceCount`، نام `motivation` اشتباه | ✅ رفع شد | ردیف `type-registry.md` با ترتیب/نام واقعی ۸ فیلد (`lightingMotivation`، نه `motivation`) بازنویسی شد؛ `docs/adr/040-unit05-unit08-type-registry-negative-prompt-rule8.md` |
+| F8 | `type-registry.md`: `EnvironmentSettings` فیلد ناموجود `locationType`، فاقد `environmentalMotion`/`windStrength` | ✅ رفع شد | همان `ADR-040` |
+| F9 | Rule ۸ (`negativePromptOverride` whitespace-only) پیاده نشده | ✅ رفع شد | `validateNegativePromptOverride(shot: Shot): ValidationIssue?` در `ShotValidation.kt` اضافه و در `ValidationAggregator` متصل شد؛ همان `ADR-040` |
+| F10 | ۱۲ کامنت هدر بدون `-v2` | ✅ رفع شد | هر ۱۲ خط با `grep` مستقل تأیید شد که اکنون به نام فایل صحیح (`-v2`) ارجاع می‌دهند |
+| F11 | `type-registry.md`: `Shot.camera`/`.lighting`/`.environment` اشتباهاً nullable نشان داده شده | ✅ رفع شد | ردیف `type-registry.md` اصلاح شد؛ کد از ابتدا هم درست بود (این یافته فقط مستندسازی بود) |
+| F12 | بلوپرینت ۱۶: `EntityState` فقط ۴ مقدار نام برده، enum واقعی ۵ مقدار (`ARCHIVED`) دارد | ✅ رفع شد | کد از ابتدا درست بود (۵ مقدار)؛ این یافته فقط توصیف ناقص متن بلوپرینت بود، بدون اثر بر پیاده‌سازی نشانگر وضعیت |
+
+**روش راستی‌آزمایی این به‌روزرسانی:** برای هر یافته، امضای تابع/فیلد/enum ادعاشده
+در جدول بالا با `grep` مستقیم روی کد فعلی رپو تأیید شد (نه صرفاً با خواندن متن
+ADR مربوطه) — همان انضباطی که خودِ این سند در نسخه‌ی اصلی به‌کار برده بود.
+
+**نتیجه:** این سند از این پس کاملاً یک مرجع تاریخی است؛ هیچ یافته‌ی بازی از این
+ممیزی باقی نمانده است.
