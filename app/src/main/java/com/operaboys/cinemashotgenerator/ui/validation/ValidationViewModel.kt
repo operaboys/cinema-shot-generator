@@ -7,13 +7,24 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.HumanOverrideRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.RoomOverrideEventLogger
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.story.HumanOverride
+import com.operaboys.cinemashotgenerator.domain.story.OverrideScope
+import com.operaboys.cinemashotgenerator.domain.story.OverrideType
+import com.operaboys.cinemashotgenerator.domain.story.RuleSeverity
+import com.operaboys.cinemashotgenerator.domain.story.createOverride
+import com.operaboys.cinemashotgenerator.domain.story.revokeOverride
 import com.operaboys.cinemashotgenerator.domain.validation.AggregatedValidationReport
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,16 +49,27 @@ class ValidationViewModel(
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    // رفع یافته‌ی معماری «Human Override هرگز به UI وصل نشده» (G3/ADR-067،
+    // ADR-068): database تزریقی برای ساخت HumanOverrideRepository/
+    // RoomOverrideEventLogger — هم‌الگو با ADR-059/063.
+    database: AppDatabase? = null,
+    private val humanOverrideRepository: HumanOverrideRepository? = null,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
     private val ioScope: CoroutineScope = ioScopeOverride ?: viewModelScope
+    private val db: AppDatabase = database ?: AppDatabase.getInstance(application)
+    private val overrideRepository: HumanOverrideRepository = humanOverrideRepository ?: HumanOverrideRepository(db.overrideDao())
+    private val overrideLogger = RoomOverrideEventLogger(db.eventLogDao(), ioScope)
 
     private val _report = MutableStateFlow<AggregatedValidationReport?>(null)
     val report: StateFlow<AggregatedValidationReport?> = _report.asStateFlow()
 
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
+    private val _activeOverrides = MutableStateFlow<List<HumanOverride>>(emptyList())
+    val activeOverrides: StateFlow<List<HumanOverride>> = _activeOverrides.asStateFlow()
 
     init {
         ioScope.launch {
@@ -62,6 +84,88 @@ class ValidationViewModel(
                 _report.value = aggregateShotValidation(shot, scene, dna, characterAssets, objectAssets, locationAssets)
             }
             _isLoaded.value = true
+        }
+        ioScope.launch { refreshActiveOverrides() }
+    }
+
+    /**
+     * تصمیم مستقل — suspend (نه یک ioScope.launch جداگانه): یافته‌ی واقعی دیباگ
+     * این قدم — نسخه‌ی اولیه (refreshActiveOverrides با launch داخلی خودش) باعث
+     * می‌شد Job برگشتی createOverrideForIssue/revokeOverrideAction قبل از تکمیل
+     * واقعی خواندن Room کامل شود (چون آن launch داخلی یک Coroutine کاملاً مستقل
+     * و un-awaited بود، نه فرزند Job بیرونی) — .join() تست بدون خطا برمی‌گشت اما
+     * activeOverrides هنوز به‌روز نشده بود. حالا suspend مستقیم صدا زده می‌شود، پس
+     * جزئی از همان Job بیرونی است و .join() واقعاً تضمین می‌کند کامل شده.
+     */
+    private suspend fun refreshActiveOverrides() {
+        _activeOverrides.value = overrideRepository.loadActiveOverridesForEntity(shotId).getOrElse { emptyList() }
+    }
+
+    /**
+     * شناسه‌ی پایدار یک ValidationIssue برای تطبیق با scope.field یک Override —
+     * ValidationIssue.field اغلب null است (بسیاری از توابع Check آن را
+     * پرنکرده‌اند)، پس message (که از خودِ شرط واقعی نقض‌شده مشتق می‌شود، نه از
+     * Index لیست که بین بارگذاری‌های مختلف می‌تواند جابه‌جا شود) Fallback پایدارتری
+     * است.
+     */
+    private fun issueKey(issue: ValidationIssue): String = issue.field ?: issue.message
+
+    fun activeOverrideFor(issue: ValidationIssue): HumanOverride? =
+        _activeOverrides.value.firstOrNull { it.scope.field == issueKey(issue) }
+
+    fun isOverridden(issue: ValidationIssue): Boolean = activeOverrideFor(issue) != null
+
+    /**
+     * طبق Rule 1 دامنه (checkOverridePermission) — Blocking هرگز قابل Override
+     * نیست. UI این تابع را قبل از نمایش دکمه‌ی «تجاوز از این هشدار» صدا می‌زند؛
+     * حتی اگر UI به‌اشتباه صدا زده شود، createOverrideForIssue خودش هم دوباره
+     * همین Rule را اجرا می‌کند (دفاع دوم، مستقل از UI).
+     */
+    fun canOverride(issue: ValidationIssue): Boolean = issue.severity == Severity.WARNING
+
+    /**
+     * ایجاد Override واقعی — createOverride/revokeOverride دامنه (واحد ۰۱)
+     * مستقیماً بازاستفاده شدند؛ هیچ منطق Rule تازه‌ای نوشته نشد.
+     *
+     * تصمیم مستقل — نگاشت Scope برای نقطه‌ی ورود Validation: OverrideScope طبق
+     * بلوپرینت (docs/blueprints/01-story-and-override-v2.md) برای «تغییر واقعی
+     * یک مقدار فیلد» طراحی شده (مثل camera.angle: eye-level → dutch-angle). این
+     * نقطه‌ی ورود (دکمه‌ی «تجاوز از این هشدار» روی خودِ صفحه‌ی Validation) مقدار
+     * تازه‌ای برای هیچ فیلدی نمی‌گیرد — کاربر فقط هشدار موجود را آگاهانه می‌پذیرد.
+     * originalValue = خودِ پیام هشدار (شرطی که Override شد)؛ overrideValue یک
+     * Sentinel ثابت "acknowledged_by_user" است (نه یک مقدار واقعی فیلد) — جزئیات
+     * کامل در docs/adr/068-human-override-storage-and-ui.md.
+     */
+    fun createOverrideForIssue(issue: ValidationIssue, overrideType: OverrideType, reason: String?): Job {
+        return ioScope.launch {
+            val ruleSeverity = RuleSeverity.valueOf(issue.severity.name)
+            val result = createOverride(
+                overrideType = overrideType,
+                scope = OverrideScope(
+                    entityType = "shot",
+                    entityId = shotId,
+                    field = issueKey(issue),
+                    originalValue = issue.message,
+                    overrideValue = "acknowledged_by_user"
+                ),
+                targetRuleSeverity = ruleSeverity,
+                reason = reason,
+                logger = overrideLogger
+            )
+            result.getOrNull()?.let { override ->
+                overrideRepository.saveOverride(override)
+                refreshActiveOverrides()
+            }
+        }
+    }
+
+    fun revokeOverrideAction(override: HumanOverride, reason: String?): Job {
+        return ioScope.launch {
+            val revoked = revokeOverride(override, reason, logger = overrideLogger).getOrNull()
+            if (revoked != null) {
+                overrideRepository.saveOverride(revoked)
+                refreshActiveOverrides()
+            }
         }
     }
 
@@ -80,13 +184,14 @@ class ValidationViewModel(
             shotRepository: ShotRepository? = null,
             sceneRepository: SceneRepository? = null,
             projectDnaRepository: ProjectDnaRepository? = null,
-            assetRepository: AssetRepository? = null
+            assetRepository: AssetRepository? = null,
+            database: AppDatabase? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null) {
+                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null || database != null) {
                             ValidationViewModel(
                                 application = application,
                                 projectId = projectId,
@@ -95,7 +200,8 @@ class ValidationViewModel(
                                 shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao()),
                                 sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
                                 projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
-                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao())
+                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                database = database
                             )
                         } else {
                             ValidationViewModel(application, projectId, sceneId, shotId)

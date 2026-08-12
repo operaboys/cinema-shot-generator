@@ -253,7 +253,8 @@ fun AppNavHost(
                 shotRepository = shotRepository,
                 sceneRepository = sceneRepository,
                 projectDnaRepository = projectDnaRepository,
-                assetRepository = assetRepository
+                assetRepository = assetRepository,
+                database = database
             )
         }
         composable<OutputDelivery> { backStackEntry ->

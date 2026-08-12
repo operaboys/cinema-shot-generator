@@ -1298,6 +1298,48 @@ Flake محیطی از‌پیش‌مستند در ADR-044/۰۵۹/۰۶۰/۰۶۲، 
 G3 (اتصال واقعی Human Override به یک اقدام کاربر)، G4/G18 (Export واقعی
 فایل)، G5 (چند-Outfit).
 
+### 🎯 نقطه‌ی عطف: اتصال واقعی Human Override به UI (رفع یافته‌ی معماری G3/ADR-067)
+
+کل مفهوم Human Override (واحد ۰۱، بخش ب) هرگز به هیچ اقدام واقعی کاربر
+وصل نشده بود. **یافته‌ی مهم بازبینی مستقل این قدم (خلاف پیش‌بررسی دستور
+کار):** با grep تأیید شد `OverrideEntity`/`OverrideDao` از قدم اول
+واحد ۱۵ از قبل ساخته و در `AppDatabase.kt` ثبت شده بودند — دقیقاً همان
+الگوی `EventLogDao` (قدم قبل، G3) که ساخته شد اما هرگز وصل نشد. یعنی این
+قدم به هیچ Entity/Dao/Migration تازه‌ای نیاز نداشت.
+
+1. **`HumanOverrideRepository`** (`data/repository/`) — نگاشت
+   `HumanOverride` دامنه ↔ `OverrideEntity` موجود (هم‌الگو DTO محلی
+   `@Serializable` با `ProjectEntityDto`/`ShotDto`).
+2. **نقطه‌ی ورود UI — صفحه‌ی Validation:** هر `ValidationIssue` با
+   `Severity.WARNING` یک دکمه‌ی «تجاوز از این هشدار» می‌گیرد (طبق Rule 1
+   دامنه، `Severity.BLOCKING` هرگز این دکمه را نمی‌گیرد) → Dialog کوچک
+   (نوع Override + دلیل اختیاری) → `createOverride` واقعی (دامنه، واحد
+   ۰۱) با `RoomOverrideEventLogger` واقعی صدا زده و در `HumanOverrideRepository`
+   ذخیره می‌شود. Issue بازبینی‌شده متمایز می‌شود (Strikethrough + برچسب
+   «Override شده»)، نه ناپدید. یک مسیر Revoke Inline (روی همان کارت)
+   هم اضافه شد — یک صفحه‌ی مستقل Browse-همه موکول شد (`OverrideEntity`
+   فاقد `projectId` است).
+3. **تصمیم مستقل مهم — نگاشت Scope:** `OverrideScope` دامنه برای «تغییر
+   واقعی یک مقدار فیلد» طراحی شده، اما این نقطه‌ی ورود مقدار تازه‌ای
+   نمی‌گیرد. راه‌حل: `originalValue = issue.message`، `overrideValue`
+   یک Sentinel ثابت `"acknowledged_by_user"` — سازش صادقانه، نه
+   سوءاستفاده‌ی خاموش. جزئیات کامل (و دو باگ Async واقعی کشف‌شده حین
+   دیباگ) در `docs/adr/068-human-override-storage-and-ui.md`.
+
+تست‌ها: `ValidationViewModelOverrideTest.kt` (۳ تست — Round-Trip واقعی
+روی Room، رد Override برای BLOCKING، EventLog واقعی برای create/revoke)؛
+`ValidationOverrideFlowTest.kt` (۱ تست End-to-End — کلیک واقعی دکمه →
+Dialog → بج «Override شده» → Revoke → دکمه دوباره ظاهر می‌شود).
+
+`gradle :app:testDebugUnitTest` → ۷۰۸ تست (۷۰۴→۷۰۸، ۴ تست جدید)، ۷۰۷
+موفق. یک شکست، همان کلاس Flake محیطی از‌پیش‌مستند در ADR-044/۰۵۹/۰۶۰/۰۶۲
+(این بار `ShotsFlowTest`) — `git diff` این قدم تأیید می‌کند هیچ فایلی
+در مسیر وابستگی این تست دست نخورده. `gradle :app:assembleDebug`
+جداگانه → موفق.
+
+**قدم بعدی پیشنهادی:** G4/G18 — Export واقعی فایل (`Intent.ACTION_SEND`/
+`MediaStore`) برای صفحه‌ی Output Delivery.
+
 ## Stack
 
 - **زبان:** Kotlin

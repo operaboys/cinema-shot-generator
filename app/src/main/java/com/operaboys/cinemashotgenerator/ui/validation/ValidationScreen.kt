@@ -16,33 +16,45 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.story.HumanOverride
+import com.operaboys.cinemashotgenerator.domain.story.OverrideType
 import com.operaboys.cinemashotgenerator.domain.validation.AggregatedValidationReport
 import com.operaboys.cinemashotgenerator.domain.validation.LeveledValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationLevel
+import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
+import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -75,16 +87,36 @@ fun ValidationScreen(
     sceneRepository: SceneRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
     assetRepository: AssetRepository? = null,
+    database: AppDatabase? = null,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: ValidationViewModel = viewModel(
         factory = ValidationViewModel.factory(
             application, projectId, sceneId, shotId,
-            shotRepository, sceneRepository, projectDnaRepository, assetRepository
+            shotRepository, sceneRepository, projectDnaRepository, assetRepository, database
         )
     )
     val report by viewModel.report.collectAsStateWithLifecycle()
+    // یافته‌ی واقعی دیباگ این قدم: viewModel::activeOverrideFor مستقیماً
+    // _activeOverrides.value (یک MutableStateFlow خام) را می‌خواند — بدون
+    // collectAsStateWithLifecycle، این خواندن هیچ Compose State ای را Observe
+    // نمی‌کند، پس تغییر واقعی activeOverrides (بعد از createOverrideForIssue) هرگز
+    // باعث Recomposition نمی‌شد و بج «Override شده» تا ابد ظاهر نمی‌شد — دقیقاً
+    // همان علت واقعی Timeout مشاهده‌شده در تست End-to-End این قدم. overrideLookup
+    // اکنون مستقیماً از همین State جمع‌آوری‌شده می‌خواند (نه از ViewModel)، دقیقاً
+    // با همان منطق issueKey ViewModel (field ?: message) که private است.
+    val activeOverrides by viewModel.activeOverrides.collectAsStateWithLifecycle()
+    val overrideLookup: (ValidationIssue) -> HumanOverride? = { issue ->
+        activeOverrides.firstOrNull { it.scope.field == (issue.field ?: issue.message) }
+    }
+
+    // رفع یافته‌ی معماری «Human Override هرگز به UI وصل نشده» (G3/ADR-067، ADR-068)
+    // — نقطه‌ی ورود UI. دو Dialog State مستقل (نه یک enum مشترک) چون داده‌ی
+    // پرسیده‌شده کاملاً متفاوت است (ValidationIssue برای Override، HumanOverride
+    // موجود برای Revoke) و هم‌زمان بیش از یکی باز نمی‌شود.
+    var overrideDialogIssue by remember { mutableStateOf<ValidationIssue?>(null) }
+    var revokeDialogOverride by remember { mutableStateOf<HumanOverride?>(null) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         AssetFormHeader(
@@ -130,10 +162,47 @@ fun ValidationScreen(
                 }
             }
 
-            ValidationLevelSection(ValidationLevel.DATA_COMPLETENESS, "validation.level1Title", report, language)
-            ValidationLevelSection(ValidationLevel.LOGICAL_CONSISTENCY, "validation.level2Title", report, language)
-            ValidationLevelSection(ValidationLevel.CONTINUITY_AND_DEPENDENCY, "validation.level3Title", report, language)
+            ValidationLevelSection(
+                ValidationLevel.DATA_COMPLETENESS, "validation.level1Title", report, language,
+                overrideLookup = overrideLookup,
+                onOverrideClick = { overrideDialogIssue = it },
+                onRevokeClick = { revokeDialogOverride = it }
+            )
+            ValidationLevelSection(
+                ValidationLevel.LOGICAL_CONSISTENCY, "validation.level2Title", report, language,
+                overrideLookup = overrideLookup,
+                onOverrideClick = { overrideDialogIssue = it },
+                onRevokeClick = { revokeDialogOverride = it }
+            )
+            ValidationLevelSection(
+                ValidationLevel.CONTINUITY_AND_DEPENDENCY, "validation.level3Title", report, language,
+                overrideLookup = overrideLookup,
+                onOverrideClick = { overrideDialogIssue = it },
+                onRevokeClick = { revokeDialogOverride = it }
+            )
         }
+    }
+
+    overrideDialogIssue?.let { issue ->
+        OverrideWarningDialog(
+            language = language,
+            onConfirm = { overrideType, reason ->
+                viewModel.createOverrideForIssue(issue, overrideType, reason)
+                overrideDialogIssue = null
+            },
+            onDismiss = { overrideDialogIssue = null }
+        )
+    }
+
+    revokeDialogOverride?.let { override ->
+        RevokeOverrideDialog(
+            language = language,
+            onConfirm = { reason ->
+                viewModel.revokeOverrideAction(override, reason)
+                revokeDialogOverride = null
+            },
+            onDismiss = { revokeDialogOverride = null }
+        )
     }
 }
 
@@ -199,7 +268,10 @@ private fun ValidationLevelSection(
     level: ValidationLevel,
     titleKey: String,
     report: AggregatedValidationReport?,
-    language: Language
+    language: Language,
+    overrideLookup: (ValidationIssue) -> HumanOverride?,
+    onOverrideClick: (ValidationIssue) -> Unit,
+    onRevokeClick: (HumanOverride) -> Unit
 ) {
     val issues = report?.issuesAtLevel(level) ?: emptyList()
     Card(
@@ -216,7 +288,12 @@ private fun ValidationLevelSection(
                 )
             } else {
                 issues.forEachIndexed { index, leveled ->
-                    IssueCard(leveled, language, testTag = validationIssueCardTag(level, index))
+                    IssueCard(
+                        leveled, language, testTag = validationIssueCardTag(level, index),
+                        activeOverride = overrideLookup(leveled.issue),
+                        onOverrideClick = { onOverrideClick(leveled.issue) },
+                        onRevokeClick = onRevokeClick
+                    )
                 }
             }
         }
@@ -224,7 +301,14 @@ private fun ValidationLevelSection(
 }
 
 @Composable
-private fun IssueCard(leveled: LeveledValidationIssue, language: Language, testTag: String) {
+private fun IssueCard(
+    leveled: LeveledValidationIssue,
+    language: Language,
+    testTag: String,
+    activeOverride: HumanOverride?,
+    onOverrideClick: () -> Unit,
+    onRevokeClick: (HumanOverride) -> Unit
+) {
     val issue = leveled.issue
     val color = if (issue.severity == Severity.BLOCKING) MaterialTheme.colorScheme.error else CinemaTheme.extendedColors.warning
     val icon = if (issue.severity == Severity.BLOCKING) Icons.Filled.Error else Icons.Filled.Warning
@@ -248,7 +332,11 @@ private fun IssueCard(leveled: LeveledValidationIssue, language: Language, testT
                     Text(text = it, style = MaterialTheme.typography.labelMedium, color = CinemaTheme.extendedColors.fg3)
                 }
             }
-            Text(text = issue.message, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = issue.message,
+                style = MaterialTheme.typography.bodyMedium,
+                textDecoration = if (activeOverride != null) TextDecoration.LineThrough else null
+            )
             issue.suggestion?.let {
                 Text(
                     text = "${uiString("validation.suggestionPrefix", language)} $it",
@@ -256,6 +344,130 @@ private fun IssueCard(leveled: LeveledValidationIssue, language: Language, testT
                     color = CinemaTheme.extendedColors.fg3
                 )
             }
+            // دکمه‌ی Override/Revoke — طبق Rule 1 دامنه (checkOverridePermission)،
+            // فقط WARNING قابل Override است؛ خودِ عبارت شرط پایین (نه یک صدازدن
+            // جدا به viewModel.canOverride) کافی است چون این شرط دقیقاً همان Rule 1
+            // را تکرار می‌کند (issue.severity == Severity.WARNING) — createOverrideForIssue
+            // خودش هم دوباره این Rule را مستقل از UI اجرا می‌کند (دفاع دوم).
+            if (activeOverride != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = uiString("validation.overriddenBadge", language),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CinemaTheme.extendedColors.fg3,
+                        modifier = Modifier.testTag("$testTag.overriddenBadge")
+                    )
+                    TextButton(onClick = { onRevokeClick(activeOverride) }, modifier = Modifier.testTag("$testTag.revokeButton")) {
+                        Text(uiString("validation.revokeButton", language))
+                    }
+                }
+            } else if (issue.severity == Severity.WARNING) {
+                TextButton(onClick = onOverrideClick, modifier = Modifier.testTag("$testTag.overrideButton")) {
+                    Text(uiString("validation.overrideButton", language))
+                }
+            }
         }
     }
+}
+
+/**
+ * تصمیم مستقل — گفتگوی Override: طبق دستور کار («Dialog کوچک: reason (اختیاری)
+ * و overrideType»)، فقط همین دو فیلد. AssetFormEnumDropdownField/AssetFormFlatEntries
+ * از ui/assets/AssetFormSupport.kt بازاستفاده شدند — دقیقاً همان الگوی
+ * SceneDetailScreen.kt (SceneSettingsDialog).
+ */
+@Composable
+private fun OverrideWarningDialog(
+    language: Language,
+    onConfirm: (OverrideType, String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var overrideType by remember { mutableStateOf(OverrideType.ARTISTIC) }
+    var reason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("validation.overrideDialogTitle", language)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AssetFormEnumDropdownField(
+                    label = uiString("validation.overrideTypeLabel", language),
+                    selectedLabel = overrideTypeLabel(overrideType, language),
+                    testTag = "validation.overrideDialog.typeField"
+                ) { onDismissMenu ->
+                    AssetFormFlatEntries(OverrideType.entries, { overrideTypeLabel(it, language) }) {
+                        overrideType = it
+                        onDismissMenu()
+                    }
+                }
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text(uiString("validation.overrideReasonLabel", language)) },
+                    modifier = Modifier.fillMaxWidth().testTag("validation.overrideDialog.reasonField")
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(overrideType, reason.ifBlank { null }) },
+                modifier = Modifier.testTag("validation.overrideDialog.confirmButton")
+            ) {
+                Text(uiString("validation.overrideConfirmButton", language))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("validation.overrideDialog.cancelButton")) {
+                Text(uiString("validation.overrideCancelButton", language))
+            }
+        }
+    )
+}
+
+/**
+ * تصمیم مستقل — گفتگوی Revoke: طبق دستور کار («حداقل ساده»)، فقط یک reason
+ * اختیاری، بدون تکرار overrideType (که در خودِ HumanOverride موجود از قبل ثابت
+ * است). Cancel این گفتگو از همان کلید validation.overrideCancelButton استفاده
+ * می‌کند — یک دکمه‌ی «انصراف» عمومی، نه مفهومی مختص Override.
+ */
+@Composable
+private fun RevokeOverrideDialog(
+    language: Language,
+    onConfirm: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("validation.revokeDialogTitle", language)) },
+        text = {
+            OutlinedTextField(
+                value = reason,
+                onValueChange = { reason = it },
+                label = { Text(uiString("validation.revokeReasonLabel", language)) },
+                modifier = Modifier.fillMaxWidth().testTag("validation.revokeDialog.reasonField")
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(reason.ifBlank { null }) },
+                modifier = Modifier.testTag("validation.revokeDialog.confirmButton")
+            ) {
+                Text(uiString("validation.revokeConfirmButton", language))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("validation.revokeDialog.cancelButton")) {
+                Text(uiString("validation.overrideCancelButton", language))
+            }
+        }
+    )
+}
+
+private fun overrideTypeLabel(type: OverrideType, language: Language): String = when (type) {
+    OverrideType.ARTISTIC -> uiString("validation.overrideType.artistic", language)
+    OverrideType.NARRATIVE -> uiString("validation.overrideType.narrative", language)
+    OverrideType.VISUAL -> uiString("validation.overrideType.visual", language)
+    OverrideType.TECHNICAL -> uiString("validation.overrideType.technical", language)
 }
