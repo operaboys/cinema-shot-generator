@@ -118,6 +118,88 @@ Process همیشه ثابت است، پس این هرگز رخ نمی‌دهد) 
   از طریق `ContentResolver` (FileProvider واقعی) قابل خواندن است — اثبات
   مستقیم که Export و Copy دیگر یک رفتار مشترک زیر دو نام نیستند.
 
+## پیوست — جزئیات کامل ۳ شکست تست گزارش‌شده‌ی این قدم (پاسخ به سؤال پیگیری معمار)
+
+گزارش نهایی این قدم فقط به‌صورت خلاصه («همان کلاس Flake محیطی
+از‌پیش‌مستند») به ۳ شکست اشاره کرد، بدون نام دقیق — بر خلاف الگوی
+همیشگی این پروژه (مثل ADR-060/062). این بخش آن نقص را رفع می‌کند: نام
+دقیق هر ۳ تست، تشخیص «قبلاً مستند شده» در برابر «تازه»، و شواهد واقعی
+(نه فقط استنتاج از روی امضای خطا) برای هرکدام — شامل اجراهای Isolated
+تازه‌ای که مخصوص همین پاسخ انجام شدند.
+
+### ۱. نام دقیق هر ۳ تست (از فایل‌های XML واقعی همان اجرا، `commit 253381d`)
+
+1. `AssetFormFlowTest > "clicking an existing character card opens the
+   edit form pre-filled, and saving updates the same asset instead of
+   creating a new one"` (`AssetFormFlowTest.kt:210`) —
+   `ComposeTimeoutException`: منتظر گره‌ای با متن «کاراکتر جدید» ماند و
+   ظرف ۵۰۰۰ms پیدا نکرد.
+2. `OutputDeliveryFlowTest > "model picker chips render as distinct,
+   fully visible, opaque nodes both selected and unselected"` —
+   `IllegalStateException: Cannot perform this operation because the
+   connection pool has been closed.` (خطای SQLite، هنگام
+   `ShotDao_Impl.loadShot`).
+3. `ShotsFlowTest > "deleting a scene that still has a shot is blocked
+   with a real message, deleting after the shot is removed actually
+   deletes it"` (`ShotsFlowTest.kt:458`) — `ComposeTimeoutException`
+   عمومی (بدون شرط مشخص در پیام).
+
+### ۲. کدام‌ها قبلاً مستند بودند، کدام‌ها تازه‌اند
+
+- **#۳ (`ShotsFlowTest > deleting a scene...`) — دقیقاً همان تست
+  قبلاً مستندشده است**، کلمه‌به‌کلمه: در README (دو بار، خط ۱۱۲۰ و
+  ۱۱۵۰ نسخه‌ی این قدم) و در `docs/adr/062-post-unit16-audit-g6-g22-
+  fixes.md` (خط ۱۴۱/۱۵۸) و `docs/adr/063-post-unit16-audit-g15-g16-
+  fixes.md` (خط ۱۲۲) — این چهارمین باری است که همین تست دقیقاً با همین
+  نام در قدم‌های متفاوت شکست می‌خورد.
+- **#۱ (`AssetFormFlowTest > clicking an existing character card...`)
+  — تازه است.** کلاس `AssetFormFlowTest` قبلاً چند بار (README خطوط
+  ۱۱۸۷/۱۲۴۹/۱۲۸۹) به‌عنوان یکی از چند کلاس Flake محتمل نام برده شده
+  بود، اما **هرگز این متد مشخص با این نام** ثبت نشده بود — این اولین
+  بار است که این Test Case خاص با نام کامل مستند می‌شود.
+- **#۲ (`OutputDeliveryFlowTest > model picker chips...`) — کاملاً
+  تازه است.** هیچ‌جای README یا هیچ ADR ای تا پیش از این قدم این تست
+  را (نه به نام، نه به‌طور ضمنی) به‌عنوان Flake ثبت نکرده بود — اولین
+  باری است که این تست مشخص شکست خورده.
+
+### ۳. شواهد واقعی (نه فقط تطبیق امضا) — اجراهای Isolated تازه، مخصوص همین پاسخ
+
+با `git diff`، هیچ‌کدام از سه فایل تست (`AssetFormFlowTest.kt`،
+`OutputDeliveryFlowTest.kt` به‌جز افزودن یک تست کاملاً جدید و مستقل در
+انتهای فایل، `ShotsFlowTest.kt`) یا وابستگی‌های واقعی‌شان
+(`ModelPickerSection`/`ALL_MODEL_PROFILES`، فرم ویرایش کاراکتر، حذف
+Scene) توسط این قدم دست نخورده‌اند. برای اثبات فراتر از این (طبق
+درخواست صریح معمار)، ۴ اجرای Isolated تازه انجام شد:
+
+1. `AssetFormFlowTest` به‌تنهایی (به همراه `OutputDeliveryFlowTest` در
+   همان دستور) → **۸ از ۸ موفق، صفر شکست.** همان تستی که در اجرای اصلی
+   شکست خورده بود، این‌بار تمیز رد شد.
+2. `OutputDeliveryFlowTest` در همان اجرا (کنار `AssetFormFlowTest`) →
+   ۱ شکست، اما در `model picker chips...` این‌بار با یک خطای SQLite
+   **متفاوت** (`IllegalStateException: attempt to re-open an
+   already-closed object: SQLiteDatabase: :memory:` — نه همان
+   Connection Pool قبلی).
+3. `OutputDeliveryFlowTest` کاملاً تنها (بدون هیچ کلاس دیگر) →
+   **۶ از ۶ موفق، صفر شکست** — شامل همان `model picker chips...`.
+4. `ShotsFlowTest` کاملاً تنها (بدون هیچ کلاس دیگر) → ۲ شکست از ۹:
+   همان `deleting a scene...` (مورد #۳ بالا) **و یک تست کاملاً دیگر و
+   جدید** (`selecting each camera movement kind shows its own
+   conditional fields`) که تا این اجرا هرگز شکست نخورده بود — با همان
+   `SQLiteConnectionPool` closed.
+
+**نتیجه‌گیری:** هیچ‌کدام از این تست‌ها به‌طور Deterministic شکست
+نمی‌خورند (هرکدام گاهی رد می‌شوند، گاهی نه، با پیام خطای متفاوت در
+اجراهای مختلف، حتی وقتی هیچ کدی بین دو اجرا عوض نشده) — دقیقاً همان
+تعریف صریح خودِ این پروژه از Flake محیطی (`docs/adr/062-...`: «در
+اجراهای مکرر Isolated در ۴ نقطه‌ی کاملاً متفاوت شکست خورد، نه همیشه
+همان خط»). امضای خطا هم دقیقاً همان کلاس شناخته‌شده است:
+`SQLiteConnectionPool`/`SQLiteDatabase` بسته‌شده زیر بار (مستند در
+ADR-059/060) یا `ComposeTimeoutException` بدون هیچ شرط تازه‌ی مرتبط با
+کد این قدم. با این حال، چون #۱ و #۲ اولین‌بار با این نام مشخص ثبت
+می‌شوند، این دو از این پس به فهرست تست‌های شناخته‌شده‌ی این کلاس Flake
+اضافه شدند (کنار `ShotsFlowTest > deleting a scene...` و
+`ScenesFlowTest > connecting a location asset...`).
+
 ## Skills استفاده‌شده
 
 هیچ Skill نصب‌شده‌ای در این قدم فراخوانی نشد.
