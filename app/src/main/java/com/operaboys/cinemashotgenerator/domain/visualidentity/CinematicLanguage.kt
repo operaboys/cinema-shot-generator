@@ -60,7 +60,7 @@ fun getPacingFromEmotion(emotion: Mood): CinematicMode = when (emotion.category)
 
 /**
  * Rule 1 (Blocking): حالت انتخابی باید یکی از سه مقدار معتبر باشد.
- * برای ورودی String خام (مثلاً از JSON یا از واحد ۰۷ که فعلاً String می‌گیرد).
+ * برای ورودی String خام (مثلاً از JSON یا از منابع دیگری که هنوز رشته‌ی خام دارند).
  * نگاشت "hybrid" → BALANCED طبق مقدار global_mode در ساختار JSON بلوپرینت است؛
  * enum مفهومی بلوپرینت این حالت را BALANCED نام‌گذاری کرده، نه HYBRID.
  */
