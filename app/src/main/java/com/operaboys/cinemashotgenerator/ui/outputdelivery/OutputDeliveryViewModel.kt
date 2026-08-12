@@ -8,12 +8,17 @@ import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
+import com.operaboys.cinemashotgenerator.data.repository.DeviceExportFileWriter
+import com.operaboys.cinemashotgenerator.data.repository.ExportFileWriter
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SettingsResolutionRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ALL_MODEL_PROFILES
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.BilingualPrompts
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ModelProfile
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.OutputPackage
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.RenderedOutput
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.composeOutput
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.render
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.renderBlueprintToText
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.validatePromptLength
@@ -26,6 +31,7 @@ import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateConfl
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +58,12 @@ sealed class OutputDeliveryState {
         // فقط وقتی finalizePrompt واقعاً بدون خطا اجرا شده باشد true است — بج
         // «پاک‌سازی‌شده· نهایی‌شده» صفحه فقط وقتی این true است نمایش داده می‌شود
         // (نه یک Badge ثابت که همیشه نمایش داده می‌شد، طبق دستور کار این قدم).
-        val cleaningSucceeded: Boolean
+        val cleaningSucceeded: Boolean,
+        // رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-069):
+        // composeOutput (واحد ۱۴) اکنون بلافاصله بعد از رندر/پاک‌سازی موفق صدا
+        // زده می‌شود، نه در لحظه‌ی کلیک Export — دکمه‌ی Export فقط exportFiles
+        // موجود این بسته را روی دیسک می‌نویسد.
+        val outputPackage: OutputPackage
     ) : OutputDeliveryState()
 }
 
@@ -68,10 +79,29 @@ class OutputDeliveryViewModel(
         SettingsResolutionRepository(AppDatabase.getInstance(application).shotDao(), AppDatabase.getInstance(application).sceneDao()),
         AudioContextRepository(AppDatabase.getInstance(application).audioContextDao())
     ),
+    private val exportFileWriter: ExportFileWriter = DeviceExportFileWriter(application),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
     private val ioScope: CoroutineScope = ioScopeOverride ?: viewModelScope
+
+    // یک رویداد یک‌باره (هم‌الگو با lastActionMessage/clearLastActionMessage
+    // ProjectListViewModel) — وقتی exportOutput() فایل‌ها را واقعاً روی دیسک
+    // می‌نویسد، UI این را Observe می‌کند تا Intent.ACTION_SEND واقعی را بسازد/باز
+    // کند (کاری که فقط لایه‌ی UI با Context یک Activity می‌تواند انجام دهد، نه
+    // ViewModel) و سپس clearExportedFiles را صدا می‌زند.
+    private val _exportedFiles = MutableStateFlow<List<File>?>(null)
+    val exportedFiles: StateFlow<List<File>?> = _exportedFiles.asStateFlow()
+
+    fun clearExportedFiles() {
+        _exportedFiles.value = null
+    }
+
+    /** فایل‌های exportFiles بسته‌ی فعلی (اگر state آماده باشد) را واقعاً روی دیسک می‌نویسد. */
+    fun exportOutput(): Job = ioScope.launch {
+        val currentState = _state.value as? OutputDeliveryState.Ready ?: return@launch
+        _exportedFiles.value = exportFileWriter.writeExportFiles(currentState.outputPackage.exportFiles)
+    }
 
     private val _selectedProfileId = MutableStateFlow(
         ALL_MODEL_PROFILES.firstOrNull { it.profileId == initialModelProfileId }?.profileId
@@ -177,11 +207,33 @@ class OutputDeliveryViewModel(
                 emptyList()
             }
 
+            val finalRenderedOutput = finalization?.rendered ?: renderedOutput
+
+            // رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-067،
+            // رفع در ADR-069). محدودیت شناخته‌شده و آگاهانه (نه بدهی فنی این قدم،
+            // طبق Bilingual.kt که صریحاً generateBilingualPrompt/translateToFarsi
+            // را عمداً پیاده نکرده — یک تصمیم معماری جدا و در حال بحث است، نه یک
+            // TODO ساده): تا زمانی که یک موتور ترجمه‌ی واقعی انتخاب نشده،
+            // enVersion/faVersion هر دو برابر همان متن رندرشده‌ی نهایی هستند
+            // (RenderedOutput.language طبق کامنت PromptCleaner.kt همیشه "en" است؛
+            // نسخه‌ی فارسی واقعی هنوز وجود ندارد). جزئیات کامل در
+            // docs/adr/069-real-output-export-and-bilingual-limitation.md.
+            val outputPackage = composeOutput(
+                shotId = shotId,
+                promptBlueprintId = blueprint.promptBlueprintId,
+                renderedOutputs = listOf(finalRenderedOutput),
+                bilingualPrompts = BilingualPrompts(
+                    enVersion = finalRenderedOutput.formattedPrompt,
+                    faVersion = finalRenderedOutput.formattedPrompt
+                )
+            )
+
             _state.value = OutputDeliveryState.Ready(
-                renderedOutput = finalization?.rendered ?: renderedOutput,
+                renderedOutput = finalRenderedOutput,
                 warnings = blueprint.warnings + renderWarnings + cleaningWarnings,
                 tokenCheck = finalization?.tokenCheck,
-                cleaningSucceeded = finalization != null
+                cleaningSucceeded = finalization != null,
+                outputPackage = outputPackage
             )
         }
         regenerateJob = job

@@ -22,8 +22,10 @@ import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.data.repository.ExportFileWriter
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ALL_MODEL_PROFILES
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.ExportFile
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -161,13 +163,18 @@ class OutputDeliveryViewModelTest {
         database.close()
     }
 
-    private fun buildViewModel(shotId: String, initialModelProfileId: String?): OutputDeliveryViewModel {
+    private fun buildViewModel(
+        shotId: String,
+        initialModelProfileId: String?,
+        exportFileWriter: ExportFileWriter = FakeExportFileWriter()
+    ): OutputDeliveryViewModel {
         val application = ApplicationProvider.getApplicationContext<Application>()
         return OutputDeliveryViewModel(
             application = application,
             shotId = shotId,
             initialModelProfileId = initialModelProfileId,
             promptGenerationRepository = promptGenerationRepository,
+            exportFileWriter = exportFileWriter,
             ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
         )
     }
@@ -229,5 +236,79 @@ class OutputDeliveryViewModelTest {
             "هشدار واقعی checkTokenLimit باید در warnings دیده شود",
             state.warnings.any { it.message.contains("توکن") && it.message.contains("بیشتر است") }
         )
+    }
+
+    /**
+     * رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-069) —
+     * composeOutput واحد ۱۴ واقعاً از اینجا صدا زده می‌شود، نه فقط پیش‌بینی‌شده.
+     */
+    @Test
+    fun `regenerate composes a real OutputPackage with both export files and the honest bilingual fallback`() = runBlocking {
+        val shotId = "${SHOT_ID}_compose"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val viewModel = buildViewModel(shotId, initialModelProfileId = "universal_default")
+        viewModel.regenerate().join()
+        val state = viewModel.state.value as OutputDeliveryState.Ready
+
+        val pkg = state.outputPackage
+        assertEquals(shotId, pkg.shotId)
+        assertEquals(state.renderedOutput, pkg.renderedOutputs.single())
+
+        // محدودیت شناخته‌شده و آگاهانه (Bilingual.kt، ADR-069): تا زمانی که یک
+        // موتور ترجمه‌ی واقعی وجود ندارد، هر دو نسخه دقیقاً همان متن رندرشده‌ی
+        // نهایی‌اند — نه یک Placeholder جعلی و نه خالی.
+        assertEquals(state.renderedOutput.formattedPrompt, pkg.bilingualPrompts.enVersion)
+        assertEquals(state.renderedOutput.formattedPrompt, pkg.bilingualPrompts.faVersion)
+
+        // composeOutput دو فایل bilingual + یک فایل به‌ازای هر RenderedOutput
+        // می‌سازد (OutputComposer.kt) — اینجا دقیقاً یک مدل انتخاب شده، پس ۳ فایل.
+        assertEquals(3, pkg.exportFiles.size)
+        assertTrue(pkg.exportFiles.any { it.filename == "${shotId}_prompt_en.txt" })
+        assertTrue(pkg.exportFiles.any { it.filename == "${shotId}_prompt_fa.txt" })
+        assertTrue(pkg.exportFiles.any { it.filename == "${shotId}_universal_default.txt" })
+        assertTrue(pkg.exportFiles.all { it.mimeType == "text/plain" })
+    }
+
+    /**
+     * exportOutput واقعاً exportFiles بسته‌ی رندرشده را می‌نویسد — از طریق
+     * ExportFileWriter تزریقی (Fake اینجا)، بدون نیاز به Context/File I/O واقعی.
+     */
+    @Test
+    fun `exportOutput writes the real composed exportFiles through the injected ExportFileWriter`() = runBlocking {
+        val shotId = "${SHOT_ID}_export"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val writer = FakeExportFileWriter()
+        val viewModel = buildViewModel(shotId, initialModelProfileId = "universal_default", exportFileWriter = writer)
+        viewModel.regenerate().join()
+        val expectedExportFiles = (viewModel.state.value as OutputDeliveryState.Ready).outputPackage.exportFiles
+
+        assertEquals(null, viewModel.exportedFiles.value)
+
+        viewModel.exportOutput().join()
+
+        assertEquals(3, writer.writtenFiles.size)
+        assertEquals(expectedExportFiles.map { it.filename }.toSet(), writer.writtenFiles.keys)
+        assertEquals(expectedExportFiles.first().content, writer.writtenFiles.getValue(expectedExportFiles.first().filename))
+
+        val exported = viewModel.exportedFiles.value
+        assertTrue(exported != null)
+        assertEquals(3, exported!!.size)
+
+        viewModel.clearExportedFiles()
+        assertEquals(null, viewModel.exportedFiles.value)
+    }
+}
+
+/** هم‌الگو با FakeBackupFileStorage (BackupManagerTest.kt) — بدون I/O واقعی، فقط در حافظه. */
+private class FakeExportFileWriter : ExportFileWriter {
+    val writtenFiles = mutableMapOf<String, String>()
+
+    override suspend fun writeExportFiles(files: List<ExportFile>): List<java.io.File> {
+        return files.map { file ->
+            writtenFiles[file.filename] = file.content
+            java.io.File("/fake/exports/${file.filename}")
+        }
     }
 }

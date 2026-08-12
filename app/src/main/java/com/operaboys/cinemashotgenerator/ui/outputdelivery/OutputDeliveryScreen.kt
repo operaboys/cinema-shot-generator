@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.outputdelivery
 
 import android.app.Application
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipboardManager
@@ -79,6 +81,23 @@ fun OutputDeliveryScreen(
     val selectedProfileId by viewModel.selectedProfileId.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    // رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-069): وقتی
+    // ViewModel واقعاً فایل‌ها را روی دیسک نوشت (exportOutput→exportedFiles)، این
+    // Effect یک Intent.ACTION_SEND واقعی می‌سازد و Chooser سیستم را باز می‌کند —
+    // این کار فقط از لایه‌ی UI (Context یک Activity واقعی) ممکن است، نه ViewModel؛
+    // بعد از باز کردن، clearExportedFiles صدا زده می‌شود تا این یک رویداد یک‌باره
+    // بماند (هم‌الگو با lastActionMessage/clearLastActionMessage ProjectListViewModel).
+    val exportedFiles by viewModel.exportedFiles.collectAsStateWithLifecycle()
+    LaunchedEffect(exportedFiles) {
+        val files = exportedFiles ?: return@LaunchedEffect
+        // همه‌ی ExportFile های composeOutput همیشه "text/plain" هستند
+        // (OutputComposer.kt) — نیازی به خواندن دوباره‌ی mimeType از state نیست.
+        val shareIntent = buildExportShareIntent(context, files, "text/plain")
+        context.startActivity(Intent.createChooser(shareIntent, uiString("outputDelivery.exportChooserTitle", language)))
+        viewModel.clearExportedFiles()
+    }
 
     Column(modifier = modifier) {
         AssetFormHeader(
@@ -125,10 +144,13 @@ fun OutputDeliveryScreen(
                             onShowMessage(uiString("outputDelivery.copiedMessage", language))
                         },
                         onRegenerate = { viewModel.regenerate() },
-                        onExport = {
-                            clipboardManager.setText(AnnotatedString(currentState.renderedOutput.formattedPrompt))
-                            onShowMessage(uiString("outputDelivery.exportedMessage", language))
-                        }
+                        // تصمیم مستقل — Export دیگر مستعار Copy نیست (ADR-069):
+                        // دکمه‌ی Copy فقط Clipboard را عوض می‌کند (رفتار بدون تغییر)؛
+                        // دکمه‌ی Export اکنون رفتار واقعاً متفاوتی دارد — نوشتن فایل +
+                        // اشتراک‌گذاری واقعی با Intent.ACTION_SEND (بالا). هیچ پیام
+                        // Clipboard دیگر اینجا نشان داده نمی‌شود — خودِ Chooser سیستم
+                        // بازخورد کافی است.
+                        onExport = { viewModel.exportOutput() }
                     )
                     WarningsSection(warnings = currentState.warnings, language = language)
                 }

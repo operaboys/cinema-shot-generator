@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ADR-069 — فقط دایرکتوری export داخل cacheDir را expose می‌کند (هم‌نام دقیق
+     با DeviceExportFileWriter.exportDir در ExportFileWriter.kt). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="exports" path="exports/" />
+</paths>

@@ -3,6 +3,7 @@ package com.operaboys.cinemashotgenerator.ui.outputdelivery
 import android.app.Application
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -79,12 +80,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import java.util.UUID
 
@@ -356,6 +359,53 @@ class OutputDeliveryFlowTest {
         // باشد (پروفایل پیش‌فرض Universal Default زیر محدودیت ۲۰۰۰ کاراکتری است، پس
         // کوتاه‌سازی رخ نمی‌دهد).
         assertTrue(clipText!!.contains("courtyard"))
+    }
+
+    /**
+     * رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-069) —
+     * اثبات مستقیم اینکه این دو دکمه دیگر رفتار یکسان ندارند: Copy فقط Clipboard
+     * را عوض می‌کند (تست بالا)؛ Export یک Activity واقعی (Chooser سیستم، پوشاننده‌ی
+     * یک Intent.ACTION_SEND[_MULTIPLE] واقعی) باز می‌کند. طبق دستور کار («بدون
+     * نیاز به تست واقعی Intent System»)، این تست فقط بررسی می‌کند چه Intent ای
+     * واقعاً startActivity شده — نه رفتار واقعی Chooser/اپ مقصد.
+     *
+     * یافته‌ی واقعی دیباگ این تست: composeOutput (OutputComposer.kt) همیشه دو
+     * فایل bilingual (en/fa) + یک فایل به‌ازای مدل انتخاب‌شده می‌سازد — یعنی حداقل
+     * ۳ فایل، هرگز یک فایل تنها (این ViewModel هر لحظه فقط یک مدل انتخاب‌شده
+     * دارد). پس Intent واقعی این صفحه همیشه ACTION_SEND_MULTIPLE است، نه
+     * ACTION_SEND — انتظار اولیه‌ی این تست اشتباه بود، نه یک واقعیت محیطی.
+     */
+    @Test
+    fun `the Export button starts a real ACTION_SEND_MULTIPLE chooser, a genuinely different action than Copy`() {
+        createProjectAndOpenOutputDelivery()
+
+        composeRule.onNodeWithTag(OUTPUT_DELIVERY_EXPORT_BUTTON_TAG).clickViaSemantics()
+        // exportOutput() نوشتن فایل را روی Dispatchers.IO انجام می‌دهد
+        // (ExportFileWriter.kt) — یک واقعی Hop به Executor دیگر که به‌تنهایی با
+        // waitForIdle (که فقط Idling Resources Compose را می‌سنجد) هم‌زمان
+        // نمی‌شود؛ Poll صریح روی خودِ Shadow لازم است (هم‌الگو با سایر یافته‌های
+        // مستندشده‌ی Async این پروژه).
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            Shadows.shadowOf(composeRule.activity).peekNextStartedActivity() != null
+        }
+
+        val startedIntent = Shadows.shadowOf(composeRule.activity).nextStartedActivity
+        assertTrue("دکمه‌ی Export باید یک Activity واقعی (Chooser) باز کند", startedIntent != null)
+        assertEquals(Intent.ACTION_CHOOSER, startedIntent!!.action)
+
+        val innerIntent = startedIntent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+        assertTrue("Chooser باید یک Intent.ACTION_SEND_MULTIPLE واقعی بپوشاند", innerIntent != null)
+        assertEquals(Intent.ACTION_SEND_MULTIPLE, innerIntent!!.action)
+        assertEquals("text/plain", innerIntent.type)
+        val uris = innerIntent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+        assertEquals(3, uris?.size)
+
+        // اثبات اینکه این Uri ها جعلی/فرمالیستی نیستند — FileProvider واقعی این
+        // پروژه (AndroidManifest.xml + res/xml/file_paths.xml، اولین Provider کل
+        // پروژه) باید واقعاً بتواند هرکدام را به محتوای واقعی فایل نوشته‌شده حل کند.
+        val resolvedContent = composeRule.activity.contentResolver
+            .openInputStream(uris!!.first())?.bufferedReader()?.use { it.readText() }
+        assertTrue(!resolvedContent.isNullOrBlank())
     }
 
     @Test

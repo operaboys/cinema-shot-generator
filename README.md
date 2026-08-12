@@ -1340,6 +1340,60 @@ Dialog → بج «Override شده» → Revoke → دکمه دوباره ظاه�
 **قدم بعدی پیشنهادی:** G4/G18 — Export واقعی فایل (`Intent.ACTION_SEND`/
 `MediaStore`) برای صفحه‌ی Output Delivery.
 
+### 🏁 آخرین یافته‌ی معماری باز از سه موردی که با هم تصمیم گرفتیم رفع شد: Export واقعی فایل (G4/G18)
+
+دکمه‌ی «Export» صفحه‌ی Output Delivery تا این قدم فقط مستعار «Copy» بود
+(هر دو فقط Clipboard را عوض می‌کردند)؛ `composeOutput` (واحد ۱۴) هرگز از
+`ui/` صدا زده نمی‌شد.
+
+**بازبینی مستقل پیش‌بررسی دستور کار (تأیید شد، خلاف نبود):** با خواندن
+مستقیم `Bilingual.kt` تأیید شد `generateBilingualPrompt`/`translateToFarsi`
+واقعاً عمداً پیاده نشده‌اند (کامنت صریح خودِ فایل) — یک تصمیم معماری در
+حال بحث بین معمار و کاربر پروژه، نه یک بدهی فنی این قدم.
+
+1. **اتصال `composeOutput`:** `OutputDeliveryViewModel.regenerate()`
+   اکنون بلافاصله بعد از رندر/پاک‌سازی موفق `composeOutput` را با
+   `renderedOutputs = listOf(finalRenderedOutput)` (این ViewModel هر لحظه
+   دقیقاً یک مدل انتخاب‌شده دارد) صدا می‌زند؛ نتیجه (`OutputPackage`) در
+   `OutputDeliveryState.Ready.outputPackage` ذخیره می‌شود.
+2. **Fallback صادقانه‌ی Bilingual:** تا انتخاب یک موتور ترجمه‌ی واقعی،
+   `enVersion`/`faVersion` هر دو برابر همان متن رندرشده‌ی نهایی‌اند —
+   نه ترجمه‌ی جعلی.
+3. **اولین FileProvider کل پروژه:** `AndroidManifest.xml` +
+   `res/xml/file_paths.xml` (`cacheDir/exports`) + `ExportFileWriter`/
+   `DeviceExportFileWriter` (هم‌الگو با `BackupFileStorage`) +
+   `buildExportShareIntent` (`ui/outputdelivery/ExportIntentBuilder.kt`).
+   دکمه‌ی Export اکنون فایل‌ها را واقعاً می‌نویسد و یک
+   `Intent.ACTION_SEND_MULTIPLE` واقعی (همیشه ≥۳ فایل: en/fa + هر مدل)
+   با `Intent.createChooser` باز می‌کند — رفتاری کاملاً متفاوت از Copy.
+
+جزئیات کامل (و یافته‌ی دیباگ درباره‌ی Cache شدن ریشه‌های FileProvider در
+Robolectric بین کلاس‌های تست جدا) در
+`docs/adr/069-real-output-export-and-bilingual-limitation.md`.
+
+تست‌ها: `OutputDeliveryViewModelTest.kt` (۲ تست تازه — `OutputPackage`
+واقعی با ۳ exportFiles، `exportOutput` واقعاً از طریق `ExportFileWriter`
+تزریقی می‌نویسد)؛ `OutputDeliveryFlowTest.kt` (۱ تست End-to-End تازه —
+کلیک واقعی روی Export → Chooser واقعی → Uri واقعاً از طریق FileProvider
+قابل خواندن است، اثبات مستقیم که Export/Copy دیگر یک رفتار مشترک زیر دو
+نام نیستند).
+
+`gradle :app:testDebugUnitTest` → ۷۱۱ تست (۷۰۸→۷۱۱، ۳ تست جدید)، ۷۰۸
+موفق. سه شکست، هر سه از همان کلاس Flake محیطی از‌پیش‌مستند در
+ADR-044/۰۵۹/۰۶۰/۰۶۲ (`AssetFormFlowTest`، `ShotsFlowTest`، و یک SQLiteConnectionPool
+متفاوت این‌بار در `OutputDeliveryFlowTest`ی «model picker chips» —
+تست‌های نامرتبط، نه تست‌های تازه‌ی این قدم که همگی سبزند) — `git diff`
+این قدم تأیید می‌کند هیچ فایلی در مسیر وابستگی این تست‌ها دست نخورده؛
+`testDebugUnitTest`/`assembleDebug` جداگانه (طبق همان الگو) اجرا شدند —
+`assembleDebug` → **موفق**.
+
+**نتیجه:** هر سه یافته‌ی معماری باز از تصمیم مشترک (G3 Human Override،
+G4/G18 Export واقعی، G5 چند-Outfit) اکنون یا رفع شده‌اند یا آگاهانه
+مستند و موکول (G5 — جزئیات در `docs/adr/067-remaining-p3-findings.md`).
+فهرست کامل «کارهای آینده‌ی شناخته‌شده» (ترجمه‌ی فارسی، Revoke Screen
+مستقل، چند-Outfit، و بقیه) در بخش «محدودیت‌های شناخته‌شده» پایین همین
+فایل جمع‌آوری شده است.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -1471,10 +1525,13 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   جزئیات کامل در `docs/adr/051-unit16-phase4-step2-shot-list-composer-skeleton.md`،
   `docs/adr/052-unit16-phase4-step3-camera-tab.md` و
   `docs/adr/053-unit16-phase4-step4-lighting-environment-sound.md`.
-- **Output Delivery: «Export» فقط Copy to Clipboard است، نه نوشتن فایل/Share
-  Intent واقعی** — هیچ Infra ای برای این کار در کل کدبیس وجود ندارد (هم‌کلاس
-  محدودیت شناخته‌شده‌ی Attached References در Shot Composer). جزئیات کامل در
-  `docs/adr/057-unit16-phase5-step3-output-delivery.md`.
+- ~~Output Delivery: «Export» فقط Copy to Clipboard است، نه نوشتن فایل/Share
+  Intent واقعی~~ — **رفع شد** (آخرین یافته‌ی معماری باز از سه موردی که با هم
+  تصمیم گرفتیم — G4/G18، ADR-067): دکمه‌ی Export اکنون واقعاً `composeOutput`
+  (واحد ۱۴) را می‌سازد، فایل‌ها را روی `cacheDir/exports` می‌نویسد، و با
+  `Intent.ACTION_SEND[_MULTIPLE]` (اولین `FileProvider` کل پروژه) واقعاً
+  اشتراک می‌گذارد — رفتاری کاملاً متفاوت از Copy. جزئیات کامل (و محدودیت
+  ترجمه‌ی فارسی زیر) در `docs/adr/069-real-output-export-and-bilingual-limitation.md`.
 - **Settings — سه سوییچ Display (Dynamic Font/Min Touch Target/Reduced
   Motion) و Layout Variants (Home A/B، Shot Composer A/B) واقعاً Persist
   می‌شوند اما هیچ زیرساخت Runtime ای برایشان وجود ندارد** — نه `HomeScreen`
@@ -1507,4 +1564,21 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
 - **آپلود/انتخاب تصویر واقعی هیچ‌جای اپ پیاده نشده** — نه برای Attached
   References شات، نه برای Home Screen Image تنظیمات؛ کل کدبیس فاقد
   زیرساخت File Picker/Media Picker است (یک محدودیت واحد، تکرارشده در سه
-  جا: Shot Composer، Settings، Output Delivery Export).
+  جا: Shot Composer، Settings — Output Delivery دیگر این محدودیت را ندارد،
+  Export واقعی فایل رفع شد، `docs/adr/069-...`).
+- **ترجمه‌ی واقعی فارسی پرامپت هنوز وجود ندارد — یک تصمیم معماری در حال
+  بحث، نه یک TODO ساده:** `Bilingual.kt` عمداً `generateBilingualPrompt`/
+  `translateToFarsi` را پیاده نکرده (کامنت صریح خودِ فایل) — یک موتور
+  ترجمه‌ی واقعی خودش یک تصمیم معماری جداست که هنوز بین معمار و کاربر
+  پروژه در حال بررسی است (گزینه‌های مطرح: ML Kit Translation آفلاین، یا
+  یک فیلد دوگانه‌ی ورودی کاربر — چون `shotDescription`/`sceneContext` متن
+  آزاد کاربرند، نه enum). تا آن تصمیم، `OutputPackage.bilingualPrompts`
+  (اکنون واقعاً ساخته و Export می‌شود، ADR-069) هر دو نسخه‌ی en/fa را با
+  همان متن رندرشده‌ی نهایی پر می‌کند — یک Fallback صادقانه، نه ترجمه‌ی
+  جعلی.
+- **صفحه‌ی مستقل «مرور همه‌ی Override های پروژه» (Revoke Screen) ساخته
+  نشد** — Revoke فقط Inline روی همان کارت هشدار صفحه‌ی Validation ممکن
+  است (ADR-068). دلیل: `OverrideEntity` (واحد ۱۵) فیلد `projectId` ندارد
+  (`entityId` عمداً Polymorphic طراحی شده)، پس یک Query کارآمد «همه‌ی
+  Override های این پروژه» بدون یک ستون تازه یا Join گران ممکن نیست —
+  نیازمند یک تصمیم Schema تازه، نه فقط UI.
