@@ -460,6 +460,9 @@ class ShotsFlowTest {
         composeRule.onNodeWithTag(shotCardDeleteMenuItemTag("shot_seed")).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasTestTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG), timeoutMillis = 5_000)
         composeRule.onNodeWithTag(SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG).performClick()
+        // آزمایش تشخیصی (ADR-072): «cancelling shot deletion...» (که هرگز شکست
+        // نمی‌خورد) این خط را قبل از بررسی DB دارد، این تست نداشت.
+        composeRule.waitUntilDoesNotExist(hasText(SEEDED_SHOT_TITLE), timeoutMillis = 5_000)
         composeRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { shotRepository.loadShot("shot_seed").getOrNull() } == null
         }
@@ -470,6 +473,11 @@ class ShotsFlowTest {
         composeRule.waitUntilExactlyOneExists(hasTestTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG), timeoutMillis = 5_000)
         composeRule.onNodeWithTag(SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG).performClick()
 
+        // آزمایش تشخیصی (ADR-072): حذف موفق Scene باعث onBack واقعی می‌شود
+        // (SceneDetailScreen.kt: viewModel.deleteScene(onDeleted = onBack)) — منتظر
+        // ناپدیدشدن واقعی هدر Scene Detail (اثبات این‌که Navigation واقعاً کامل شده)
+        // پیش از بررسی DB، هم‌الگو با رفعِ همین یافته چند خط بالاتر برای حذف Shot.
+        composeRule.waitUntilDoesNotExist(hasTestTag(SCENE_DETAIL_MENU_BUTTON_TAG), timeoutMillis = 5_000)
         composeRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { sceneRepository.loadScene(SCENE_ID).getOrNull() } == null
         }
