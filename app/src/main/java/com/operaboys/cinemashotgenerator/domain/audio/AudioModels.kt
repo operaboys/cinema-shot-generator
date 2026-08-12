@@ -10,15 +10,19 @@ import com.operaboys.cinemashotgenerator.domain.shot.CharacterSound
 // نه سؤال معماری؛ جزئیات کامل در docs/adr/011-unit10-audio-context-deviations.md):
 // - ActionSound و CharacterSound این واحد دقیقاً هم‌شکل با نسخه‌ی از قبل پیاده‌شده‌ی
 //   واحد ۰۵ (domain.shot) هستند (صفر تفاوت فیلد) — بازاستفاده شدند، نه بازتعریف.
-// - AmbientSound این واحد اما یک فیلد اضافه (`source`) دارد که نه در AmbientSound
-//   واحد ۰۵ و نه در AmbientSoundSuggestion واحد ۰۸ وجود دارد؛ چون این تفاوت واقعی و
-//   طبق ساختار JSON خودِ این بلوپرینت است (نه یک شباهت تصادفی)، نوع محلی جدید
-//   تعریف شد.
+// - AmbientSound این واحد در زمان نوشتن این تصمیم یک فیلد اضافه (`source`) داشت که
+//   در AmbientSound واحد ۰۵ نبود — نوع محلی جدید تعریف شد. طبق MIGRATED
+//   (docs/adr/074-...): این تفاوت رفع شد، AmbientSound واحد ۰۵ هم اکنون همین فیلد
+//   را دارد (پیش‌فرض متفاوت: "auto_generated" آن‌جا در برابر پیش‌فرض این واحد در
+//   پایین). دو نوع همچنان جدا نگه داشته شدند (نه یکی‌سازی) چون این تصمیم محدوده‌ی
+//   Migration نسخه ۳ واحد ۰۵ نبود؛ AmbientSoundSuggestion واحد ۰۸ هنوز فاقد این
+//   فیلد است (خودِ Suggestion، نه AmbientSound نهایی).
 
 /**
- * برخلاف AmbientSound واحد ۰۵ (بدون source) و AmbientSoundSuggestion واحد ۰۸ (بدون
- * source)، این نسخه فیلد `source` دارد — طبق ساختار JSON این بلوپرینت که provenance
- * صدای محیطی (مثلاً "weather") را در سطح AudioContext نهایی نگه می‌دارد.
+ * طبق ساختار JSON این بلوپرینت، `source` provenance صدای محیطی (مثلاً "weather")
+ * را در سطح AudioContext نهایی نگه می‌دارد. MIGRATED (docs/adr/074-...): AmbientSound
+ * واحد ۰۵ هم اکنون همین فیلد را دارد (پیش‌فرض "auto_generated" آن‌جا)؛ اینجا پیش‌فرض
+ * ندارد چون این واحد همیشه source واقعی (مثلاً "weather") را صریح پر می‌کند.
  */
 data class AmbientSound(val type: String, val intensity: String, val description: String, val source: String)
 

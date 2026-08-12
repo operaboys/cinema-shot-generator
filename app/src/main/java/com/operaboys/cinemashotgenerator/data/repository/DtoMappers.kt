@@ -144,7 +144,7 @@ fun ShotDto.toDomain(): Shot = Shot(
     soundProfile = SoundProfile(
         enabled = soundProfile.enabled,
         ambientAutoGenerate = soundProfile.ambientAutoGenerate,
-        ambientSounds = soundProfile.ambientSounds.map { AmbientSound(it.type, it.intensity, it.description) },
+        ambientSounds = soundProfile.ambientSounds.map { AmbientSound(it.type, it.intensity, it.description, it.source) },
         actionSounds = soundProfile.actionSounds.map { ActionSound(it.timestampSeconds, it.type, it.description) },
         characterSounds = soundProfile.characterSounds.map { CharacterSound(it.characterId, it.type, it.description) }
     ),
@@ -173,7 +173,7 @@ fun Shot.toDto(): ShotDto = ShotDto(
     soundProfile = SoundProfileDto(
         enabled = soundProfile.enabled,
         ambientAutoGenerate = soundProfile.ambientAutoGenerate,
-        ambientSounds = soundProfile.ambientSounds.map { AmbientSoundDto(it.type, it.intensity, it.description) },
+        ambientSounds = soundProfile.ambientSounds.map { AmbientSoundDto(it.type, it.intensity, it.description, it.source) },
         actionSounds = soundProfile.actionSounds.map { ActionSoundDto(it.timestampSeconds, it.type, it.description) },
         characterSounds = soundProfile.characterSounds.map { CharacterSoundDto(it.characterId, it.type, it.description) }
     ),

@@ -26,8 +26,12 @@ data class ImageReferenceDto(
     val description: String
 )
 
+// MIGRATED (docs/adr/074-...): فیلد source اضافه شد تا با domain.shot.AmbientSound
+// هماهنگ باشد. shotDataJson (ShotEntity) صرفاً یک JSON Blob است، نه ستون‌های
+// جداگانه‌ی Room؛ چون فیلد جدید پیش‌فرض دارد، رکوردهای قدیمی بدون این کلید هم با
+// kotlinx.serialization به‌درستی decode می‌شوند — نیازی به Room Migration نیست.
 @Serializable
-data class AmbientSoundDto(val type: String, val intensity: String, val description: String)
+data class AmbientSoundDto(val type: String, val intensity: String, val description: String, val source: String = "auto_generated")
 
 @Serializable
 data class ActionSoundDto(val timestampSeconds: Float, val type: String, val description: String)

@@ -480,7 +480,10 @@ class ShotComposerViewModel(
             weatherIntensity = (_weatherIntensity.value ?: WeatherIntensity.MEDIUM).name.lowercase(),
             windStrength = (_windStrength.value ?: WindStrength.NONE).name.lowercase()
         )
-        _ambientSounds.value = suggestions.map { AmbientSound(type = it.type, intensity = it.intensity, description = it.description) }
+        // AmbientSoundSuggestion (واحد ۰۸) فیلد source معادل ندارد؛ این مسیر تنها راه
+        // ساخت AmbientSound در این ViewModel است (بدون هیچ افزودن/ویرایش دستی)، پس
+        // source همیشه "auto_generated" است — طبق ADR-074.
+        _ambientSounds.value = suggestions.map { AmbientSound(type = it.type, intensity = it.intensity, description = it.description, source = "auto_generated") }
         save()
     }
 

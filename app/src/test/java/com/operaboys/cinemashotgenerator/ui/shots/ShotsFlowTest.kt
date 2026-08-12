@@ -56,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -401,6 +402,11 @@ class ShotsFlowTest {
             val sounds = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.soundProfile?.ambientSounds }
             sounds != null && sounds.isNotEmpty()
         }
+
+        // ADR-074: تأیید این‌که source واقعاً روی Room ذخیره و بازیابی می‌شود، نه فقط
+        // در Memory ViewModel.
+        val savedSounds = runBlocking { shotRepository.loadShot("shot_seed").getOrNull()?.soundProfile?.ambientSounds }
+        assertTrue(savedSounds!!.all { it.source == "auto_generated" })
     }
 
     // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):

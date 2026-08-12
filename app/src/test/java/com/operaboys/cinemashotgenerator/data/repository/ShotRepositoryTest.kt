@@ -236,7 +236,7 @@ class ShotRepositoryTest {
             soundProfile = SoundProfile(
                 enabled = true,
                 ambientAutoGenerate = true,
-                ambientSounds = listOf(AmbientSound(type = "rain", intensity = "heavy", description = "torrential rain and wind")),
+                ambientSounds = listOf(AmbientSound(type = "rain", intensity = "heavy", description = "torrential rain and wind", source = "auto_generated")),
                 actionSounds = listOf(ActionSound(timestampSeconds = 2.5f, type = "door_slam", description = "heavy door slamming shut")),
                 characterSounds = listOf(CharacterSound(characterId = "char_001", type = "gasp", description = "sharp intake of breath"))
             )

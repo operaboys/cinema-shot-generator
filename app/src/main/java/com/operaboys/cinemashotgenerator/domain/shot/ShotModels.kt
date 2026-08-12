@@ -36,7 +36,17 @@ data class ImageReference(
     val description: String
 )
 
-data class AmbientSound(val type: String, val intensity: String, val description: String)
+/**
+ * MIGRATED (Migration نسخه ۳، docs/adr/074-...): فیلد `source` اضافه شد تا با
+ * AmbientSound واحد ۱۰ (domain.audio) هماهنگ باشد — طبق بلوپرینت ۰۵ (نسخه ۳) و
+ * بلوپرینت ۱۰ (نسخه ۲)، هر دو باید ساختار یکسان (type/intensity/description/source)
+ * داشته باشند؛ فقط پیش‌فرض هرکدام متفاوت است (اینجا "auto_generated"، چون تنها راه
+ * ساخت یک نمونه در این واحد از طریق generateAmbientSounds خودکار است). پیش از این
+ * Migration، این اطلاعات («خودکار تولید شده یا کاربر دستی اضافه/ویرایش کرده») در
+ * سطح تک‌تک AmbientSound گم می‌شد، با این‌که SoundProfile.ambientAutoGenerate همین
+ * تمایز را در سطح بالاتر داشت.
+ */
+data class AmbientSound(val type: String, val intensity: String, val description: String, val source: String = "auto_generated")
 data class ActionSound(val timestampSeconds: Float, val type: String, val description: String)
 
 /**
