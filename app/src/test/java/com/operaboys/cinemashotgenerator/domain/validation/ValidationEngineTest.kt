@@ -1,5 +1,8 @@
 package com.operaboys.cinemashotgenerator.domain.validation
 
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivation
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,9 +67,9 @@ class ValidationEngineTest {
     @Test
     fun `rain plus fire plus outdoor warns`() {
         val issues = validateLogicConsistency(
-            weather = "rain",
-            lightingMotivation = "fire",
-            locationType = "outdoor"
+            weatherType = WeatherType.RAIN,
+            lightingMotivation = LightingMotivation.FIRE,
+            locationType = LocationType.OUTDOOR
         )
 
         assertEquals(1, issues.size)
@@ -76,9 +79,9 @@ class ValidationEngineTest {
     @Test
     fun `rain plus fire indoors has no conflict`() {
         val issues = validateLogicConsistency(
-            weather = "rain",
-            lightingMotivation = "fire",
-            locationType = "indoor"
+            weatherType = WeatherType.RAIN,
+            lightingMotivation = LightingMotivation.FIRE,
+            locationType = LocationType.INDOOR
         )
 
         assertTrue(issues.isEmpty())

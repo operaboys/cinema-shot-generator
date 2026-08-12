@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.sceneconditions
 
 import com.operaboys.cinemashotgenerator.domain.camera.CameraDistance
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -114,14 +115,14 @@ class EnvironmentValidationTest {
 
     @Test
     fun `fire in rain outdoors warns via unit07 delegation`() {
-        val issues = checkFireInRainOutdoors(WeatherType.RAIN, LightingMotivation.FIRE, "outdoor")
+        val issues = checkFireInRainOutdoors(WeatherType.RAIN, LightingMotivation.FIRE, LocationType.OUTDOOR)
         assertEquals(1, issues.size)
         assertEquals(Severity.WARNING, issues[0].severity)
     }
 
     @Test
     fun `fire in rain indoors has no conflict`() {
-        val issues = checkFireInRainOutdoors(WeatherType.RAIN, LightingMotivation.FIRE, "indoor")
+        val issues = checkFireInRainOutdoors(WeatherType.RAIN, LightingMotivation.FIRE, LocationType.INDOOR)
         assertTrue(issues.isEmpty())
     }
 }

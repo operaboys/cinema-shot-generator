@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.sceneconditions
 
 import com.operaboys.cinemashotgenerator.domain.camera.CameraDistance
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.validateLogicConsistency
@@ -104,19 +105,23 @@ fun checkExtremeWideWithLowVisibility(distance: CameraDistance, visibility: Visi
 /**
  * Rule: آتش + باران + فضای بیرونی → ناسازگاری منطقی (مشترک با واحد ۰۷).
  * مستقیماً از validateLogicConsistency واحد ۰۷ استفاده می‌کند (بدون تکرار منطق):
- * همان تابع weather/lightingMotivation/locationType را به‌صورت String می‌گیرد و
- * دقیقاً همین شرط (rain+fire+outdoor) را بررسی می‌کند. locationType پارامتر خارجی
- * است چون این واحد چنین فیلدی در پارامترهای خودش ندارد (متعلق به Scene، واحد ۰۴)؛
- * دقیقاً مثل الگوی locationType در خودِ امضای واحد ۰۷.
+ * همان تابع weatherType/lightingMotivation/locationType را با همان enum های واقعی
+ * می‌گیرد و دقیقاً همین شرط (rain+fire+outdoor) را بررسی می‌کند. locationType پارامتر
+ * خارجی است چون این واحد چنین فیلدی در پارامترهای خودش ندارد (متعلق به Scene، واحد
+ * ۰۴)؛ دقیقاً مثل الگوی locationType در خودِ امضای واحد ۰۷.
+ *
+ * MIGRATED (Migration ۳، docs/adr/073-...): قبلاً هر دو enum با `.name.lowercase()`
+ * به String تبدیل می‌شدند تا با امضای قدیمی validateLogicConsistency سازگار شوند —
+ * این تبدیل دیگر لازم نیست، enum ها مستقیم پاس داده می‌شوند.
  */
 fun checkFireInRainOutdoors(
     weatherType: WeatherType,
     lightingMotivation: LightingMotivation,
-    locationType: String
+    locationType: LocationType
 ): List<ValidationIssue> {
     return validateLogicConsistency(
-        weather = weatherType.name.lowercase(),
-        lightingMotivation = lightingMotivation.name.lowercase(),
+        weatherType = weatherType,
+        lightingMotivation = lightingMotivation,
         locationType = locationType
     )
 }

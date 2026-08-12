@@ -132,7 +132,7 @@ fun aggregateShotValidation(
         }
         environment.windStrength?.let { windStrength -> add(l2, checkStormWithoutWind(environment.weatherType, windStrength)) }
         shot.lighting.overrideValue?.lightingMotivation?.let { motivation ->
-            addAll(l2, checkFireInRainOutdoors(environment.weatherType, motivation, scene.location.type.name.lowercase()))
+            addAll(l2, checkFireInRainOutdoors(environment.weatherType, motivation, scene.location.type))
         }
     }
 

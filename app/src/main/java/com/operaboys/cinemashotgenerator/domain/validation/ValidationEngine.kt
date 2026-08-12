@@ -1,7 +1,11 @@
 package com.operaboys.cinemashotgenerator.domain.validation
 
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivation
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+
 // واحد ۰۷ — بخش الف: Validation Engine
-// منبع حقیقت: docs/blueprints/07-validation-and-consistency.md
+// منبع حقیقت: docs/blueprints/07-validation-and-consistency-v2.md
 
 /**
  * نوع سراسری Severity/ValidationIssue/ValidationReport طبق بلوپرینت ۰۷.
@@ -66,14 +70,24 @@ fun validateDataCompleteness(
  * بود؛ `shot` اصلاً در بدنه استفاده نمی‌شد و EnvironmentSettings/LightingSettings متعلق
  * به واحدهای ۰۵/۰۸ (هنوز پیاده نشده) هستند — امضا به همان سه فیلد واقعاً مصرف‌شده
  * بازنویسی شد.
+ *
+ * تاریخچه (MIGRATED، Migration ۳، docs/adr/073-...): weather/lightingMotivation قبلاً
+ * String خام بودند چون واحدهای ۰۵/۰۸ در زمان نوشتن این تابع هنوز پیاده نشده بودند —
+ * تنها راه فراخوانی، تبدیل دستی enum های واقعی به رشته (`.name.lowercase()`) در سمت
+ * فراخوان (`checkFireInRainOutdoors`) بود، دقیقاً همان Type-Unsafety که این Migration
+ * حذف کرد. حالا از WeatherType و LightingMotivation واقعی (واحد ۰۸) استفاده می‌شود.
+ * locationType طبق تصمیم اصلی همچنان پارامتری مستقل باقی ماند (متعلق به Scene، واحد
+ * ۰۴، نه واحد ۰۷) — اما چون Scene.location.type از قبل LocationType واقعی است (نه
+ * String)، این پارامتر هم به همان enum واقعی تبدیل شد؛ این بخش فراتر از دستور صریح
+ * بلوپرینت است، تصمیمی مستقل برای رفع همان الگوی Type-Unsafety در سمت فراخوان.
  */
 fun validateLogicConsistency(
-    weather: String,
-    lightingMotivation: String,
-    locationType: String
+    weatherType: WeatherType,
+    lightingMotivation: LightingMotivation,
+    locationType: LocationType
 ): List<ValidationIssue> {
     val issues = mutableListOf<ValidationIssue>()
-    if (weather == "rain" && lightingMotivation == "fire" && locationType == "outdoor") {
+    if (weatherType == WeatherType.RAIN && lightingMotivation == LightingMotivation.FIRE && locationType == LocationType.OUTDOOR) {
         issues += ValidationIssue(
             Severity.WARNING,
             message = "آتش در باران بیرون از ساختمان غیرمنطقی است",
