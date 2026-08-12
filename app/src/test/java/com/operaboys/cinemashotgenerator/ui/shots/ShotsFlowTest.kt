@@ -168,14 +168,19 @@ class ShotsFlowTest {
 
     @After
     fun tearDown() {
-        // یافته‌ی واقعی این قدم (متناوب، تست‌های با چند سوییچ سریع UI پشت‌سرهم):
-        // هر تغییر فیلد یک Auto-Save ناهمگام مستقل (ioScope.launch) صف می‌کند؛ بدون
-        // این خط، database.close() ممکن است پیش از تکمیل واقعی آخرین Coroutine
-        // صف‌شده روی Main Dispatcher اجرا شود (IllegalStateException: connection pool
-        // closed). waitForIdle() تضمین می‌کند همه‌ی کارهای صف‌شده واقعاً اجرا شده‌اند.
+        // یافته‌ی این تست بود که اولین‌بار همین Race را کشف کرد (هر تغییر فیلد یک
+        // Auto-Save ناهمگام مستقل، ioScope.launch، صف می‌کند). waitForIdle() اینجا
+        // ماند (برای Idling خودِ Compose هنوز مفید است) اما دیگر برای «ایمنی
+        // database.close()» لازم نیست — چون آن خط اصلاً دیگر اینجا نیست:
+        // database.close() عمداً حذف شد — ریشه‌ی واقعی و کامل این Race (نه فقط
+        // این یک علامت، بلکه علت زیرین‌اش که waitForIdle() به‌تنهایی هیچ‌وقت آن را
+        // نمی‌بست) در docs/adr/070-flake-root-cause-investigation.md بررسی و رفع
+        // شد در ADR-071: Room.inMemoryDatabaseBuilder نیازی به Close صریح ندارد
+        // (بدون فایل روی دیسک، GC آن را با نابودی نمونه‌ی این کلاس تست جمع
+        // می‌کند)؛ خودِ close() بود که با Coroutine های ناتمام viewModelScope روی
+        // Executor داخلی Room (نامرئی برای waitForIdle()) مسابقه می‌داد.
         composeRule.waitForIdle()
         context.preferencesDataStoreFile(dataStoreFileName).delete()
-        database.close()
     }
 
     /** طبق یافته‌ی مستندشده‌ی ScenesFlowTest.kt — performClick() روی FAB/Card این خانواده از صفحات غیرقابل‌اعتماد است. */

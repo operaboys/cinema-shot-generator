@@ -144,7 +144,13 @@ class AssetsScreenFlowTest {
     fun tearDown() {
         composeRule.waitForIdle()
         context.preferencesDataStoreFile(dataStoreFileName).delete()
-        database.close()
+        // database.close() عمداً حذف شد — ریشه‌ی واقعی Flake تاریخی این Suite
+        // (docs/adr/070-flake-root-cause-investigation.md، رفع در ADR-071):
+        // Room.inMemoryDatabaseBuilder نیازی به Close صریح ندارد (بدون فایل روی
+        // دیسک، GC آن را با نابودی نمونه‌ی این کلاس تست جمع می‌کند)؛ این خط قبلاً
+        // با Coroutine های ناتمام viewModelScope روی Executor داخلی Room مسابقه
+        // می‌داد — نه یک نشتی حافظه‌ی فراموش‌شده. waitForIdle() بالا همچنان برای
+        // Idling خودِ Compose مفید است، فقط دیگر ایمنی close() را تضمین نمی‌کند.
     }
 
     private fun SemanticsNodeInteraction.clickViaSemantics(): SemanticsNodeInteraction =

@@ -66,7 +66,12 @@ class DnaSoftLockWarningTest {
 
     @After
     fun tearDown() {
-        database.close()
+        // database.close() عمداً حذف شد — ریشه‌ی واقعی Flake تاریخی این Suite
+        // (docs/adr/070-flake-root-cause-investigation.md، رفع در ADR-071):
+        // Room.inMemoryDatabaseBuilder نیازی به Close صریح ندارد (بدون فایل روی
+        // دیسک، GC آن را با نابودی نمونه‌ی این کلاس تست جمع می‌کند)؛ این خط قبلاً
+        // با Coroutine های ناتمام viewModelScope روی Executor داخلی Room مسابقه
+        // می‌داد — نه یک نشتی حافظه‌ی فراموش‌شده.
     }
 
     private fun SemanticsNodeInteraction.clickViaSemantics(): SemanticsNodeInteraction {
