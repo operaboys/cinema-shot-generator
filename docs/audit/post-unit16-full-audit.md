@@ -745,4 +745,69 @@ Agent موازی (Explore) برای بخش‌های ۳ تا ۱۰ انجام شد
 جست‌وجوهای گسترده‌ی بخش‌های ۳ تا ۱۰، جهت جلوگیری از پر شدن Context اصلی با
 خروجی خام grep) انجام شد.
 
+---
+
+## وضعیت نهایی رفع یافته‌ها (به‌روزرسانی ۲۰۲۶-۰۸-۱۲)
+
+متن اصلی گزارش بالا (تا همین‌جا) بدون تغییر باقی مانده — یک سند تاریخی
+معتبر از وضعیت زمان نگارش (۲۰۲۶-۰۷-۲۸) است، دقیقاً طبق همان اصلی که در
+`docs/audit/pre-unit16-audit.md` رعایت شد. این بخش صرفاً **وضعیت نهایی**
+هر ۲۲ یافته (G1–G22 + زیرمورد `validateTargetShotCountRange` در G14) را،
+بر مبنای ۹ ADR نوشته‌شده از زمان این ممیزی (۰۶۰ تا ۰۶۹)، تأیید می‌کند.
+
+**روش:** هر ۲۲ مورد با `grep`/خواندن مستقیم **کد فعلی** (نه فقط متن
+ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدون استثنا. برای هر مورد،
+**آخرین** وضعیت واقعی دنبال شد، نه فقط اولین ADR که به آن اشاره می‌کند
+(دقیقاً طبق تذکر صریح این قدم: G4/G18 در ADR-067 «موکول شد» ثبت شده
+بودند، اما در ADR-069 واقعاً رفع شدند — این الگو در جدول زیر با ذکر هر
+دو ADR منعکس شده است).
+
+| # | یافته | وضعیت نهایی | رفع‌شده‌در/ADR مرتبط |
+|---|---|---|---|
+| G1 | Nav Drawer — ۸ لینک COMING_SOON | ✅ **رفع شد** — ۷ از ۸ لینک به مقصد Studio/AI Breakdown واقعی وصل شدند (`NavDrawer.kt`)؛ `drawer.promptGenerator` عمداً COMING_SOON ماند (ادغام‌شده با Output Delivery، تصمیم پیشین ADR-056) | ADR-061 |
+| G2 | `sendToAiConnector` عمداً `TODO()` | ⏸️ **آگاهانه موکول شد** — بدون تغییر، دقیقاً همان کد | ADR-035 (بدون تغییر از زمان ممیزی) |
+| G3 | `OverrideEventLogger` هیچ‌جا پیاده/وصل نبود | ✅ **رفع شد** — `RoomOverrideEventLogger` پیاده و از `ValidationViewModel` واقعاً استفاده می‌شود؛ `createOverrideForIssue`/`revokeOverrideAction` هم از `ValidationScreen.kt` واقعی فراخوانی می‌شوند (نه فقط Logger، خودِ مسیر UI کامل شد) | ADR-067 (Logger) → کامل در ADR-068 (UI) |
+| G4 | `composeOutput`/`ExportFile` کد مرده | ✅ **رفع شد** — از `OutputDeliveryViewModel.kt` واقعاً صدا زده می‌شود | ADR-067 (موکول شد) → رفع در ADR-069 |
+| G5 | مدیریت چند-Outfit فقط Placeholder | ⏸️ **آگاهانه موکول شد** — پیام `manageOutfitsComingSoon` هنوز دقیقاً همان‌جاست؛ تصمیم مستقل صریح (نه یک شکاف فراموش‌شده) | ADR-067 (تصمیم موکول، نه رفع) |
+| G6 | `PLACEHOLDER_ACTIVE_PROJECT_ID` ثابت | ✅ **رفع شد** — ثابت کاملاً حذف شد؛ `ActiveProject.kt` مقدار واقعی Resolve می‌کند | ADR-062 |
+| G7 | Asset — بدون مسیر ویرایش/`onClick` | ✅ **رفع شد** — `AssetForm(kind, existingAssetId)`، `Card(onClick = onClick)`، هر سه ViewModel پارامتر `existingAssetId` می‌گیرند | ADR-061 |
+| G8 | Scene — ویرایش فقط زیرمجموعه‌ی فیلدها | 🟡 **جزئاً رفع شد** — `location` اکنون از داخل `SceneSettingsDialog` قابل ویرایش است (زیرساخت `LocationPickerDialog` از قبل آماده بود، فقط نقطه‌ی ورود تازه اضافه شد)؛ `globalVisualStyle` هنوز فقط نمایشی است، بدون مسیر ویرایش | ADR-067 (فقط `location`) |
+| G9 | الگوی مرجع Shot Composer | ⚪ بدون تغییر لازم — همچنان الگوی مرجع معتبر برای G7/G8 | — |
+| G10 | «انتخاب تصویر» Settings فقط Snackbar | ⚠️ **هنوز باز** — `onChooseImage` هنوز فقط پیام `comingSoonMessage` نشان می‌دهد؛ زیرساخت File Picker واقعی این‌بار به کدبیس اضافه شد (`ActivityResultContracts.GetContent` در `ProjectsScreen.kt`) اما فقط برای Import Project، نه برای این مورد | — |
+| G11 | «Attached References» شات فقط متن | ⚠️ **هنوز باز** — `ImageReference` هنوز دقیقاً همان ۳ فیلد متنی (`type`/`localFilePath`/`description`) است، بدون گرفتن فایل/URI واقعی از `addImageReference` | — |
+| G12 | ۷ فیلد Persist‌شده‌ی بی‌اثر | 🟡 **جزئاً رفع شد** — فقط `minTouchTargetEnabled` اثر Runtime واقعی گرفت (`CompositionLocal` در `AccessibilityLocals.kt`، مصرف در `Theme.kt`/`App.kt`/`AiStoryBreakdownScreen.kt`)؛ `reducedMotionEnabled` آگاهانه وصل نشد (طبق بررسی مستقل ADR-067: کل اپ هیچ Animation ای ندارد که به آن وصل شود)؛ ۵ فیلد دیگر (`dynamicFontEnabled`, `allowFreeStepJump`, `homeLayoutVariant`, `composerLayoutVariant`, `homeScreenImageUri`) هنوز فقط نوشته می‌شوند، بدون هیچ خواننده | ADR-067 (۱ از ۷) |
+| G13 | Pipeline واحد ۱۳ قطع از Output Delivery | ✅ **رفع شد** — همان یافته‌ی G17 است (خودِ گزارش اصلی این را در بخش ۷ اعلام کرده بود)، با همان رفع پوشش داده شد | ADR-060 |
+| G14 | Rule های یتیم — زیرمورد 🟠 `validateTargetShotCountRange` + بقیه‌ی گروه‌ها | ✅ زیرمورد 🟠 **رفع شد** (`validateTargetShotCountRange` اکنون در `AiStoryBreakdownViewModel.kt` واقعاً صدا زده می‌شود، به‌جای `coerceIn` بی‌صدا) — 🟡 بقیه‌ی گروه‌ها **آگاهانه مستند/موکول شدند** (نه رفع، نه فراموش‌شده): برخی «منسوخ، کاندید حذف» علامت خوردند، برخی «کاندید رفع نزدیک/آینده»، یک مورد («Prompt Finalization») تصحیح شد که از قبل کاملاً وصل بوده | ADR-064 |
+| G15 | `ProjectListViewModel.exportProject` بدون DI | ✅ **رفع شد** — پارامتر تزریقی `database: AppDatabase?` اضافه شد | ADR-063 |
+| G16 | `AiStoryBreakdownViewModel.factory` — تزریق همه‌یا‌هیچ | ✅ **رفع شد** — شرط `args.size == 4` با `anyInjected` (منطق OR) جایگزین شد | ADR-063 |
+| G17 | 🔴 بج «Cleaned · Finalized» دروغ | ✅ **رفع شد** — `finalizePrompt` واقعاً از `OutputDeliveryViewModel.kt` صدا زده می‌شود؛ بج اکنون شرطی به `cleaningSucceeded` است، نه بدون‌قید‌وشرط | ADR-060 |
+| G18 | «Export» فقط مستعار «Copy» | ✅ **رفع شد** — `Intent.ACTION_SEND` واقعی (`OutputDeliveryScreen.kt`)، نه صرفاً Clipboard | ADR-067 (موکول شد) → رفع در ADR-069 |
+| G19 | 🔴 Restore بکاپ بدون تأیید | ✅ **رفع شد** — `AlertDialog` واقعی پیش از `restore` (`BackupsScreen.kt`) | ADR-060 |
+| G20 | 🔴 Delete بکاپ بدون تأیید | ✅ **رفع شد** — `AlertDialog` واقعی پیش از `delete` | ADR-060 |
+| G21 | 🔴 آرشیو پروژه بدون تأیید/بدون Unarchive | ✅ **رفع شد (بخش تأیید)** — دیالوگ تأیید واقعی اضافه شد (`ProjectListSection.kt`)؛ عملیات Unarchive همچنان عمداً ساخته نشده — خودِ متن دیالوگ این محدودیت را صریح اعلام می‌کند | ADR-060 |
+| G22 | Delete Scene/Shot/Asset از UI در دسترس نبودند | ✅ **رفع شد** — هر سه اکنون از UI با دیالوگ تأیید واقعی قابل‌دسترسند (`SceneDetailScreen.kt`/`ShotListScreen.kt`/`AssetsScreen.kt`) | ADR-062 |
+
+### جمع‌بندی
+
+| وضعیت | تعداد | موارد |
+|---|---|---|
+| ✅ کاملاً رفع شد | ۱۴ | G1, G3, G4, G6, G7, G13, G15, G16, G17, G18, G19, G20, G21, G22 |
+| 🟡 جزئاً رفع شد | ۳ | G8, G12, G14 |
+| ⏸️ آگاهانه موکول شد (تصمیم صریح، نه فراموش‌شده) | ۲ | G2, G5 |
+| ⚠️ هنوز باز (بدون تصمیم صریح ثبت‌شده) | ۲ | G10, G11 |
+| ⚪ بدون تغییر لازم | ۱ | G9 |
+| **جمع** | **۲۲** | — |
+
+**یادداشت کنار جدول (نه یافته‌ی تازه‌ی این قدم):** محدودیت شناخته‌شده‌ی
+«ترجمه‌ی واقعی فارسی پرامپت هنوز وجود ندارد» (که ADR-069 صریحاً به آن
+اشاره کرده) از قبل رسماً در README مستند است — نیازی به مستندسازی تازه
+نبود. همچنین Tab «خروجی» Studio (`StudioShell.kt`، انشعاب
+`else -> StudioTabPlaceholder`) که در بخش ۳ گزارش اصلی (نه یک G-شماره‌ی
+مستقل) اشاره شده بود، همچنان دقیقاً همان Placeholder را دارد — بدون
+تغییر از زمان نگارش.
+
+**صداقت درباره‌ی این بازبینی:** هر ۲۲ مورد (بدون استثنا) با `grep`/خواندن
+مستقیم کد فعلی تأیید شدند — نه صرفاً با اعتماد به متن ADR های ۰۶۰ تا
+۰۶۹. برای هر مورد، آخرین وضعیت واقعی (نه اولین ADR مرتبط) دنبال شد.
+
 
