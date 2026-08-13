@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -144,7 +145,17 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
         composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("My First Movie")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilAtLeastOneExists(hasText("My First Movie"), timeoutMillis = 5_000)
+        // رفع نهایی Flake — مستند در ADR-079 (با ارجاع به ADR-078): شرط قبلی
+        // (`waitUntilAtLeastOneExists(hasText(projectName))`) مبهم بود — این متن هم
+        // در فهرست Home (به‌روزرسانی سریع‌تر، از یک Room Flow جدا) و هم در عنوان Tab
+        // «داستان» داخل Studio (بعد از Navigate خودکار async) ظاهر می‌شود؛ کافی بود
+        // فقط نمونه‌ی فهرست Home ارضا شود تا تست ادامه یابد، درحالی‌که فراخوان async
+        // `NavController.navigate()` (از `ProjectListViewModel.createProject` →
+        // `onCreated`) هنوز در حال اجرا بود — دقیقاً همان Race مستندشده در ADR-078
+        // (`HomeScreen.kt` → `AppNavHost.kt`). راه‌حل واقعی: صبر برای یک نشانه‌ی
+        // صریح و غیرمبهمِ «Navigate به Studio واقعاً کامل شد» (خودِ Tab «داستان»)
+        // پیش از هر تعامل بعدی — نه صرفاً امیدواری به وجود متن نام پروژه در جایی.
+        composeRule.waitUntilAtLeastOneExists(hasTestTag(studioTabTestTag(StudioTab.STORY)), timeoutMillis = 5_000)
 
         // ایجاد سریع خودکار وارد Studio همان پروژه می‌شود — برای بازدید Home/Projects
         // اول باید با نوار پایین برگردیم.
@@ -160,7 +171,10 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
         composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("Studio Test Project")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilAtLeastOneExists(hasText("Studio Test Project"), timeoutMillis = 5_000)
+        // رفع نهایی Flake — مستند در ADR-079 (همان دلیل بالا): صبر برای Tab «داستان»
+        // (نشانه‌ی غیرمبهمِ اتمام واقعی Navigate خودکار به Studio) به‌جای صرفاً وجود
+        // متن نام پروژه در جایی نامشخص.
+        composeRule.waitUntilAtLeastOneExists(hasTestTag(studioTabTestTag(StudioTab.STORY)), timeoutMillis = 5_000)
 
         // برای تست واقعی «ورود به Studio از یک کارت پروژه» (نه از خودِ ایجاد سریع)،
         // اول به Home برمی‌گردیم و بعد صریحاً روی کارت کلیک می‌کنیم.

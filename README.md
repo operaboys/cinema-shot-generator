@@ -1476,6 +1476,24 @@ deletion..."`، که هرگز شکست نمی‌خورد) نشان داد بعد
 Timeout رد‌شده). این رفع فقط `app/src/test/` را تغییر داد. جزئیات کامل
 (جدول هر اجرا) در `docs/adr/072-shotsflowtest-deleting-scene-fix-investigation.md`.
 
+### ✅ رفع نهایی Flake `HomeProjectsStudioFlowTest` (ادامه‌ی ADR-078، ADR-079)
+
+فرضیه‌ی پیشنهادی خودِ ADR-078 (یک `composeRule.waitForIdle()` صریح بعد
+از تأیید ایجاد پروژه) آزمایش و **رد شد** — ۵ اجرا، همان ۲ شکست/همان
+پیام‌ها، بدون تغییر. بررسی دقیق‌تر Race مستندشده در ADR-078 (Navigate
+async از `ProjectListViewModel.createProject` → `onCreated` →
+`HomeScreen.kt` → `AppNavHost.kt`) نشان داد ریشه‌ی واقعی، شرط انتظار
+مبهم تست‌ها بود: `waitUntilAtLeastOneExists(hasText(projectName))`
+می‌توانست فقط با به‌روزرسانی سریع‌تر فهرست Home ارضا شود، درحالی‌که
+Navigate خودکار به Studio هنوز در حال اجرا بود — تست بعدی
+(`BOTTOM_NAV_HOME_TAG`) با همان فراخوان async هنوز-معلق مسابقه می‌داد.
+رفع: جایگزینی آن شرط با انتظار برای یک نشانه‌ی غیرمبهمِ «Navigate واقعاً
+کامل شد» (خودِ Tab «داستان» در Studio، `studioTabTestTag(StudioTab.STORY)`).
+فقط `app/src/test/` تغییر کرد؛ هیچ کد `app/src/main/` لازم نبود.
+**۱۰ از ۱۰ اجرای کامل پیاپی Suite ترکیبی موفق** (همان استاندارد
+ADR-072)، به‌علاوه `gradle :app:assembleDebug` موفق. جدول کامل هر ۱۰
+اجرا در `docs/adr/079-homeprojectsstudioflowtest-flake-final-fix.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
