@@ -1,5 +1,8 @@
 package com.operaboys.cinemashotgenerator.ui.settings
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,7 +84,25 @@ fun SettingsScreen(
     val autoSaveCadenceSeconds by workflowViewModel.autoSaveCadenceSeconds.collectAsStateWithLifecycle()
     val allowFreeStepJump by workflowViewModel.allowFreeStepJump.collectAsStateWithLifecycle()
     val homeScreenImageUri by workflowViewModel.homeScreenImageUri.collectAsStateWithLifecycle()
-    val comingSoonMessage = uiString("settings.comingSoonFeature", language)
+
+    // رفع G10 ممیزی post-Unit16 (docs/adr/075-...): برخلاف importLauncher
+    // مشابه در ProjectsScreen.kt (که ActivityResultContracts.GetContent()
+    // است)، اینجا عمداً OpenDocument() استفاده شد، نه یک کپی کامل از آن الگو
+    // — homeScreenImageUri برخلاف Import (خواندن یک‌باره‌ی فوری محتوا) در
+    // DataStore Persist و قرار است در اجراهای بعدی اپ دوباره خوانده شود؛
+    // GetContent() (پشت ACTION_GET_CONTENT) تضمین نمی‌کند Uri بازگشتی پس از
+    // بستن اپ هنوز معتبر بماند، اما OpenDocument() (پشت ACTION_OPEN_DOCUMENT،
+    // Storage Access Framework) این تضمین را می‌دهد و takePersistableUriPermission
+    // را واقعاً معتبر می‌کند.
+    val context = LocalContext.current
+    val chooseImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            workflowViewModel.setHomeScreenImageUri(it.toString())
+        }
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
         AssetFormHeader(
@@ -126,7 +148,7 @@ fun SettingsScreen(
             HomeImageCard(
                 language = language,
                 imageUri = homeScreenImageUri,
-                onChooseImage = { onShowMessage(comingSoonMessage) },
+                onChooseImage = { chooseImageLauncher.launch(arrayOf("image/*")) },
                 onRemoveImage = { workflowViewModel.setHomeScreenImageUri(null) }
             )
 

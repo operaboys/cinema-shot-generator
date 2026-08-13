@@ -184,6 +184,29 @@ class SettingsFlowTest {
         assertEquals(60L, workflowViewModel.autoSaveCadenceSeconds.value)
     }
 
+    /**
+     * رفع G10 ممیزی post-Unit16 (docs/adr/075-...): دکمه‌ی «انتخاب تصویر»
+     * دیگر پیام comingSoon نشان نمی‌دهد، یک ActivityResultLauncher واقعی
+     * (OpenDocument) را Launch می‌کند. هم‌الگو با importLauncher مشابه در
+     * ProjectsScreen.kt (که هیچ تست موجودی نتیجه‌ی واقعی Callback آن را
+     * شبیه‌سازی نمی‌کند)، این تست هم فقط اثبات می‌کند کلیک دکمه بدون Crash
+     * اجرا می‌شود — شبیه‌سازی واقعی نتیجه‌ی Picker (ActivityResultRegistry)
+     * در این کدبیس هیچ‌جا Precedent ندارد، خارج از دامنه‌ی این قدم.
+     */
+    @Test
+    fun `clicking Choose Image in Settings no longer shows the coming-soon message and does not crash`() {
+        setContent()
+        openSettingsFromDrawer()
+
+        composeRule.onNodeWithTag(SETTINGS_CHOOSE_IMAGE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitForIdle()
+
+        // بدون نتیجه‌ی واقعی Picker (شبیه‌سازی‌نشده)، homeScreenImageUri باید
+        // دست‌نخورده (null) بماند — اثبات غیرمستقیم که دیگر هیچ مسیر مصنوعی
+        // (مثل پیام comingSoon) این مقدار را عوض نمی‌کند.
+        assertEquals(null, workflowViewModel.homeScreenImageUri.value)
+    }
+
     @Test
     fun `switching a Display toggle persists (no runtime effect elsewhere, documented limitation)`() {
         setContent()

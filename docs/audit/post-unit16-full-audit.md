@@ -773,8 +773,8 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 | G7 | Asset — بدون مسیر ویرایش/`onClick` | ✅ **رفع شد** — `AssetForm(kind, existingAssetId)`، `Card(onClick = onClick)`، هر سه ViewModel پارامتر `existingAssetId` می‌گیرند | ADR-061 |
 | G8 | Scene — ویرایش فقط زیرمجموعه‌ی فیلدها | 🟡 **جزئاً رفع شد** — `location` اکنون از داخل `SceneSettingsDialog` قابل ویرایش است (زیرساخت `LocationPickerDialog` از قبل آماده بود، فقط نقطه‌ی ورود تازه اضافه شد)؛ `globalVisualStyle` هنوز فقط نمایشی است، بدون مسیر ویرایش | ADR-067 (فقط `location`) |
 | G9 | الگوی مرجع Shot Composer | ⚪ بدون تغییر لازم — همچنان الگوی مرجع معتبر برای G7/G8 | — |
-| G10 | «انتخاب تصویر» Settings فقط Snackbar | ⚠️ **هنوز باز** — `onChooseImage` هنوز فقط پیام `comingSoonMessage` نشان می‌دهد؛ زیرساخت File Picker واقعی این‌بار به کدبیس اضافه شد (`ActivityResultContracts.GetContent` در `ProjectsScreen.kt`) اما فقط برای Import Project، نه برای این مورد | — |
-| G11 | «Attached References» شات فقط متن | ⚠️ **هنوز باز** — `ImageReference` هنوز دقیقاً همان ۳ فیلد متنی (`type`/`localFilePath`/`description`) است، بدون گرفتن فایل/URI واقعی از `addImageReference` | — |
+| G10 | «انتخاب تصویر» Settings فقط Snackbar | ✅ **رفع شد** — `onChooseImage` اکنون `ActivityResultContracts.OpenDocument()` واقعی را Launch می‌کند (عمداً نه `GetContent()` — چون `homeScreenImageUri` برخلاف Import، در DataStore Persist می‌شود و باید بین اجراها معتبر بماند؛ `takePersistableUriPermission` هم فراخوانی می‌شود). رندر واقعی این تصویر روی Home هنوز جزو G12 است، نه این یافته | ADR-075 |
+| G11 | «Attached References» شات فقط متن | ❌ **یافته‌ی اصلی این ممیزی نادرست بود** — بررسی مستقل بلوپرینت ۰۶/۱۴ نشان داد این طراحی عمدی و کامل است، نه یک Gap: بلوپرینت ۱۴ صریحاً می‌گوید ارجاع به تصویر باید «یک جمله‌ی دستوری کلی» باشد، نه نام/مسیر فایل — «دقیقاً هماهنگ با تصمیم بنیادی قبلی این پروژه (`ReferenceImage`, واحد ۰۶) که هرگز نام/مسیر فایل را در متن پرامپت درج نمی‌کند» (بلوپرینت ۱۴، خط ۳۸). `buildReferenceImageInstruction` (`Renderer.kt`) دقیقاً همین را از قبل پیاده کرده و در `renderBlueprintToText` فراخوانی می‌شود (`ADR-030`). **یادداشت مرتبط اما جدا:** `validateImageReferenceFile`/`validateReferenceImageFile` (Rule های یتیم، G14) واقعاً انتظار یک فایل واقعی را دارند — اما این‌ها زیرساخت Post-MVP هنوز نساخته‌شده‌اند (قبلاً در ADR-064 همین‌طور تصمیم‌گیری و مستند شده‌اند)، نه دلیلی برای رد این تصحیح | ADR-030 (پیاده‌سازی اصلی) + ADR-075 (تصحیح این ممیزی) |
 | G12 | ۷ فیلد Persist‌شده‌ی بی‌اثر | 🟡 **جزئاً رفع شد** — فقط `minTouchTargetEnabled` اثر Runtime واقعی گرفت (`CompositionLocal` در `AccessibilityLocals.kt`، مصرف در `Theme.kt`/`App.kt`/`AiStoryBreakdownScreen.kt`)؛ `reducedMotionEnabled` آگاهانه وصل نشد (طبق بررسی مستقل ADR-067: کل اپ هیچ Animation ای ندارد که به آن وصل شود)؛ ۵ فیلد دیگر (`dynamicFontEnabled`, `allowFreeStepJump`, `homeLayoutVariant`, `composerLayoutVariant`, `homeScreenImageUri`) هنوز فقط نوشته می‌شوند، بدون هیچ خواننده | ADR-067 (۱ از ۷) |
 | G13 | Pipeline واحد ۱۳ قطع از Output Delivery | ✅ **رفع شد** — همان یافته‌ی G17 است (خودِ گزارش اصلی این را در بخش ۷ اعلام کرده بود)، با همان رفع پوشش داده شد | ADR-060 |
 | G14 | Rule های یتیم — زیرمورد 🟠 `validateTargetShotCountRange` + بقیه‌ی گروه‌ها | ✅ زیرمورد 🟠 **رفع شد** (`validateTargetShotCountRange` اکنون در `AiStoryBreakdownViewModel.kt` واقعاً صدا زده می‌شود، به‌جای `coerceIn` بی‌صدا) — 🟡 بقیه‌ی گروه‌ها **آگاهانه مستند/موکول شدند** (نه رفع، نه فراموش‌شده): برخی «منسوخ، کاندید حذف» علامت خوردند، برخی «کاندید رفع نزدیک/آینده»، یک مورد («Prompt Finalization») تصحیح شد که از قبل کاملاً وصل بوده | ADR-064 |
@@ -791,10 +791,11 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 
 | وضعیت | تعداد | موارد |
 |---|---|---|
-| ✅ کاملاً رفع شد | ۱۴ | G1, G3, G4, G6, G7, G13, G15, G16, G17, G18, G19, G20, G21, G22 |
+| ✅ کاملاً رفع شد | ۱۵ | G1, G3, G4, G6, G7, G10, G13, G15, G16, G17, G18, G19, G20, G21, G22 |
 | 🟡 جزئاً رفع شد | ۳ | G8, G12, G14 |
 | ⏸️ آگاهانه موکول شد (تصمیم صریح، نه فراموش‌شده) | ۲ | G2, G5 |
-| ⚠️ هنوز باز (بدون تصمیم صریح ثبت‌شده) | ۲ | G10, G11 |
+| ⚠️ هنوز باز (بدون تصمیم صریح ثبت‌شده) | ۰ | — |
+| ❌ یافته‌ی اصلی ممیزی نادرست بود (نه یک Gap واقعی) | ۱ | G11 |
 | ⚪ بدون تغییر لازم | ۱ | G9 |
 | **جمع** | **۲۲** | — |
 
@@ -809,5 +810,11 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 **صداقت درباره‌ی این بازبینی:** هر ۲۲ مورد (بدون استثنا) با `grep`/خواندن
 مستقیم کد فعلی تأیید شدند — نه صرفاً با اعتماد به متن ADR های ۰۶۰ تا
 ۰۶۹. برای هر مورد، آخرین وضعیت واقعی (نه اولین ADR مرتبط) دنبال شد.
+
+**افزوده‌ی ۲۰۲۶-۰۸-۱۳:** G10 رفع شد (`ActivityResultContracts.OpenDocument`
+واقعی، نه دیگر Snackbar)؛ G11 با بازبینی مستقل بلوپرینت ۰۶/۱۴ تصحیح شد —
+یافته‌ی اصلی این ممیزی («Attached References فقط متن است») نادرست بود؛
+این طراحی از ابتدا عمدی و کامل بوده. جزئیات کامل هر دو در
+`docs/adr/075-settings-image-picker-and-g11-correction.md`.
 
 

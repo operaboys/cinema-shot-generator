@@ -1397,7 +1397,12 @@ G4/G18 Export واقعی، G5 چند-Outfit) اکنون یا رفع شده‌ا�
 
 **وضعیت نهایی هر ۲۲ یافته‌ی این ممیزی** (بازبینی مستقل هر مورد با کد
 فعلی، نه فقط متن ADR ها) اکنون در جدول انتهای خودِ
-`docs/audit/post-unit16-full-audit.md` مستند است.
+`docs/audit/post-unit16-full-audit.md` مستند است. **به‌روزرسانی
+۲۰۲۶-۰۸-۱۳:** G10 (انتخاب تصویر Settings، با `ActivityResultContracts.OpenDocument`
+واقعی) رفع شد؛ G11 با بازبینی مستقل بلوپرینت ۰۶/۱۴ تصحیح شد — یافته‌ی
+اصلی آن ممیزی نادرست بود (`ImageReference`/`ReferenceImage` متن‌محور از
+ابتدا طراحی عمدی و کامل بوده‌اند، نه یک Gap) — جزئیات در
+`docs/adr/075-settings-image-picker-and-g11-correction.md`.
 
 ### 🔎 قدم تشخیصی: بررسی ریشه‌ای Flake — بدون تغییر کد محصول
 
