@@ -1416,6 +1416,14 @@ Enum به‌جای برچسب فارسی) رفع شد، به‌همراه یک �
 (رفع‌شده و False Positive رد‌شده) در
 `docs/adr/077-globalvisualstyle-translation-bug-and-codebase-sweep.md`.
 
+**قدم تشخیصی (بدون رفع):** یک Flake تازه در `HomeProjectsStudioFlowTest`
+(Timeout/`NavBackStackEntry` Lifecycle، امضایی متفاوت از Flake تاریخی
+`database.close()`) با ۵ اجرای تازه تأیید شد (نرخ ≈۳۳٪، ۲ از ۶ اجرای
+مستقل). یک فرضیه‌ی مشخص (`ioScopeOverride` برای `ProjectListViewModel`)
+آزمایش و با شواهد قوی رد شد — نتیجه را بدتر کرد، نه بهتر. ریشه‌ی دقیق
+هنوز باز است؛ هیچ کد محصولی تغییر نکرد. جزئیات کامل در
+`docs/adr/078-homeprojectsstudioflowtest-flake-investigation.md`.
+
 ### 🔎 قدم تشخیصی: بررسی ریشه‌ای Flake — بدون تغییر کد محصول
 
 بعد از ۵ بار «Flake محیطی بی‌ضرر» رد شدن (ADR-044/059/060/062/069) بدون
