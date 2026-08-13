@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -21,10 +22,16 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.shot.Shot
+import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
+import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -37,6 +44,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -78,6 +86,7 @@ class ScenesFlowTest {
     private lateinit var workflowViewModel: WorkflowViewModel
     private lateinit var database: AppDatabase
     private lateinit var projectListViewModel: ProjectListViewModel
+    private lateinit var shotRepository: ShotRepository
 
     @Before
     fun setUp() {
@@ -98,6 +107,7 @@ class ScenesFlowTest {
         )
 
         val assetRepository = AssetRepository(database.assetDao())
+        shotRepository = ShotRepository(database.shotDao())
         runBlocking {
             assetRepository.saveLocationAsset(
                 PROJECT_ID,
@@ -116,7 +126,8 @@ class ScenesFlowTest {
                     workflowViewModel = workflowViewModel,
                     projectListViewModel = projectListViewModel,
                     sceneRepository = SceneRepository(database.sceneDao()),
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    shotRepository = shotRepository
                 )
             }
         }
@@ -237,5 +248,49 @@ class ScenesFlowTest {
         composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)), timeoutMillis = 5_000)
         composeRule.onNodeWithText("FILM_NOIR").assertDoesNotExist()
+    }
+
+    /**
+     * یافته‌ی ۱ appendix ADR-081 (ADR-083): Badge عددی Tab «شات‌ها» طبق mockup
+     * (`sceneTabs`، `t.badge`) — قبلاً هیچ شمارشی روی این Tab نبود. اثبات
+     * می‌کند Badge با یک StateFlow زنده (نه یک‌بار خواندن) به تعداد واقعی
+     * Shot های همان صحنه وصل است.
+     */
+    @Test
+    fun `Shots tab badge shows the real live shot count for the scene, starting at 0 and updating after a shot is saved`() {
+        createProjectAndOpenScenesTab("Scenes Shots Badge Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        // یافته‌ی واقعی دیباگ: Tab یک Composable قابل‌کلیک است — Compose به‌طور
+        // پیش‌فرض متن فرزندان چنین گره‌ای را در Semantics Tree ادغام می‌کند
+        // (برای Accessibility)، پس بدون useUnmergedTree=true گره‌ی متن Badge به‌
+        // تنهایی در درخت ادغام‌شده پیدا نمی‌شود.
+        composeRule.onNode(hasTestTag(SCENE_DETAIL_SHOTS_TAB_TAG) and hasAnyDescendant(hasText("0")), useUnmergedTree = true).assertExists()
+
+        val sceneId = runBlocking { database.sceneDao().getScenesForProject(PROJECT_ID).first().first().sceneId }
+        runBlocking {
+            shotRepository.saveShot(
+                Shot(
+                    shotId = "shot_badge_test",
+                    sceneId = sceneId,
+                    shotNumber = 1,
+                    shotTitle = "Badge Test Shot",
+                    shotDescription = "proves the live badge count",
+                    shotGoal = ShotGoal.ESTABLISHING,
+                    shotType = ShotType.WIDE,
+                    durationSeconds = 4f,
+                    motionLevel = MotionLevel.STATIC,
+                    soundProfile = SoundProfile(enabled = false)
+                )
+            )
+        }
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodes(hasTestTag(SCENE_DETAIL_SHOTS_TAB_TAG) and hasAnyDescendant(hasText("1")), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNode(hasTestTag(SCENE_DETAIL_SHOTS_TAB_TAG) and hasAnyDescendant(hasText("1")), useUnmergedTree = true).assertExists()
     }
 }

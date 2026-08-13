@@ -1,19 +1,26 @@
 package com.operaboys.cinemashotgenerator.ui.story
 
 import android.app.Application
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -183,13 +190,45 @@ fun StoryTabContent(
             color = CinemaTheme.extendedColors.fg3
         )
 
-        Button(
+        // یافته‌ی ۴ appendix ADR-081 (ADR-083): کارت ورودی AI-Breakdown طبق mockup
+        // (docs/design/Cinema Studio.html، Tab داستان) — عنوان+زیرعنوان+آیکون +
+        // نوار ۳بخشی. **یافته‌ی دیباگ واقعی حین بررسی دقیق mockup**: برخلاف فرض
+        // اول («این نوار وضعیت واقعی AI Breakdown یا تکمیل داستان را نشان
+        // می‌دهد»)، خواندن خامِ HTML نشان داد رنگ هر ۳ Segment در خودِ mockup
+        // Literal است، نه به هیچ متغیر/State ای صریحاً وصل (`background:#7C5CFF`
+        // برای اولی، `background:var(--hair)` برای دو تای بعدی — بدون `{{ }}`
+        // در هیچ‌کدام، برخلاف مثلاً `{{ t.color }}` در همان فایل که واقعاً
+        // Data-bound است). یعنی این نوار در خودِ mockup هم صرفاً یک نشانه‌ی
+        // بصری ثابت است («این کارت به یک جریان ۳فازی می‌رود»)، نه یک Progress
+        // Indicator متصل به داده‌ی واقعی — پس ابهامی برای رفع باقی نمی‌ماند:
+        // نسخه‌ی این اپ هم دقیقاً همان رفتار mockup (ثابت، نه پویا) را کپی
+        // می‌کند.
+        Card(
             onClick = onNavigateToAiBreakdown,
+            colors = CardDefaults.cardColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(STORY_TAB_AI_BREAKDOWN_BUTTON_TAG)
         ) {
-            Text(uiString("drawer.aiBreakdown", language))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text(uiString("drawer.aiBreakdown", language), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = uiString("aiBreakdown.subtitle", language),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CinemaTheme.extendedColors.fg3,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(modifier = Modifier.weight(1f).height(4.dp).background(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(18.dp)))
+                    Box(modifier = Modifier.weight(1f).height(4.dp).background(color = CinemaTheme.extendedColors.hairline, shape = RoundedCornerShape(18.dp)))
+                    Box(modifier = Modifier.weight(1f).height(4.dp).background(color = CinemaTheme.extendedColors.hairline, shape = RoundedCornerShape(18.dp)))
+                }
+            }
         }
 
         StepperField(

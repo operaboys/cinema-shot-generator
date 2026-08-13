@@ -577,6 +577,21 @@ private fun workflowStepLabel(step: WorkflowStep, language: Language): String = 
  */
 @Composable
 private fun HomeBackgroundImage(uriString: String, modifier: Modifier = Modifier) {
+    DecodedContentImage(uriString = uriString, modifier = modifier.testTag(HOME_BACKGROUND_IMAGE_TAG), contentScale = ContentScale.Crop)
+}
+
+/**
+ * یافته‌ی ۲ appendix ADR-081 (ADR-083): decode بومی `content://` URI به Bitmap —
+ * استخراج‌شده از `HomeBackgroundImage` بالا تا `SettingsScreen.kt` (کاشی
+ * پیش‌نمایش ۱۴۰px) هم بدون تکرار کد از همان منطق استفاده کند. `internal`
+ * (نه `private`) دقیقاً به همان دلیل `CreateProjectDialog` در همین فایل.
+ */
+@Composable
+internal fun DecodedContentImage(
+    uriString: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
     val context = LocalContext.current
     val bitmap by produceState<Bitmap?>(initialValue = null, uriString) {
         value = withContext(Dispatchers.IO) {
@@ -588,12 +603,7 @@ private fun HomeBackgroundImage(uriString: String, modifier: Modifier = Modifier
         }
     }
     bitmap?.let { loaded ->
-        Image(
-            bitmap = loaded.asImageBitmap(),
-            contentDescription = null,
-            modifier = modifier.testTag(HOME_BACKGROUND_IMAGE_TAG),
-            contentScale = ContentScale.Crop
-        )
+        Image(bitmap = loaded.asImageBitmap(), contentDescription = null, modifier = modifier, contentScale = contentScale)
     }
 }
 

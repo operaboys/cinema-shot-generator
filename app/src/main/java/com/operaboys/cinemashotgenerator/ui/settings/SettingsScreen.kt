@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -21,10 +24,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.BuildConfig
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
@@ -32,6 +38,7 @@ import com.operaboys.cinemashotgenerator.domain.workflow.HomeLayoutVariant
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
+import com.operaboys.cinemashotgenerator.ui.home.DecodedContentImage
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -63,6 +70,12 @@ const val SETTINGS_REDUCED_MOTION_SWITCH_TAG = "settings.reducedMotionSwitch"
 const val SETTINGS_ALLOW_FREE_STEP_JUMP_SWITCH_TAG = "settings.allowFreeStepJumpSwitch"
 const val SETTINGS_CHOOSE_IMAGE_BUTTON_TAG = "settings.chooseImageButton"
 const val SETTINGS_REMOVE_IMAGE_BUTTON_TAG = "settings.removeImageButton"
+/** یافته‌ی ۲ appendix ADR-081 (ADR-083): کاشی پیش‌نمایش ۱۴۰px تصویر Home. */
+const val SETTINGS_HOME_IMAGE_PREVIEW_TAG = "settings.homeImagePreview"
+/** خودِ عنصر Image دیکودشده درون کاشی — برای اثبات رندر واقعی (نه فقط ظرف کارت). */
+const val SETTINGS_HOME_IMAGE_PREVIEW_IMAGE_TAG = "settings.homeImagePreview.image"
+/** یافته‌ی ۳ appendix ADR-081 (ADR-083): رشته‌ی نسخه‌ی واقعی کارت درباره. */
+const val SETTINGS_ABOUT_VERSION_TAG = "settings.aboutVersion"
 
 fun settingsAutoSaveCadenceChipTag(seconds: Long): String = "settings.autoSaveCadence.$seconds"
 
@@ -311,16 +324,28 @@ private fun HomeImageCard(
     onRemoveImage: () -> Unit
 ) {
     SettingsCard(titleKey = "settings.homeImageCardTitle", language = language) {
+        // یافته‌ی ۲ appendix ADR-081 (ADR-083): کاشی پیش‌نمایش واقعی ۱۴۰dp طبق
+        // mockup — قبلاً فقط رشته‌ی خام content-URI به‌صورت متن نشان داده می‌شد.
+        // همان الگوی decode بومی `HomeBackgroundImage` (اکنون `DecodedContentImage`
+        // مشترک، ui/home/HomeScreen.kt) بازاستفاده شد.
         Card(
             colors = CardDefaults.cardColors(containerColor = CinemaTheme.extendedColors.inset),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.width(140.dp).height(140.dp).testTag(SETTINGS_HOME_IMAGE_PREVIEW_TAG)
         ) {
-            Text(
-                text = imageUri ?: "—",
-                style = MaterialTheme.typography.labelSmall,
-                color = CinemaTheme.extendedColors.fg3,
-                modifier = Modifier.padding(16.dp)
-            )
+            if (imageUri != null) {
+                DecodedContentImage(
+                    uriString = imageUri,
+                    modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(12.dp)).testTag(SETTINGS_HOME_IMAGE_PREVIEW_IMAGE_TAG),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = "—",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaTheme.extendedColors.fg3,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onChooseImage, modifier = Modifier.testTag(SETTINGS_CHOOSE_IMAGE_BUTTON_TAG)) {
@@ -381,5 +406,14 @@ private fun AboutCard(language: Language) {
     SettingsCard(titleKey = "settings.aboutCardTitle", language = language) {
         Text(text = "Cinema Shot Generator", style = MaterialTheme.typography.titleMedium)
         Text(text = uiString("settings.aboutTagline", language), style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
+        // یافته‌ی ۳ appendix ADR-081 (ADR-083، رفع جزئی): رشته‌ی نسخه‌ی واقعی
+        // (mockup: «v1.0.0 · On-Device») — لوگوی سفارشی Aperture-C همچنان
+        // موکول است (بدهی طراحی گرافیکی، نه کدی؛ رجوع به ADR-083).
+        Text(
+            text = uiTemplate("settings.aboutVersionTemplate", language, "version" to BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.labelSmall,
+            color = CinemaTheme.extendedColors.fg4,
+            modifier = Modifier.testTag(SETTINGS_ABOUT_VERSION_TAG)
+        )
     }
 }

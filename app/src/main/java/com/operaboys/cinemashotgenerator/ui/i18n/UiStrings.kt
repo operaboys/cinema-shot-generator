@@ -795,6 +795,8 @@ val faStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — آکاردئون",
     "settings.aboutCardTitle" to "درباره",
     "settings.aboutTagline" to "تولیدکننده‌ی پرامپت سینمایی — کاملاً روی دستگاه خودتان",
+    // یافته‌ی ۳ appendix ADR-081 (ADR-083): رشته‌ی نسخه‌ی mockup («v1.0.0 · On-Device»).
+    "settings.aboutVersionTemplate" to "نسخه‌ی {version} · روی دستگاه",
     // یافته‌ی ۲ appendix ADR-081 (ADR-082): متن دقیق `x.k49` مockup
     // (docs/design/Cinema Studio.html، بخش is.backups).
     "backups.cloudSyncBanner" to "On-Device مطلق — بدون همگام‌سازی ابری",
@@ -1609,6 +1611,7 @@ val enStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — Accordion",
     "settings.aboutCardTitle" to "About",
     "settings.aboutTagline" to "Cinematic prompt generator — fully on-device",
+    "settings.aboutVersionTemplate" to "Version {version} · On-Device",
     "backups.cloudSyncBanner" to "Strictly on-device — no cloud sync",
     "backups.subtitle" to "Manual and automatic backups for this project",
     "backups.createManualButton" to "Create Manual Backup",

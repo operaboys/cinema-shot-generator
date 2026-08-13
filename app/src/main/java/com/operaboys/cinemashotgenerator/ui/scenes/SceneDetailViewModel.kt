@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -54,6 +55,15 @@ class SceneDetailViewModel(
     /** برای دکمه‌ی «اتصال به کتابخانه» — طبق فاز ۳ قدم ۱ (AssetRepository.loadAllLocationAssets). */
     val locationAssets: StateFlow<List<LocationAsset>> = assetRepository.loadAllLocationAssets(projectId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * یافته‌ی ۱ appendix ADR-081 (ADR-083): Badge عددی Tab «شات‌ها» طبق mockup
+     * (`sceneTabs`، `t.badge`). هم‌الگو دقیق با `locationAssets` بالا — Flow زنده،
+     * نه یک بار خواندن.
+     */
+    val shotCount: StateFlow<Int> = shotRepository.loadAllShots(sceneId)
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val _deleteBlockedMessage = MutableStateFlow<String?>(null)
     val deleteBlockedMessage: StateFlow<String?> = _deleteBlockedMessage.asStateFlow()

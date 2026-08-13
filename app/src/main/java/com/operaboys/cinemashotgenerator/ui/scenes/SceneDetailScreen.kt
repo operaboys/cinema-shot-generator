@@ -124,6 +124,7 @@ fun SceneDetailScreen(
     val scene by viewModel.scene.collectAsStateWithLifecycle()
     val isLoaded by viewModel.isLoaded.collectAsStateWithLifecycle()
     val locationAssets by viewModel.locationAssets.collectAsStateWithLifecycle()
+    val shotCount by viewModel.shotCount.collectAsStateWithLifecycle()
     val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
     val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
 
@@ -162,7 +163,15 @@ fun SceneDetailScreen(
             Tab(
                 selected = selectedTab == SceneDetailTab.SHOTS,
                 onClick = { selectedTab = SceneDetailTab.SHOTS },
-                text = { Text(uiString("sceneDetail.tab.shots", language)) },
+                text = {
+                    // یافته‌ی ۱ appendix ADR-081 (ADR-083): Badge عددی طبق mockup
+                    // (`sceneTabs`، `t.badge`) — برچسب + شمارش زنده در رنگ کم‌رنگ‌تر،
+                    // دقیقاً هم‌چیدمان mockup.
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(uiString("sceneDetail.tab.shots", language))
+                        Text(shotCount.toString(), color = CinemaTheme.extendedColors.fg3)
+                    }
+                },
                 modifier = Modifier.testTag(SCENE_DETAIL_SHOTS_TAB_TAG)
             )
             Tab(

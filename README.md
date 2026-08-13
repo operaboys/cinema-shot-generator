@@ -1554,6 +1554,22 @@ viewport کوچک تست آیتم دوم فهرست را اصلاً Compose نم
 بازطراحی توالی Assertion‌ها (نه صرفاً performScrollTo). جزئیات کامل +
 جدول تست در `docs/adr/082-appendix-audit-tier1-fixes.md`.
 
+### ✅ رفع ۴ یافته‌ی سطح ۲ از appendix ممیزی mockup (ADR-083)
+
+دومین دسته: (۱) Badge شمارشی زنده روی Tab «شات‌ها»ی Scene Detail (طبق
+mockup، Tab «دارایی‌ها» عمداً بدون Badge ماند چون اتصال واقعی
+Asset↔Scene هنوز پیاده نیست — Badge همیشه-صفر گمراه‌کننده بود)؛ (۲)
+کاشی پیش‌نمایش واقعی ۱۴۰px تصویر Home در Settings (قبلاً فقط متن خام
+URI)، با استخراج منطق decode مشترک از HomeScreen.kt؛ (۳) رشته‌ی نسخه‌ی
+واقعی (`BuildConfig.VERSION_NAME`) به کارت «درباره» اضافه شد — لوگوی
+گرافیکی سفارشی Aperture-C رسماً به‌عنوان بدهی طراحی (نه کدی) موکول ماند؛
+(۴) نوار پیشرفت ۳بخشی AI-Breakdown Tab داستان اضافه شد — یافته‌ی دیباگ
+واقعی: خواندن خام HTML نشان داد رنگ هر ۳ Segment در خودِ mockup Literal
+است (نه `{{ }}`-bound به هیچ State ای)، یعنی این نوار در mockup هم
+صرفاً یک نشانه‌ی بصری ثابت است، نه Progress Indicator متصل به داده —
+پیاده‌سازی این اپ هم دقیقاً همان رفتار ثابت را کپی کرد. جزئیات کامل +
+جدول تست در `docs/adr/083-appendix-audit-tier2-fixes.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

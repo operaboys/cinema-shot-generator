@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -267,5 +268,39 @@ class SettingsFlowTest {
         composeRule.waitUntil(timeoutMillis = 8_000) {
             runBlocking { database.projectDao().loadProject(PROJECT_ID)?.lastModified } != initialLastModified
         }
+    }
+
+    /**
+     * یافته‌ی ۲ appendix ADR-081 (ADR-083): کاشی پیش‌نمایش ۱۴۰px — قبلاً فقط
+     * رشته‌ی خام content-URI به‌صورت متن نشان داده می‌شد. هم‌الگو دقیق با
+     * `HomeScreenBackgroundImageTest.kt` — یک فایل PNG واقعی روی دیسک، نه Mock.
+     */
+    @Test
+    fun `setting a real homeScreenImageUri renders an actual decoded preview tile in Settings, not raw URI text`() {
+        val imageFile = java.io.File(context.cacheDir, "settings_preview_test_${java.util.UUID.randomUUID()}.png")
+        try {
+            val bitmap = android.graphics.Bitmap.createBitmap(4, 4, android.graphics.Bitmap.Config.ARGB_8888)
+            java.io.FileOutputStream(imageFile).use { out -> bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out) }
+            workflowViewModel.setHomeScreenImageUri(android.net.Uri.fromFile(imageFile).toString())
+
+            setContent()
+            openSettingsFromDrawer()
+
+            composeRule.waitUntilExactlyOneExists(hasTestTag(SETTINGS_HOME_IMAGE_PREVIEW_IMAGE_TAG), timeoutMillis = 10_000)
+            // viewport کوچک تست: کارت تصویر پایین‌تر از چند کارت دیگر Settings است.
+            composeRule.onNodeWithTag(SETTINGS_HOME_IMAGE_PREVIEW_IMAGE_TAG).performScrollTo().assertIsDisplayed()
+        } finally {
+            imageFile.delete()
+        }
+    }
+
+    /** یافته‌ی ۳ appendix ADR-081 (ADR-083، رفع جزئی): رشته‌ی نسخه‌ی واقعی BuildConfig.VERSION_NAME. */
+    @Test
+    fun `About card shows the real BuildConfig version name`() {
+        setContent()
+        openSettingsFromDrawer()
+
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_VERSION_TAG).performScrollTo()
+        composeRule.onNodeWithText(com.operaboys.cinemashotgenerator.BuildConfig.VERSION_NAME, substring = true).assertIsDisplayed()
     }
 }

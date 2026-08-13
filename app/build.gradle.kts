@@ -37,6 +37,10 @@ android {
 
     buildFeatures {
         compose = true
+        // یافته‌ی ۳ appendix ADR-081 (ADR-083): رشته‌ی نسخه‌ی واقعی (کارت درباره،
+        // Settings) به BuildConfig.VERSION_NAME نیاز دارد — AGP جدید این را
+        // به‌صورت پیش‌فرض خاموش می‌کند.
+        buildConfig = true
     }
 
     testOptions {

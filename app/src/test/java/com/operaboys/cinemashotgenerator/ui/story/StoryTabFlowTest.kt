@@ -184,4 +184,21 @@ class StoryTabFlowTest {
             timeoutMillis = 5_000
         )
     }
+
+    /**
+     * یافته‌ی ۴ appendix ADR-081 (ADR-083): کارت ورودی AI-Breakdown قبلاً فقط یک
+     * دکمه‌ی ساده بود (بدون زیرعنوان mockup). اثبات می‌کند طراحی کامل کارت
+     * (عنوان+زیرعنوان) رندر می‌شود و کلیک روی آن هنوز واقعاً به AI Breakdown
+     * می‌رود (رفتار Navigate قبلی باید دست‌نخورده بماند).
+     */
+    @Test
+    fun `AI-Breakdown entry card shows the mockup subtitle and still navigates to AI Story Breakdown on click`() {
+        createProjectAndEnterStudio("AI Breakdown Card Test")
+
+        composeRule.onNodeWithTag(STORY_TAB_AI_BREAKDOWN_BUTTON_TAG).assertExists()
+        composeRule.onNodeWithText(uiString("aiBreakdown.subtitle", Language.FA)).assertExists()
+
+        composeRule.onNodeWithTag(STORY_TAB_AI_BREAKDOWN_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilAtLeastOneExists(hasText(uiString("aiBreakdown.storyLabel", Language.FA)), timeoutMillis = 5_000)
+    }
 }
