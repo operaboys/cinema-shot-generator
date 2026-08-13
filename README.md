@@ -1538,6 +1538,22 @@ Toast، هدر سراسری) — فهرست کامل و غیرخلاصه‌شد�
 تصمیم معمار پروژه‌اند. جزئیات کامل + جدول تست در
 `docs/adr/081-home-resume-composer-accordion-layouts.md`.
 
+### ✅ رفع ۵ یافته‌ی سطح ۱ (کوچک) از appendix ممیزی mockup (ADR-082)
+
+اولین دسته از یک لیست اولویت‌بندی‌شده‌ی بزرگ‌تر از یافته‌های
+`docs/adr/081-appendix-mockup-audit.md`، همگی کوچک/کم‌ریسک: (۱) FAB مرکزی
+سراسری «ایجاد سریع» که قبلاً کاملاً بی‌اثر بود، اکنون از هر صفحه دیالوگ
+ایجاد پروژه را باز می‌کند؛ (۲) بنر «On-Device مطلق — بدون همگام‌سازی
+ابری» (متن دقیق mockup) به Backups اضافه شد؛ (۳) ردیف چیپ فیلتر وضعیت
+(همه/DRAFT/REVIEW/LOCKED/FINAL/ARCHIVED) به Projects اضافه شد؛ (۴) ریل
+نقطه+خط اتصال واقعی برای حالت Timeline در Shots List (قبلاً دقیقاً همان
+Grid بود)؛ (۵) گرادیان دقیق mockup (`#2C4260→#3C5570→#6E5B72`) جایگزین
+رنگ تخت نوار Hero در Shot Composer شد. یافته‌ی دیباگ واقعی: تست فیلتر
+Projects با `ComposeTimeoutException` شکست خورد چون `LazyColumn` در
+viewport کوچک تست آیتم دوم فهرست را اصلاً Compose نمی‌کرد — رفع با
+بازطراحی توالی Assertion‌ها (نه صرفاً performScrollTo). جزئیات کامل +
+جدول تست در `docs/adr/082-appendix-audit-tier1-fixes.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

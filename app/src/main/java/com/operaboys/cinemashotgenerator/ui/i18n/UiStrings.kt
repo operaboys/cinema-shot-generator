@@ -55,6 +55,9 @@ val faStrings: Map<String, String> = mapOf(
     // فاز ۱ — Projects
     "projects.title" to "پروژه‌ها",
     "projects.subtitleTemplate" to "{count} پروژه‌ی محلی",
+    // یافته‌ی ۳ appendix ADR-081 (ADR-082): ردیف چیپ فیلتر وضعیت mockup
+    // (`stateFilters`، ۶ مورد: همه + ۵ EntityState).
+    "projects.filter.all" to "همه",
 
     // فاز ۱ — کارت پروژه
     "project.state.draft" to "پیش‌نویس",
@@ -792,6 +795,9 @@ val faStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — آکاردئون",
     "settings.aboutCardTitle" to "درباره",
     "settings.aboutTagline" to "تولیدکننده‌ی پرامپت سینمایی — کاملاً روی دستگاه خودتان",
+    // یافته‌ی ۲ appendix ADR-081 (ADR-082): متن دقیق `x.k49` مockup
+    // (docs/design/Cinema Studio.html، بخش is.backups).
+    "backups.cloudSyncBanner" to "On-Device مطلق — بدون همگام‌سازی ابری",
     "backups.subtitle" to "بکاپ‌های دستی و خودکار این پروژه",
     "backups.createManualButton" to "ساخت بکاپ دستی",
     "backups.emptyState" to "هنوز هیچ بکاپی برای این پروژه ساخته نشده",
@@ -868,6 +874,7 @@ val enStrings: Map<String, String> = mapOf(
     // Phase 1 — Projects
     "projects.title" to "Projects",
     "projects.subtitleTemplate" to "{count} local projects",
+    "projects.filter.all" to "All",
 
     // Phase 1 — Project card
     "project.state.draft" to "Draft",
@@ -1602,6 +1609,7 @@ val enStrings: Map<String, String> = mapOf(
     "settings.composerLayoutAccordionOption" to "B — Accordion",
     "settings.aboutCardTitle" to "About",
     "settings.aboutTagline" to "Cinematic prompt generator — fully on-device",
+    "backups.cloudSyncBanner" to "Strictly on-device — no cloud sync",
     "backups.subtitle" to "Manual and automatic backups for this project",
     "backups.createManualButton" to "Create Manual Backup",
     "backups.emptyState" to "No backups have been created for this project yet",

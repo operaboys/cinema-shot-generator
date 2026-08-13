@@ -40,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -83,6 +85,16 @@ const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
 const val SHOT_COMPOSER_BACK_BUTTON_TAG = "shotComposer.backButton"
 const val SHOT_COMPOSER_VALIDATION_BUTTON_TAG = "shotComposer.validationButton"
 const val SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG = "shotComposer.outputDeliveryButton"
+
+/**
+ * یافته‌ی ۵ appendix ADR-081 (ADR-082): گرادیان دقیق نوار Hero طبق mockup
+ * (docs/design/Cinema Studio.html، `cs-shot-hero`/`cs-shot-hero-b`:
+ * `linear-gradient(150deg,#2C4260 0%,#3C5570 48%,#6E5B72 100%)`)، هر دو
+ * نسخه‌ی TABS و ACCORDION همین گرادیان را دارند. قبلاً یک رنگ تخت
+ * (`CinemaTheme.extendedColors.inset`) بود. `internal` تا در تست واحد
+ * جداگانه (نه Compose UI Test) مقادیر دقیق قابل‌تأیید باشند.
+ */
+internal val ComposerHeroGradientColors = listOf(Color(0xFF2C4260), Color(0xFF3C5570), Color(0xFF6E5B72))
 
 @Composable
 fun ShotComposerScreen(
@@ -154,7 +166,7 @@ fun ShotComposerScreen(
                 .fillMaxWidth()
                 .height(160.dp)
                 .padding(horizontal = 16.dp)
-                .background(color = CinemaTheme.extendedColors.inset, shape = RoundedCornerShape(16.dp))
+                .background(brush = Brush.linearGradient(ComposerHeroGradientColors), shape = RoundedCornerShape(16.dp))
         )
 
         Column(

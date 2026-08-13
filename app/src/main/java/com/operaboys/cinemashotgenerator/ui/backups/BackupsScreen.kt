@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -51,6 +54,7 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
 const val BACKUPS_BACK_BUTTON_TAG = "backups.backButton"
 const val BACKUPS_CREATE_BUTTON_TAG = "backups.createButton"
+const val BACKUPS_CLOUD_SYNC_BANNER_TAG = "backups.cloudSyncBanner"
 
 fun backupRestoreButtonTag(backupId: String): String = "backups.restoreButton.$backupId"
 fun backupDeleteButtonTag(backupId: String): String = "backups.deleteButton.$backupId"
@@ -74,6 +78,8 @@ fun BackupsScreen(
             onBack = onBack,
             backTestTag = BACKUPS_BACK_BUTTON_TAG
         )
+
+        CloudSyncBanner(language = language, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
 
         if (projectId == null) {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
@@ -158,6 +164,31 @@ fun BackupsScreen(
                 },
                 onDismiss = { deleteTarget = null }
             )
+        }
+    }
+}
+
+/**
+ * یافته‌ی ۲ appendix ADR-081 (ADR-082): بنر اطلاع‌رسانی «بدون Cloud Sync» طبق
+ * mockup (docs/design/Cinema Studio.html، `is.backups`، متن `x.k49`) که قبلاً
+ * کاملاً غایب بود. یک پیام شفافیت (نه هشدار Blocking) — طبق همان الگوی
+ * کنتراست‌فیکس‌شده‌ی این پروژه (پرکردن Solid، نه Tint کم‌آلفا؛ ADR-055/059)،
+ * با `success` (سبز) که دقیقاً معادل رنگ `#3DDC97` mockup در این تم است.
+ */
+@Composable
+private fun CloudSyncBanner(language: Language, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = CinemaTheme.extendedColors.success,
+        modifier = modifier.fillMaxWidth().testTag(BACKUPS_CLOUD_SYNC_BANNER_TAG)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Filled.CloudOff, contentDescription = null, tint = Color.Black)
+            Text(text = uiString("backups.cloudSyncBanner", language), style = MaterialTheme.typography.labelLarge, color = Color.Black)
         }
     }
 }

@@ -54,6 +54,7 @@ const val BOTTOM_NAV_HOME_TAG = "bottomNav.home"
 const val BOTTOM_NAV_PROJECTS_TAG = "bottomNav.projects"
 const val BOTTOM_NAV_STUDIO_TAG = "bottomNav.studio"
 const val BOTTOM_NAV_ASSETS_TAG = "bottomNav.assets"
+const val BOTTOM_NAV_QUICK_CREATE_FAB_TAG = "bottomNav.quickCreateFab"
 
 @Composable
 fun AppBottomNavBar(
@@ -108,6 +109,7 @@ fun AppBottomNavBar(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .offset(y = (-28).dp)
+                .testTag(BOTTOM_NAV_QUICK_CREATE_FAB_TAG)
         ) {
             Icon(Icons.Filled.Add, contentDescription = uiString("nav.quickCreate", language))
         }

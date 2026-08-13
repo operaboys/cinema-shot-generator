@@ -152,6 +152,20 @@ class BackupsFlowTest {
         composeRule.waitUntilExactlyOneExists(hasTestTag(BACKUPS_BACK_BUTTON_TAG), timeoutMillis = 10_000)
     }
 
+    /**
+     * یافته‌ی ۲ appendix ADR-081 (ADR-082): بنر «بدون Cloud Sync» طبق mockup
+     * (`x.k49`) که قبلاً کاملاً غایب بود.
+     */
+    @Test
+    fun `Backups screen shows the on-device no-cloud-sync banner with the exact mockup text`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        composeRule.onNodeWithTag(BACKUPS_CLOUD_SYNC_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText(uiString("backups.cloudSyncBanner", Language.FA)).assertIsDisplayed()
+    }
+
     @Test
     fun `Nav Drawer scroll makes Backups (last item of the last group) reachable on a small simulated screen`() {
         setContent()

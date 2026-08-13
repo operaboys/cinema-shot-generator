@@ -677,8 +677,14 @@ private fun QuickCreateRow(language: Language, onClick: () -> Unit, modifier: Mo
     }
 }
 
+/**
+ * رفع یافته‌ی ۱ ادr-082 (appendix ADR-081): این دیالوگ قبلاً `private` بود و فقط
+ * از داخل خودِ `HomeScreen` (ردیف Quick-create) قابل‌فراخوانی بود؛ اکنون از
+ * `MainScaffold` هم برای FAB سراسری «ایجاد سریع» بازاستفاده می‌شود — بدون
+ * تکرار کد، طبق همان دیالوگ و همان اعتبارسنجی (نام خالی غیرفعال).
+ */
 @Composable
-private fun CreateProjectDialog(language: Language, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+fun CreateProjectDialog(language: Language, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,

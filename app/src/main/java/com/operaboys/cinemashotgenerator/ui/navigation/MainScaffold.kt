@@ -15,8 +15,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +35,7 @@ import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationReposit
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
+import com.operaboys.cinemashotgenerator.ui.home.CreateProjectDialog
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
@@ -128,6 +131,13 @@ fun MainScaffold(
     val projectSummaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
     val activeOrRecentProjectId = resolveActiveOrRecentProjectId(workflowState, projectSummaries)
 
+    // رفع یافته‌ی ۱ appendix ADR-081 (ADR-082): FAB مرکزی سراسری «ایجاد سریع» قبلاً
+    // `onQuickCreate = {}` خالی بود (کاملاً بی‌اثر روی هر صفحه). طبق mockup این اپ
+    // فقط یک نوع Entity برای Quick Create دارد (پروژه، همان دیالوگ QuickCreateRow
+    // داخل Home) — پس ساده‌ترین و سازگارترین تصمیم: این FAB همان دیالوگ ایجاد
+    // پروژه‌ی موجود را از هر صفحه باز می‌کند، نه یک رفتار Context-aware تازه.
+    var showQuickCreateDialog by remember { mutableStateOf(false) }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -217,12 +227,7 @@ fun MainScaffold(
                             coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
                         }
                     },
-                    onQuickCreate = {
-                        // MIGRATED (فاز بعدی): رفتار «ایجاد سریع» Context-aware (کدام نوع
-                        // Entity، بسته به صفحه‌ی فعلی) نیازمند تصمیم‌گیری UI/UX جداگانه است؛
-                        // «ایجاد سریع» پروژه از داخل Home (ردیف Quick-create) در همین فاز
-                        // پیاده شد — این FAB سراسری به همان جریان آینده موکول است.
-                    }
+                    onQuickCreate = { showQuickCreateDialog = true }
                 )
             }
         ) { innerPadding ->
@@ -246,5 +251,20 @@ fun MainScaffold(
                     .padding(innerPadding)
             )
         }
+    }
+
+    if (showQuickCreateDialog) {
+        CreateProjectDialog(
+            language = language,
+            onConfirm = { name ->
+                projectListViewModel.createProject(
+                    name = name,
+                    uiLanguage = language,
+                    onCreated = { navController.navigate(Studio(it.projectId)) { launchSingleTop = true } }
+                )
+                showQuickCreateDialog = false
+            },
+            onDismiss = { showQuickCreateDialog = false }
+        )
     }
 }

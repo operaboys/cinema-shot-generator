@@ -1,15 +1,22 @@
 package com.operaboys.cinemashotgenerator.ui.shots
 
 import android.app.Application
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -61,6 +68,13 @@ const val SHOTS_LIST_DELETE_CONFIRM_BUTTON_TAG = "shotsList.deleteConfirmButton"
 fun shotCardTag(shotId: String): String = "shotsList.card.$shotId"
 fun shotCardMenuButtonTag(shotId: String): String = "shotsList.card.$shotId.menuButton"
 fun shotCardDeleteMenuItemTag(shotId: String): String = "shotsList.card.$shotId.deleteMenuItem"
+
+/**
+ * یافته‌ی ۴ appendix ADR-081 (ADR-082): testTag نقطه‌ی ریل Timeline — تنها راه
+ * تست End-to-End برای اثبات این‌که حالت Timeline واقعاً از Grid متفاوت است
+ * (قبلاً هر دو حالت دقیقاً همان `ShotCard` را بدون هیچ تزیین اضافه رندر می‌کردند).
+ */
+fun shotTimelineDotTag(shotId: String): String = "shotsList.timeline.$shotId.dot"
 
 @Composable
 fun ShotListScreen(
@@ -134,7 +148,7 @@ fun ShotListScreen(
                     contentPadding = PaddingValues(bottom = 96.dp)
                 ) {
                     items(shots, key = { it.shotId }) { shot ->
-                        ShotCard(
+                        ShotTimelineRow(
                             shot = shot,
                             sceneNumber = sceneNumber,
                             language = language,
@@ -202,10 +216,53 @@ private fun DeleteShotDialog(language: Language, onDismiss: () -> Unit, onConfir
 private fun Shot.hasOverriddenSettings(): Boolean =
     camera.source == "override" || lighting.source == "override" || environment.source == "override"
 
+/**
+ * یافته‌ی ۴ appendix ADR-081 (ADR-082): طراحی واقعی Timeline mockup — ریل
+ * عمودی (نقطه‌ی ۱۲dp بنفش + خط اتصال ۲dp تا شات بعدی)، دقیقاً طبق mockup
+ * (docs/design/Cinema Studio.html، `vm.timeline`). طبق دستور کار این قدم،
+ * محتوای خودِ کارت همان `ShotCard` مشترک با Grid است — فقط ریل اطراف آن
+ * تازه اضافه شد.
+ */
 @Composable
-private fun ShotCard(shot: Shot, sceneNumber: Int, language: Language, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+private fun ShotTimelineRow(shot: Shot, sceneNumber: Int, language: Language, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(modifier = Modifier.width(32.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .size(12.dp)
+                    .background(color = MaterialTheme.colorScheme.primary, shape = CircleShape)
+                    .testTag(shotTimelineDotTag(shot.shotId))
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .width(2.dp)
+                    .background(color = CinemaTheme.extendedColors.hairline)
+            )
+        }
+        ShotCard(
+            shot = shot,
+            sceneNumber = sceneNumber,
+            language = language,
+            onClick = onClick,
+            onDeleteClick = onDeleteClick,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ShotCard(
+    shot: Shot,
+    sceneNumber: Int,
+    language: Language,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(shotCardTag(shot.shotId))) {
+    Card(onClick = onClick, modifier = modifier.fillMaxWidth().testTag(shotCardTag(shot.shotId))) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = shotCode(sceneNumber, shot.shotNumber), style = MaterialTheme.typography.labelMedium, color = CinemaTheme.extendedColors.fg3)

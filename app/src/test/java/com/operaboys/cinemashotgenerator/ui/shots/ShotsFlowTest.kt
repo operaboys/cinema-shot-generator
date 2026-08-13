@@ -238,6 +238,22 @@ class ShotsFlowTest {
         composeRule.waitUntilExactlyOneExists(hasText(SEEDED_SHOT_TITLE), timeoutMillis = 5_000)
     }
 
+    /**
+     * یافته‌ی ۴ appendix ADR-081 (ADR-082): قبلاً Grid و Timeline دقیقاً همان
+     * محتوای بصری را رندر می‌کردند (هیچ ریل نقطه/خط اتصال Timeline وجود نداشت).
+     * این تست اثبات می‌کند نقطه‌ی ریل فقط در حالت Timeline رندر می‌شود.
+     */
+    @Test
+    fun `Timeline mode renders the rail dot for a shot, but Grid mode does not`() {
+        createProjectAndOpenShotsTab()
+
+        composeRule.onNodeWithTag(shotTimelineDotTag("shot_seed")).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(SHOTS_LIST_TIMELINE_TOGGLE_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(shotTimelineDotTag("shot_seed")), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(shotTimelineDotTag("shot_seed")).assertExists()
+    }
+
     @Test
     fun `creating a new shot with the top-level fields saves it for real and shows it back in the list`() {
         createProjectAndOpenShotsTab()

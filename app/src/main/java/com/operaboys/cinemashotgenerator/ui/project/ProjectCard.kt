@@ -44,9 +44,14 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 // Gradient واقعی «Liquid Glass» — طبق تصمیم مستند در ADR-044، این فاز روی سیم‌کشی
 // داده/عملیات واقعی تمرکز دارد، نه صیقل بصری نهایی (که یک قدم مجزای آینده است).
 
-/** رنگ/برچسب هر EntityState — طبق پیشنهاد مستندشده در F12 (docs/blueprints/16-user-workflow-v2.md:57). */
+/**
+ * رنگ/برچسب هر EntityState — طبق پیشنهاد مستندشده در F12 (docs/blueprints/16-user-workflow-v2.md:57).
+ * `internal` (نه `private`) — یافته‌ی ۳ appendix ADR-081 (ADR-082) این دو تابع را
+ * برای ردیف چیپ فیلتر وضعیت `ProjectsScreen.kt` هم بازاستفاده می‌کند، به‌جای
+ * یک نگاشت رنگ/برچسب دوم و موازی.
+ */
 @Composable
-private fun stateChipLabel(state: EntityState, language: Language): String = when (state) {
+internal fun stateChipLabel(state: EntityState, language: Language): String = when (state) {
     EntityState.DRAFT -> uiString("project.state.draft", language)
     EntityState.REVIEW -> uiString("project.state.review", language)
     EntityState.LOCKED -> uiString("project.state.locked", language)
@@ -55,7 +60,7 @@ private fun stateChipLabel(state: EntityState, language: Language): String = whe
 }
 
 @Composable
-private fun stateChipColor(state: EntityState) = when (state) {
+internal fun stateChipColor(state: EntityState) = when (state) {
     EntityState.DRAFT -> MaterialTheme.colorScheme.outline
     EntityState.REVIEW -> CinemaTheme.extendedColors.warning
     EntityState.LOCKED -> CinemaTheme.extendedColors.orange
