@@ -1479,7 +1479,7 @@ Timeout رد‌شده). این رفع فقط `app/src/test/` را تغییر د�
 ### ✅ رفع نهایی Flake `HomeProjectsStudioFlowTest` (ادامه‌ی ADR-078، ADR-079)
 
 فرضیه‌ی پیشنهادی خودِ ADR-078 (یک `composeRule.waitForIdle()` صریح بعد
-از تأیید ایجاد پروژه) آزمایش و **رد شد** — ۵ اجرا، همان ۲ شکست/همان
+از تأیید ایجاد پروژه) آزمایش و **رد شد** — ۱ اجرا، همان ۲ شکست/همان
 پیام‌ها، بدون تغییر. بررسی دقیق‌تر Race مستندشده در ADR-078 (Navigate
 async از `ProjectListViewModel.createProject` → `onCreated` →
 `HomeScreen.kt` → `AppNavHost.kt`) نشان داد ریشه‌ی واقعی، شرط انتظار
@@ -1493,6 +1493,23 @@ Navigate خودکار به Studio هنوز در حال اجرا بود — تس�
 **۱۰ از ۱۰ اجرای کامل پیاپی Suite ترکیبی موفق** (همان استاندارد
 ADR-072)، به‌علاوه `gradle :app:assembleDebug` موفق. جدول کامل هر ۱۰
 اجرا در `docs/adr/079-homeprojectsstudioflowtest-flake-final-fix.md`.
+
+### ✅ رفع ۳ فیلد بی‌اثر باقی‌مانده‌ی G12 (ADR-080) — ۲ مورد موکول
+
+از ۵ فلگ Persist-only باقی‌مانده‌ی ADR-067 (`dynamicFontEnabled`،
+`allowFreeStepJump`، `homeScreenImageUri`، `homeLayoutVariant`،
+`composerLayoutVariant`)، ۳ مورد اول رفع شدند: **`dynamicFontEnabled`**
+اکنون واقعاً `LocalDensity.fontScale` را (×۱.۳، معادل «Large Text»
+اندروید) در سطح `Theme.kt` تغییر می‌دهد — کل اپ را می‌پوشاند، نه یک هدف
+مشخص. **`allowFreeStepJump`** اکنون واقعاً کنترل می‌کند که آیا هشدار
+پرش بین Tab های Studio (که هرگز خودِ پرش را Block نمی‌کند، طبق ADR-037)
+به‌صورت غیرمزاحم (Snackbar) نمایش داده شود یا یک Dialog تأیید صریح لازم
+باشد. **`homeScreenImageUri`** اکنون به‌عنوان پس‌زمینه‌ی Full-bleed واقعی
+Home رندر می‌شود (دیکود با API بومی اندروید، بدون افزودن Coil/Glide).
+**`homeLayoutVariant`/`composerLayoutVariant`** موکول شدند — نیازمند یک
+طراحی UI تازه (نه فقط اتصال یک مقدار موجود)، طبق قانون
+mockup/تأیید بصری پروژه. جزئیات کامل + جدول تست در
+`docs/adr/080-g12-remaining-persist-only-settings.md`.
 
 ## Stack
 

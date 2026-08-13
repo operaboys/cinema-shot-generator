@@ -100,6 +100,7 @@ fun StudioShell(
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
     val autoSaveCadenceSeconds by workflowViewModel.autoSaveCadenceSeconds.collectAsStateWithLifecycle()
+    val allowFreeStepJump by workflowViewModel.allowFreeStepJump.collectAsStateWithLifecycle()
     val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
     val summary = summaries.find { it.project.projectId == projectId }
     val application = LocalContext.current.applicationContext as Application
@@ -179,6 +180,7 @@ fun StudioShell(
             selectedTab = selectedTab,
             workflowState = workflowState,
             language = language,
+            allowFreeStepJump = allowFreeStepJump,
             onTabSelected = { selectedTab = it },
             onWarning = onWarning
         )

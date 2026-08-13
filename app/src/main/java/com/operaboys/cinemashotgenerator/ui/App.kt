@@ -93,11 +93,17 @@ fun App() {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
     val minTouchTargetEnabled by workflowViewModel.minTouchTargetEnabled.collectAsStateWithLifecycle()
+    val dynamicFontEnabled by workflowViewModel.dynamicFontEnabled.collectAsStateWithLifecycle()
 
     val layoutDirection = if (language == Language.FA) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        CinemaShotGeneratorTheme(darkTheme = theme == AppTheme.DARK, language = language, minTouchTargetEnabled = minTouchTargetEnabled) {
+        CinemaShotGeneratorTheme(
+            darkTheme = theme == AppTheme.DARK,
+            language = language,
+            minTouchTargetEnabled = minTouchTargetEnabled,
+            dynamicFontEnabled = dynamicFontEnabled
+        ) {
             MainScaffold(
                 workflowViewModel = workflowViewModel,
                 projectListViewModel = projectListViewModel,

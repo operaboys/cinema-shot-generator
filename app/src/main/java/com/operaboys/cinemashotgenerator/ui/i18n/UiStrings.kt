@@ -18,6 +18,9 @@ val faStrings: Map<String, String> = mapOf(
     "studioTab.dna" to "DNA",
     "studioTab.scenes" to "صحنه‌ها",
     "studioTab.output" to "خروجی",
+    "studioTab.jump.confirmTitle" to "پرش به این مرحله؟",
+    "studioTab.jump.confirm" to "برو",
+    "studioTab.jump.cancel" to "انصراف",
 
     // فاز ۱ — Home
     "home.greetingTitle" to "وقت بخیر، Creator",
@@ -808,6 +811,9 @@ val enStrings: Map<String, String> = mapOf(
     "studioTab.dna" to "DNA",
     "studioTab.scenes" to "Scenes",
     "studioTab.output" to "Output",
+    "studioTab.jump.confirmTitle" to "Jump to this step?",
+    "studioTab.jump.confirm" to "Go",
+    "studioTab.jump.cancel" to "Cancel",
 
     // Phase 1 — Home
     "home.greetingTitle" to "Hello, Creator",

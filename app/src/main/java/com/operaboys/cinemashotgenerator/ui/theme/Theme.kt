@@ -4,6 +4,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 
 // واحد ۱۶ — فاز ۰ (پایه‌ی مشترک): Theme.kt واقعی طبق Design Tokens
@@ -59,21 +62,44 @@ private val LightColorScheme = lightColorScheme(
 // اضافه شد — پیش‌فرض false، پس فراخوان‌های تست/قدیمی موجود بدون تغییر رفتار
 // کار می‌کنند. هم‌الگو با ExtendedColors (CompositionLocal برای Composable های
 // عمیقاً تودرتو مثل AiStoryBreakdownScreen.PhaseCircle).
+//
+// رفع G12 باقی‌مانده (دستور کار ۲۰۲۶-۰۸-۱۳، docs/adr/080-...): dynamicFontEnabled
+// هم‌الگو اضافه شد. برخلاف minTouchTargetEnabled (یک Modifier محلی روی یک هدف
+// مشخص)، «فونت پویا» باید کل اپ را بدون دست‌کاری تک‌تک Composable ها بپوشاند —
+// راه رسمی/idiomatic Compose برای این کار Override کردن LocalDensity.fontScale
+// است (نه ضرب دستی هر اندازه‌ی sp)، چون تمام Text/TextField های موجود (و آینده)
+// خودکار از آن پیروی می‌کنند. ضریب ۱.۳ (نه یک مقدار دلبخواه دیگر) انتخاب شد چون
+// نزدیک‌ترین معادل به پیش‌فرض «Large Text» رسمی Android Accessibility
+// (حدوداً ۱.۳x در تنظیمات Font Size استاندارد سیستم) است — به‌جای اختراع یک
+// مقیاس اختیاری تازه. ضرب در `density.fontScale` موجود (نه جایگزینی کامل آن)
+// عمداً است تا تنظیم «اندازه‌ی فونت» سطح سیستم کاربر هم همچنان محترم شمرده شود،
+// نه Override کامل — این سوییچ فقط یک افزایش اضافه روی همان مقدار پایه است.
+private const val DYNAMIC_FONT_SCALE_MULTIPLIER = 1.3f
+
 @Composable
 fun CinemaShotGeneratorTheme(
     darkTheme: Boolean,
     language: Language,
     minTouchTargetEnabled: Boolean = false,
+    dynamicFontEnabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
+    val baseDensity = LocalDensity.current
+    val effectiveDensity = if (dynamicFontEnabled) {
+        Density(density = baseDensity.density, fontScale = baseDensity.fontScale * DYNAMIC_FONT_SCALE_MULTIPLIER)
+    } else {
+        baseDensity
+    }
     ProvideExtendedColors(colors = extendedColors) {
         ProvideAccessibilityLocals(minTouchTargetEnabled = minTouchTargetEnabled) {
-            MaterialTheme(
-                colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-                typography = cinemaTypography(language),
-                content = content
-            )
+            CompositionLocalProvider(LocalDensity provides effectiveDensity) {
+                MaterialTheme(
+                    colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+                    typography = cinemaTypography(language),
+                    content = content
+                )
+            }
         }
     }
 }

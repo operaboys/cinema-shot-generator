@@ -1,5 +1,9 @@
 package com.operaboys.cinemashotgenerator.ui.home
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +35,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +55,8 @@ import com.operaboys.cinemashotgenerator.ui.project.ProjectListSection
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // واحد ۱۶ فاز ۱ — صفحه‌ی Home طبق docs/design/README.md بخش «۱. Home».
 //
@@ -63,6 +74,9 @@ const val CREATE_PROJECT_NAME_FIELD_TAG = "createProject.nameField"
 // واحد ۱۶ فاز ۶ — قدم ۱: لازم برای تست End-to-End صفحه‌ی Settings (باز کردن Drawer
 // از Home، تنها نقطه‌ی واقعی ورود به Settings).
 const val HOME_OPEN_DRAWER_BUTTON_TAG = "home.openDrawerButton"
+// رفع G12 باقی‌مانده (دستور کار ۲۰۲۶-۰۸-۱۳، docs/adr/080-...): لازم برای تست
+// اثبات واقعی رندر homeScreenImageUri (نه فقط Persist شدنش).
+const val HOME_BACKGROUND_IMAGE_TAG = "home.backgroundImage"
 
 @Composable
 fun HomeScreen(
@@ -77,6 +91,7 @@ fun HomeScreen(
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
     val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
     val lastActionMessage by projectListViewModel.lastActionMessage.collectAsStateWithLifecycle()
+    val homeScreenImageUri by workflowViewModel.homeScreenImageUri.collectAsStateWithLifecycle()
 
     LaunchedEffect(lastActionMessage) {
         lastActionMessage?.let { message ->
@@ -87,15 +102,37 @@ fun HomeScreen(
 
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(MaterialTheme.colorScheme.background, CinemaTheme.extendedColors.hairline)
-                )
+    Box(modifier = Modifier.fillMaxSize()) {
+        // رفع G12 باقی‌مانده (دستور کار ۲۰۲۶-۰۸-۱۳، docs/adr/080-...): وقتی کاربر
+        // یک تصویر واقعی از Settings انتخاب کرده (`homeScreenImageUri`، از قبل با
+        // OpenDocument()/takePersistableUriPermission واقعی Persist می‌شود، طبق
+        // ADR-075)، به‌جای گرادیان ساده به‌عنوان پس‌زمینه‌ی Full-bleed رندر می‌شود —
+        // دقیقاً طبق سند طراحی. یک Scrim گرادیانی (نه گرادیان تخت قبلی) روی آن
+        // اعمال می‌شود تا متن‌های بالای صفحه هنوز خوانا بمانند. وقتی مقدار null
+        // است (پیش‌فرض)، رفتار قبلی (فقط گرادیان تخت) بدون تغییر می‌ماند.
+        val backgroundImageUri = homeScreenImageUri
+        if (backgroundImageUri != null) {
+            HomeBackgroundImage(uriString = backgroundImageUri, modifier = Modifier.fillMaxSize())
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, MaterialTheme.colorScheme.background)
+                        )
+                    )
             )
-    ) {
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(MaterialTheme.colorScheme.background, CinemaTheme.extendedColors.hairline)
+                        )
+                    )
+            )
+        }
         Column(modifier = Modifier.fillMaxSize()) {
             HomeHeader(
                 language = language,
@@ -171,6 +208,37 @@ fun HomeScreen(
                 showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false }
+        )
+    }
+}
+
+/**
+ * دیکود واقعی `content://` Uri به Bitmap — بدون افزودن هیچ کتابخانه‌ی تصویر تازه
+ * (Coil/Glide، تأییدشده با grep که کل کدبیس فعلاً هیچ‌کدام را ندارد)؛ همان API
+ * بومی Android (`ContentResolver`/`BitmapFactory`) که Import/Export پروژه هم از
+ * قبل برای فایل استفاده می‌کنند. دیکود روی `Dispatchers.IO` (نه Composition خام)
+ * تا از Jank فریم اول جلوگیری شود. اگر Uri دیگر معتبر نیست (مثلاً کاربر دسترسی
+ * را لغو کرده)، `runCatching` آن را به `null` تبدیل می‌کند — هیچ‌چیز رندر
+ * نمی‌شود، بدون Crash.
+ */
+@Composable
+private fun HomeBackgroundImage(uriString: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val bitmap by produceState<Bitmap?>(initialValue = null, uriString) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openInputStream(Uri.parse(uriString))?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }
+            }.getOrNull()
+        }
+    }
+    bitmap?.let { loaded ->
+        Image(
+            bitmap = loaded.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier.testTag(HOME_BACKGROUND_IMAGE_TAG),
+            contentScale = ContentScale.Crop
         )
     }
 }

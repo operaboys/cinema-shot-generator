@@ -1,9 +1,15 @@
 package com.operaboys.cinemashotgenerator.ui.navigation
 
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -51,23 +57,47 @@ fun evaluateStudioTabJump(workflowState: WorkflowState?, tab: StudioTab): Pair<B
     return canJumpToStep(state, targetStep)
 }
 
+/**
+ * تب در انتظار تأیید کاربر — فقط وقتی `allowFreeStepJump=false` است و
+ * `evaluateStudioTabJump` هشدار داشت پر می‌شود (بخش پ پایین).
+ */
+private data class PendingTabJump(val tab: StudioTab, val warning: String)
+
+/**
+ * معنای واقعی `allowFreeStepJump` (رفع G12 باقی‌مانده، docs/adr/080-...):
+ * `evaluateStudioTabJump`/`canJumpToStep` طبق ADR-037 هرگز خودِ پرش را Block
+ * نمی‌کند — فقط یک پیام هشدار برمی‌گرداند. پس این سوییچ کنترل نمی‌کند «آیا پرش
+ * ممکن است» (که همیشه بله است)، بلکه کنترل می‌کند «آیا آن هشدار موجود واقعاً به
+ * کاربر نشان داده و منتظر تأیید صریح او می‌ماند، پیش از انجام پرش» — وقتی true
+ * (پیش‌فرض فعلی، هم‌تراز رفتار قبلی)، هشدار فقط به‌صورت غیرمزاحم (Snackbar از
+ * طریق `onWarning`) نشان داده می‌شود و پرش بلافاصله انجام می‌شود؛ وقتی false،
+ * یک Dialog تأیید صریح باید قبل از پرش تأیید شود.
+ */
 @Composable
 fun StudioTopTabRow(
     selectedTab: StudioTab,
     workflowState: WorkflowState?,
     language: Language,
+    allowFreeStepJump: Boolean = true,
     onTabSelected: (StudioTab) -> Unit,
     onWarning: (String) -> Unit
 ) {
+    var pendingJump by remember { mutableStateOf<PendingTabJump?>(null) }
+
     SecondaryTabRow(selectedTabIndex = selectedTab.ordinal) {
         StudioTab.entries.forEach { tab ->
             Tab(
                 selected = tab == selectedTab,
                 onClick = {
                     val (allowed, warning) = evaluateStudioTabJump(workflowState, tab)
-                    if (allowed) {
-                        warning?.let(onWarning)
-                        onTabSelected(tab)
+                    if (!allowed) return@Tab
+                    when {
+                        warning == null -> onTabSelected(tab)
+                        allowFreeStepJump -> {
+                            onWarning(warning)
+                            onTabSelected(tab)
+                        }
+                        else -> pendingJump = PendingTabJump(tab, warning)
                     }
                 },
                 text = { Text(uiString(studioTabLabelKey(tab), language)) },
@@ -75,7 +105,37 @@ fun StudioTopTabRow(
             )
         }
     }
+
+    pendingJump?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { pendingJump = null },
+            title = { Text(uiString("studioTab.jump.confirmTitle", language)) },
+            text = { Text(pending.warning) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onTabSelected(pending.tab)
+                        pendingJump = null
+                    },
+                    modifier = Modifier.testTag(STUDIO_TAB_JUMP_CONFIRM_TAG)
+                ) {
+                    Text(uiString("studioTab.jump.confirm", language))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingJump = null },
+                    modifier = Modifier.testTag(STUDIO_TAB_JUMP_CANCEL_TAG)
+                ) {
+                    Text(uiString("studioTab.jump.cancel", language))
+                }
+            }
+        )
+    }
 }
+
+const val STUDIO_TAB_JUMP_CONFIRM_TAG = "studioTab.jump.confirmButton"
+const val STUDIO_TAB_JUMP_CANCEL_TAG = "studioTab.jump.cancelButton"
 
 private fun studioTabLabelKey(tab: StudioTab): String = when (tab) {
     StudioTab.STORY -> "studioTab.story"
