@@ -69,7 +69,12 @@ fun AppNavHost(
                 onOpenDrawer = onOpenDrawer,
                 onOpenProject = { projectId -> navController.navigate(Studio(projectId)) },
                 onViewAllProjects = { navController.navigate(Projects) { launchSingleTop = true } },
-                onShowMessage = onShowMessage
+                onShowMessage = onShowMessage,
+                // رفع G12 باقی‌مانده (docs/adr/081-...): کاشی‌های میان‌بر چیدمان
+                // RESUME — DNA/اعتبارسنجی/خروجی روی Tab مشخص همان Studio باز
+                // می‌شوند، AI Breakdown مستقیماً به صفحه‌ی مستقل خودش.
+                onOpenProjectTab = { projectId, initialTab -> navController.navigate(Studio(projectId, initialTab)) },
+                onOpenAiBreakdown = { projectId -> navController.navigate(AiStoryBreakdown(projectId)) }
             )
         }
         composable<Projects> {
@@ -211,6 +216,7 @@ fun AppNavHost(
         composable<ShotComposer> { backStackEntry ->
             val route: ShotComposer = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val composerLayoutVariant by workflowViewModel.composerLayoutVariant.collectAsStateWithLifecycle()
             ShotComposerScreen(
                 sceneId = route.sceneId,
                 sceneDisplayTitle = route.sceneDisplayTitle,
@@ -229,7 +235,8 @@ fun AppNavHost(
                         OutputDelivery(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
                     ) { launchSingleTop = true }
                 },
-                shotRepository = shotRepository
+                shotRepository = shotRepository,
+                composerLayoutVariant = composerLayoutVariant
             )
         }
         composable<Validation> { backStackEntry ->
