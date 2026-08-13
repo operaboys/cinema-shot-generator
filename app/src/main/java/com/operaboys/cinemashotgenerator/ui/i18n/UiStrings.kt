@@ -27,6 +27,8 @@ val faStrings: Map<String, String> = mapOf(
     "home.recentProjects" to "پروژه‌های اخیر",
     "home.all" to "همه",
     "home.emptyState" to "هنوز پروژه‌ای نساخته‌اید — با «پروژه‌ی جدید» شروع کنید.",
+    "home.toggleLanguageButton" to "تغییر زبان",
+    "home.toggleThemeButton" to "تغییر تم",
 
     // فاز ۱ — Projects
     "projects.title" to "پروژه‌ها",
@@ -815,6 +817,8 @@ val enStrings: Map<String, String> = mapOf(
     "home.recentProjects" to "Recent Projects",
     "home.all" to "All",
     "home.emptyState" to "No projects yet — start with \"New Project\".",
+    "home.toggleLanguageButton" to "Toggle language",
+    "home.toggleThemeButton" to "Toggle theme",
 
     // Phase 1 — Projects
     "projects.title" to "Projects",

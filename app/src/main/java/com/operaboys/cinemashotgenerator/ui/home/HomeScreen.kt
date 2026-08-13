@@ -212,12 +212,12 @@ private fun HomeHeader(
 
         Row {
             IconButton(onClick = onToggleLanguage) {
-                Icon(Icons.Filled.Translate, contentDescription = language.name)
+                Icon(Icons.Filled.Translate, contentDescription = uiString("home.toggleLanguageButton", language))
             }
             IconButton(onClick = onToggleTheme) {
                 Icon(
                     if (theme == AppTheme.DARK) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                    contentDescription = theme.name
+                    contentDescription = uiString("home.toggleThemeButton", language)
                 )
             }
         }

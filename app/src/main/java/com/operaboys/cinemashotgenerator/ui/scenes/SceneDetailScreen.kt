@@ -342,7 +342,8 @@ private fun OverviewTab(
         InfoRow(label = uiString("sceneDetail.overview.narrativeRoleLabel", language), value = narrativeRoleLabel(scene.narrativeRole, language))
         InfoRow(
             label = uiString("sceneDetail.overview.globalVisualStyleLabel", language),
-            value = scene.globalVisualStyle.override ?: uiString("sceneDetail.overview.globalVisualStyleFromDna", language)
+            value = scene.globalVisualStyle.override?.let { visualStyleLabel(VisualStyle.valueOf(it), language) }
+                ?: uiString("sceneDetail.overview.globalVisualStyleFromDna", language)
         )
 
         QuickActionsRow(

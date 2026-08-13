@@ -1409,6 +1409,12 @@ G4/G18 Export واقعی، G5 چند-Outfit) اکنون یا رفع شده‌ا�
 هنوز معلق ثبت شده بودند، در واقع از قبل (به ترتیب ADR-066 و ADR-065)
 رفع شده بودند — جزئیات در
 `docs/adr/076-scene-globalvisualstyle-edit-and-g14-table-correction.md`.
+سپس یک باگ ترجمه‌ی واقعی در همان خط نمایش `globalVisualStyle` (نام خام
+Enum به‌جای برچسب فارسی) رفع شد، به‌همراه یک بررسی سراسری کل `ui/` برای
+همین کلاس باگ — دو مورد مشابه دیگر (`contentDescription` دکمه‌های
+سوییچ زبان/تم در Home) پیدا و رفع شد؛ فهرست کامل موارد بررسی‌شده
+(رفع‌شده و False Positive رد‌شده) در
+`docs/adr/077-globalvisualstyle-translation-bug-and-codebase-sweep.md`.
 
 ### 🔎 قدم تشخیصی: بررسی ریشه‌ای Flake — بدون تغییر کد محصول
 

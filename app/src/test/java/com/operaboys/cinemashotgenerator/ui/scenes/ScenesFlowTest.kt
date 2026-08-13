@@ -211,20 +211,15 @@ class ScenesFlowTest {
     }
 
     /**
-     * رفع G8 ممیزی post-Unit16 (docs/adr/076-...): globalVisualStyle قبلاً فقط
-     * نمایشی بود (همیشه «از DNA پروژه»، هیچ مسیر ویرایش). این تست ثابت می‌کند
-     * Dropdown تازه‌ی SceneSettingsDialog واقعاً override را ذخیره می‌کند.
-     *
-     * یادداشت صادقانه (طبق قانون صریح این قدم — بدون تغییر منطق نمایش خط
-     * globalVisualStyle در OverviewTab): چون آن خط دست‌نخورده ماند،
-     * `scene.globalVisualStyle.override` (که این Dropdown با `.name` رشته‌ای
-     * ذخیره می‌کند) به‌صورت خام نمایش داده می‌شود، نه با `visualStyleLabel`
-     * ترجمه‌شده — یعنی بعد از این تغییر، Overview متن انگلیسی enum خام
-     * ("FILM_NOIR") را نشان می‌دهد، نه برچسب فارسی. این تست دقیقاً همین رفتار
-     * واقعی را Assert می‌کند، نه رفتار ایده‌آل.
+     * رفع G8 ممیزی post-Unit16 (docs/adr/076-...) + رفع باگ ترجمه (docs/adr/077-...):
+     * globalVisualStyle قبلاً فقط نمایشی بود (همیشه «از DNA پروژه»، هیچ مسیر
+     * ویرایش). این تست ثابت می‌کند Dropdown تازه‌ی SceneSettingsDialog واقعاً
+     * override را ذخیره می‌کند و OverviewTab آن را با `visualStyleLabel`
+     * ترجمه‌شده نشان می‌دهد — نه نام خام Enum (که یک باگ واقعی بود، در همان
+     * قدم اول این ویژگی وارد شد، در ADR-077 رفع شد).
      */
     @Test
-    fun `choosing a global visual style override from SceneSettingsDialog saves it and shows the raw enum name in Overview`() {
+    fun `choosing a global visual style override from SceneSettingsDialog saves it and shows the translated label in Overview`() {
         createProjectAndOpenScenesTab("Scenes Visual Style Test")
 
         composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
@@ -240,6 +235,7 @@ class ScenesFlowTest {
         composeRule.onNodeWithText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)).performClick()
 
         composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
-        composeRule.waitUntilExactlyOneExists(hasText("FILM_NOIR"), timeoutMillis = 5_000)
+        composeRule.waitUntilExactlyOneExists(hasText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("FILM_NOIR").assertDoesNotExist()
     }
 }
