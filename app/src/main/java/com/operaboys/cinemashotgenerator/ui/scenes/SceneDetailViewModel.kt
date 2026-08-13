@@ -72,19 +72,26 @@ class SceneDetailViewModel(
      * ذخیره‌ی صریح دارد (نه Auto-Save بی‌صدای Tab «DNA»)؛ همه‌ی فیلد‌ها یک‌جا با
      * فراخوانی این تابع ذخیره می‌شوند.
      */
+    /**
+     * رفع G8 ممیزی post-Unit16 (docs/adr/076-...): globalVisualStyleOverride
+     * تازه اضافه شد — null یعنی «پیش‌فرض DNA پروژه» (source همیشه "project_dna"
+     * می‌ماند، فقط override عوض می‌شود)، غیر-null یک نام VisualStyle واقعی است.
+     */
     fun saveSceneSettings(
         sceneTitle: String?,
         narrativeRole: NarrativeRole,
         timeOfDay: TimeOfDay,
         atmospherePrimary: Atmosphere,
-        atmosphereSecondary: Atmosphere?
+        atmosphereSecondary: Atmosphere?,
+        globalVisualStyleOverride: String?
     ) = updateAndSave {
         it.copy(
             sceneTitle = sceneTitle,
             narrativeRole = narrativeRole,
             timeOfDay = timeOfDay,
             atmospherePrimary = atmospherePrimary,
-            atmosphereSecondary = atmosphereSecondary
+            atmosphereSecondary = atmosphereSecondary,
+            globalVisualStyle = it.globalVisualStyle.copy(override = globalVisualStyleOverride)
         )
     }
 

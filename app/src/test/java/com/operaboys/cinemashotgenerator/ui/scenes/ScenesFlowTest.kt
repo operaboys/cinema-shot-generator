@@ -23,7 +23,9 @@ import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
@@ -206,5 +208,38 @@ class ScenesFlowTest {
         composeRule.onNodeWithTag(sceneDetailLocationPickerItemTag(SEEDED_LOCATION_ID)).clickViaSemantics()
 
         composeRule.waitUntilExactlyOneExists(hasText("Bridge of the Ship"), timeoutMillis = 5_000)
+    }
+
+    /**
+     * رفع G8 ممیزی post-Unit16 (docs/adr/076-...): globalVisualStyle قبلاً فقط
+     * نمایشی بود (همیشه «از DNA پروژه»، هیچ مسیر ویرایش). این تست ثابت می‌کند
+     * Dropdown تازه‌ی SceneSettingsDialog واقعاً override را ذخیره می‌کند.
+     *
+     * یادداشت صادقانه (طبق قانون صریح این قدم — بدون تغییر منطق نمایش خط
+     * globalVisualStyle در OverviewTab): چون آن خط دست‌نخورده ماند،
+     * `scene.globalVisualStyle.override` (که این Dropdown با `.name` رشته‌ای
+     * ذخیره می‌کند) به‌صورت خام نمایش داده می‌شود، نه با `visualStyleLabel`
+     * ترجمه‌شده — یعنی بعد از این تغییر، Overview متن انگلیسی enum خام
+     * ("FILM_NOIR") را نشان می‌دهد، نه برچسب فارسی. این تست دقیقاً همین رفتار
+     * واقعی را Assert می‌کند، نه رفتار ایده‌آل.
+     */
+    @Test
+    fun `choosing a global visual style override from SceneSettingsDialog saves it and shows the raw enum name in Overview`() {
+        createProjectAndOpenScenesTab("Scenes Visual Style Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText(uiString("sceneDetail.overview.globalVisualStyleFromDna", Language.FA)).assertExists()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_EDIT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.settingsDialogTitle", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag("sceneDetail.settings.globalVisualStyleField").clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)).performClick()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText("FILM_NOIR"), timeoutMillis = 5_000)
     }
 }

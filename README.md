@@ -1402,7 +1402,13 @@ G4/G18 Export واقعی، G5 چند-Outfit) اکنون یا رفع شده‌ا�
 واقعی) رفع شد؛ G11 با بازبینی مستقل بلوپرینت ۰۶/۱۴ تصحیح شد — یافته‌ی
 اصلی آن ممیزی نادرست بود (`ImageReference`/`ReferenceImage` متن‌محور از
 ابتدا طراحی عمدی و کامل بوده‌اند، نه یک Gap) — جزئیات در
-`docs/adr/075-settings-image-picker-and-g11-correction.md`.
+`docs/adr/075-settings-image-picker-and-g11-correction.md`. سپس G8
+(`globalVisualStyle` هم اکنون در کنار `location` از داخل
+`SceneSettingsDialog` قابل ویرایش است) کامل رفع شد و جدول G14 تصحیح شد
+— دو مورد «برای تصمیم مشترک» (State Machine/Lock، Storage/Import) که
+هنوز معلق ثبت شده بودند، در واقع از قبل (به ترتیب ADR-066 و ADR-065)
+رفع شده بودند — جزئیات در
+`docs/adr/076-scene-globalvisualstyle-edit-and-g14-table-correction.md`.
 
 ### 🔎 قدم تشخیصی: بررسی ریشه‌ای Flake — بدون تغییر کد محصول
 

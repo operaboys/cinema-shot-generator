@@ -771,13 +771,13 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 | G5 | مدیریت چند-Outfit فقط Placeholder | ⏸️ **آگاهانه موکول شد** — پیام `manageOutfitsComingSoon` هنوز دقیقاً همان‌جاست؛ تصمیم مستقل صریح (نه یک شکاف فراموش‌شده) | ADR-067 (تصمیم موکول، نه رفع) |
 | G6 | `PLACEHOLDER_ACTIVE_PROJECT_ID` ثابت | ✅ **رفع شد** — ثابت کاملاً حذف شد؛ `ActiveProject.kt` مقدار واقعی Resolve می‌کند | ADR-062 |
 | G7 | Asset — بدون مسیر ویرایش/`onClick` | ✅ **رفع شد** — `AssetForm(kind, existingAssetId)`، `Card(onClick = onClick)`، هر سه ViewModel پارامتر `existingAssetId` می‌گیرند | ADR-061 |
-| G8 | Scene — ویرایش فقط زیرمجموعه‌ی فیلدها | 🟡 **جزئاً رفع شد** — `location` اکنون از داخل `SceneSettingsDialog` قابل ویرایش است (زیرساخت `LocationPickerDialog` از قبل آماده بود، فقط نقطه‌ی ورود تازه اضافه شد)؛ `globalVisualStyle` هنوز فقط نمایشی است، بدون مسیر ویرایش | ADR-067 (فقط `location`) |
+| G8 | Scene — ویرایش فقط زیرمجموعه‌ی فیلدها | ✅ **رفع شد** — `location` از داخل `SceneSettingsDialog` قابل ویرایش است (ADR-067)؛ `globalVisualStyle` هم اکنون یک Dropdown واقعی (۳۴ مقدار `VisualStyle` + گزینه‌ی «از DNA پروژه») دارد که `GlobalVisualStyleRef.override` را واقعاً ذخیره می‌کند (ADR-076). **محدودیت باقی‌مانده (کوچک، خارج از دامنه‌ی این رفع):** خط نمایش Overview همچنان مقدار خام `.name` را نشان می‌دهد (مثلاً `"FILM_NOIR"`)، نه برچسب ترجمه‌شده — منطق نمایش عمداً در ADR-076 دست‌نخورده ماند | ADR-067 (`location`) + ADR-076 (`globalVisualStyle`) |
 | G9 | الگوی مرجع Shot Composer | ⚪ بدون تغییر لازم — همچنان الگوی مرجع معتبر برای G7/G8 | — |
 | G10 | «انتخاب تصویر» Settings فقط Snackbar | ✅ **رفع شد** — `onChooseImage` اکنون `ActivityResultContracts.OpenDocument()` واقعی را Launch می‌کند (عمداً نه `GetContent()` — چون `homeScreenImageUri` برخلاف Import، در DataStore Persist می‌شود و باید بین اجراها معتبر بماند؛ `takePersistableUriPermission` هم فراخوانی می‌شود). رندر واقعی این تصویر روی Home هنوز جزو G12 است، نه این یافته | ADR-075 |
 | G11 | «Attached References» شات فقط متن | ❌ **یافته‌ی اصلی این ممیزی نادرست بود** — بررسی مستقل بلوپرینت ۰۶/۱۴ نشان داد این طراحی عمدی و کامل است، نه یک Gap: بلوپرینت ۱۴ صریحاً می‌گوید ارجاع به تصویر باید «یک جمله‌ی دستوری کلی» باشد، نه نام/مسیر فایل — «دقیقاً هماهنگ با تصمیم بنیادی قبلی این پروژه (`ReferenceImage`, واحد ۰۶) که هرگز نام/مسیر فایل را در متن پرامپت درج نمی‌کند» (بلوپرینت ۱۴، خط ۳۸). `buildReferenceImageInstruction` (`Renderer.kt`) دقیقاً همین را از قبل پیاده کرده و در `renderBlueprintToText` فراخوانی می‌شود (`ADR-030`). **یادداشت مرتبط اما جدا:** `validateImageReferenceFile`/`validateReferenceImageFile` (Rule های یتیم، G14) واقعاً انتظار یک فایل واقعی را دارند — اما این‌ها زیرساخت Post-MVP هنوز نساخته‌شده‌اند (قبلاً در ADR-064 همین‌طور تصمیم‌گیری و مستند شده‌اند)، نه دلیلی برای رد این تصحیح | ADR-030 (پیاده‌سازی اصلی) + ADR-075 (تصحیح این ممیزی) |
 | G12 | ۷ فیلد Persist‌شده‌ی بی‌اثر | 🟡 **جزئاً رفع شد** — فقط `minTouchTargetEnabled` اثر Runtime واقعی گرفت (`CompositionLocal` در `AccessibilityLocals.kt`، مصرف در `Theme.kt`/`App.kt`/`AiStoryBreakdownScreen.kt`)؛ `reducedMotionEnabled` آگاهانه وصل نشد (طبق بررسی مستقل ADR-067: کل اپ هیچ Animation ای ندارد که به آن وصل شود)؛ ۵ فیلد دیگر (`dynamicFontEnabled`, `allowFreeStepJump`, `homeLayoutVariant`, `composerLayoutVariant`, `homeScreenImageUri`) هنوز فقط نوشته می‌شوند، بدون هیچ خواننده | ADR-067 (۱ از ۷) |
 | G13 | Pipeline واحد ۱۳ قطع از Output Delivery | ✅ **رفع شد** — همان یافته‌ی G17 است (خودِ گزارش اصلی این را در بخش ۷ اعلام کرده بود)، با همان رفع پوشش داده شد | ADR-060 |
-| G14 | Rule های یتیم — زیرمورد 🟠 `validateTargetShotCountRange` + بقیه‌ی گروه‌ها | ✅ زیرمورد 🟠 **رفع شد** (`validateTargetShotCountRange` اکنون در `AiStoryBreakdownViewModel.kt` واقعاً صدا زده می‌شود، به‌جای `coerceIn` بی‌صدا) — 🟡 بقیه‌ی گروه‌ها **آگاهانه مستند/موکول شدند** (نه رفع، نه فراموش‌شده): برخی «منسوخ، کاندید حذف» علامت خوردند، برخی «کاندید رفع نزدیک/آینده»، یک مورد («Prompt Finalization») تصحیح شد که از قبل کاملاً وصل بوده | ADR-064 |
+| G14 | Rule های یتیم — زیرمورد 🟠 `validateTargetShotCountRange` + بقیه‌ی گروه‌ها | ✅ زیرمورد 🟠 **رفع شد** (`validateTargetShotCountRange` اکنون در `AiStoryBreakdownViewModel.kt` واقعاً صدا زده می‌شود، به‌جای `coerceIn` بی‌صدا) — از دو مورد «برای تصمیم مشترک» که در ADR-064 معلق ثبت شده بودند، هر دو اکنون **کاملاً رفع شده‌اند** (تأییدشده با خواندن مستقیم کد فعلی، نه فقط متن ADR): **State Machine/Lock** — `SceneLifecycle.kt`/`ProjectLifecycle.kt` هر دو کامنت `MIGRATED (ADR-064/ADR-066)` دارند و واقعاً از `validateStateTransition` (با `customMessage`) استفاده می‌کنند، نه `canTransition` خام؛ **Storage/Import** — `importProject` اکنون واقعاً از `ProjectsScreen.kt` صدا زده می‌شود (رفع اصل مشکل: «Import کاملاً قطع از UI»). **یادداشت دقیق‌تر (فراتر از تأیید ساده‌ی ادعا):** این به‌معنای وایرشدن تک‌تک Rule های نام‌برده در متن اصلی این بخش نیست — `validateProjectId`/`validateStorageAvailable`/`validateSchemaVersion`/`validateReferentialIntegrityAsIssues` (`StorageValidation.kt`/`ReferentialIntegrity.kt`) همچنان مستقلاً هیچ فراخوان‌کننده‌ای ندارند؛ فقط `validateReferentialIntegrity` (نسخه‌ی خواهر، نه `...AsIssues`) از طریق `importProject` واقعاً اجرا می‌شود. بقیه‌ی گروه‌های G14 (دوربین/حرکت، Output Delivery/i18n، Prompt Finalization، Asset، Shot، Audio، DNA، Visual Identity، AI Story Breakdown) دست‌نخورده و همچنان طبق همان تصمیمات مستند ADR-064 باقی‌اند (این قدم آن‌ها را بازبینی نکرد) | ADR-064 (تصمیم اولیه) + ADR-065 (Storage/Import) + ADR-066 (State Machine/Lock) |
 | G15 | `ProjectListViewModel.exportProject` بدون DI | ✅ **رفع شد** — پارامتر تزریقی `database: AppDatabase?` اضافه شد | ADR-063 |
 | G16 | `AiStoryBreakdownViewModel.factory` — تزریق همه‌یا‌هیچ | ✅ **رفع شد** — شرط `args.size == 4` با `anyInjected` (منطق OR) جایگزین شد | ADR-063 |
 | G17 | 🔴 بج «Cleaned · Finalized» دروغ | ✅ **رفع شد** — `finalizePrompt` واقعاً از `OutputDeliveryViewModel.kt` صدا زده می‌شود؛ بج اکنون شرطی به `cleaningSucceeded` است، نه بدون‌قید‌وشرط | ADR-060 |
@@ -791,8 +791,8 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 
 | وضعیت | تعداد | موارد |
 |---|---|---|
-| ✅ کاملاً رفع شد | ۱۵ | G1, G3, G4, G6, G7, G10, G13, G15, G16, G17, G18, G19, G20, G21, G22 |
-| 🟡 جزئاً رفع شد | ۳ | G8, G12, G14 |
+| ✅ کاملاً رفع شد | ۱۶ | G1, G3, G4, G6, G7, G8, G10, G13, G15, G16, G17, G18, G19, G20, G21, G22 |
+| 🟡 جزئاً رفع شد | ۲ | G12, G14 |
 | ⏸️ آگاهانه موکول شد (تصمیم صریح، نه فراموش‌شده) | ۲ | G2, G5 |
 | ⚠️ هنوز باز (بدون تصمیم صریح ثبت‌شده) | ۰ | — |
 | ❌ یافته‌ی اصلی ممیزی نادرست بود (نه یک Gap واقعی) | ۱ | G11 |
@@ -811,10 +811,18 @@ ADR ها) راستی‌آزمایی شد — همه‌ی ۲۲ مورد، بدو�
 مستقیم کد فعلی تأیید شدند — نه صرفاً با اعتماد به متن ADR های ۰۶۰ تا
 ۰۶۹. برای هر مورد، آخرین وضعیت واقعی (نه اولین ADR مرتبط) دنبال شد.
 
-**افزوده‌ی ۲۰۲۶-۰۸-۱۳:** G10 رفع شد (`ActivityResultContracts.OpenDocument`
+**افزوده‌ی ۲۰۲۶-۰۸-۱۳ (قدم اول):** G10 رفع شد (`ActivityResultContracts.OpenDocument`
 واقعی، نه دیگر Snackbar)؛ G11 با بازبینی مستقل بلوپرینت ۰۶/۱۴ تصحیح شد —
 یافته‌ی اصلی این ممیزی («Attached References فقط متن است») نادرست بود؛
 این طراحی از ابتدا عمدی و کامل بوده. جزئیات کامل هر دو در
 `docs/adr/075-settings-image-picker-and-g11-correction.md`.
+
+**افزوده‌ی ۲۰۲۶-۰۸-۱۳ (قدم دوم):** G8 کامل رفع شد (`globalVisualStyle` اکنون
+از داخل `SceneSettingsDialog` قابل ویرایش است، در کنار `location` که قبلاً
+رفع شده بود). جدول G14 هم تصحیح شد — دو مورد «برای تصمیم مشترک» که هنوز
+معلق ثبت شده بودند (State Machine/Lock، Storage/Import)، با خواندن مستقیم
+کد فعلی تأیید شد که هر دو از قبل (به ترتیب در ADR-066 و ADR-065) کاملاً
+رفع شده بودند. جزئیات کامل در
+`docs/adr/076-scene-globalvisualstyle-edit-and-g14-table-correction.md`.
 
 

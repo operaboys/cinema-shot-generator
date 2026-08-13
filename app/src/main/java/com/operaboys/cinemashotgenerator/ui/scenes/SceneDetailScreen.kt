@@ -51,6 +51,7 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -59,6 +60,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
+import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.shots.ShotListScreen
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -224,8 +226,8 @@ fun SceneDetailScreen(
             connectedLocationName = locationAssets.find { it.assetId == sceneForSettings.locationAssetId }?.name,
             onChangeLocationClick = { showSettingsDialog = false; showLocationPicker = true },
             onDismiss = { showSettingsDialog = false },
-            onSave = { title, role, time, primary, secondary ->
-                viewModel.saveSceneSettings(title, role, time, primary, secondary)
+            onSave = { title, role, time, primary, secondary, visualStyleOverride ->
+                viewModel.saveSceneSettings(title, role, time, primary, secondary, visualStyleOverride)
                 showSettingsDialog = false
             }
         )
@@ -451,13 +453,14 @@ private fun SceneSettingsDialog(
     connectedLocationName: String?,
     onChangeLocationClick: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String?, NarrativeRole, TimeOfDay, Atmosphere, Atmosphere?) -> Unit
+    onSave: (String?, NarrativeRole, TimeOfDay, Atmosphere, Atmosphere?, String?) -> Unit
 ) {
     var title by remember { mutableStateOf(scene.sceneTitle ?: "") }
     var narrativeRole by remember { mutableStateOf(scene.narrativeRole) }
     var timeOfDay by remember { mutableStateOf(scene.timeOfDay) }
     var atmospherePrimary by remember { mutableStateOf(scene.atmospherePrimary) }
     var atmosphereSecondary by remember { mutableStateOf(scene.atmosphereSecondary) }
+    var globalVisualStyleOverride by remember { mutableStateOf(scene.globalVisualStyle.override) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -522,11 +525,32 @@ private fun SceneSettingsDialog(
                         AssetFormFlatEntries(Atmosphere.entries, { atmosphereLabel(it, language) }) { atmosphereSecondary = it; onDismissMenu() }
                     }
                 }
+                // رفع G8 ممیزی post-Unit16 (docs/adr/076-...): globalVisualStyle
+                // قبلاً فقط نمایشی بود. GlobalVisualStyleRef.override یک String?
+                // خام است (نه VisualStyle enum مستقیم — طبق شکل JSON بلوپرینت)؛
+                // این Dropdown مقادیر VisualStyle واقعی (۳۴ مورد، واحد ۰۲) را
+                // نشان می‌دهد اما override را با .name رشته‌ای ذخیره می‌کند —
+                // بدون تغییر نوع دیتامدل. source همیشه "project_dna" می‌ماند؛
+                // فقط override بین null (پیش‌فرض DNA) و یک VisualStyle سوییچ می‌شود.
+                AssetFormEnumDropdownField(
+                    label = uiString("sceneDetail.overview.globalVisualStyleLabel", language),
+                    selectedLabel = globalVisualStyleOverride?.let { visualStyleLabel(VisualStyle.valueOf(it), language) }
+                        ?: uiString("sceneDetail.overview.globalVisualStyleFromDna", language),
+                    testTag = "sceneDetail.settings.globalVisualStyleField"
+                ) { onDismissMenu ->
+                    Column {
+                        DropdownMenuItem(
+                            text = { Text(uiString("sceneDetail.overview.globalVisualStyleFromDna", language)) },
+                            onClick = { globalVisualStyleOverride = null; onDismissMenu() }
+                        )
+                        AssetFormFlatEntries(VisualStyle.entries, { visualStyleLabel(it, language) }) { globalVisualStyleOverride = it.name; onDismissMenu() }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(title.ifBlank { null }, narrativeRole, timeOfDay, atmospherePrimary, atmosphereSecondary) },
+                onClick = { onSave(title.ifBlank { null }, narrativeRole, timeOfDay, atmospherePrimary, atmosphereSecondary, globalVisualStyleOverride) },
                 modifier = Modifier.testTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG)
             ) {
                 Text(uiString("sceneDetail.settingsSaveButton", language))
