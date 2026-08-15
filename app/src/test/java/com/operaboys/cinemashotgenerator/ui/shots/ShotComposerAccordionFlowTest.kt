@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -22,6 +23,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
@@ -118,6 +120,12 @@ class ShotComposerAccordionFlowTest {
         sceneRepository = SceneRepository(database.sceneDao())
         shotRepository = ShotRepository(database.shotDao())
         val assetRepository = AssetRepository(database.assetDao())
+        // ADR-086: ShotComposerViewModel اکنون برای پنل خلاصه‌ی زنده به
+        // sceneRepository/projectDnaRepository/assetRepository نیاز دارد؛ بدون
+        // این تزریق صریح، factory (هم‌الگو ValidationViewModel/StudioOutputViewModel)
+        // بی‌صدا به AppDatabase.getInstance() واقعی Production برمی‌گشت — همان
+        // باگ تاریخی مستندشده در بالای این فایل (ShotsFlowTest.kt، G16).
+        val projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
 
         composeRule.setContent {
             CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
@@ -126,7 +134,8 @@ class ShotComposerAccordionFlowTest {
                     projectListViewModel = projectListViewModel,
                     sceneRepository = sceneRepository,
                     shotRepository = shotRepository,
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    projectDnaRepository = projectDnaRepository
                 )
             }
         }

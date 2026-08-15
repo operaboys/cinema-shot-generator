@@ -20,6 +20,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
@@ -153,6 +154,11 @@ class ShotsFlowTest {
         sceneRepository = SceneRepository(database.sceneDao())
         shotRepository = ShotRepository(database.shotDao())
         val assetRepository = AssetRepository(database.assetDao())
+        // ADR-086: ShotComposerViewModel اکنون برای پنل خلاصه‌ی زنده به
+        // projectDnaRepository هم نیاز دارد؛ بدون تزریق صریح، factory (هم‌الگو
+        // با باگ assetRepository مستندشده در بالای این فایل، G16) بی‌صدا به
+        // AppDatabase.getInstance() واقعی Production برمی‌گردد.
+        val projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
 
         composeRule.setContent {
             CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
@@ -161,7 +167,8 @@ class ShotsFlowTest {
                     projectListViewModel = projectListViewModel,
                     sceneRepository = sceneRepository,
                     shotRepository = shotRepository,
-                    assetRepository = assetRepository
+                    assetRepository = assetRepository,
+                    projectDnaRepository = projectDnaRepository
                 )
             }
         }

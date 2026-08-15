@@ -1,15 +1,15 @@
-package com.operaboys.cinemashotgenerator.ui.validation
+package com.operaboys.cinemashotgenerator.ui.shots
 
 import android.app.Application
+import android.content.ClipboardManager
 import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -49,17 +49,17 @@ import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.studioTabTestTag
+import com.operaboys.cinemashotgenerator.ui.outputdelivery.modelProfileDisplayName
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.scenes.SCENE_DETAIL_SHOTS_TAB_TAG
 import com.operaboys.cinemashotgenerator.ui.scenes.sceneDisplayTitle
-import com.operaboys.cinemashotgenerator.ui.shots.SHOT_COMPOSER_VALIDATION_BUTTON_TAG
-import com.operaboys.cinemashotgenerator.ui.shots.shotCardTag
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -68,29 +68,19 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.util.UUID
 
-// واحد ۱۶ فاز ۵ — قدم ۱: تست End-to-End واقعی صفحه‌ی Validation — طبق دستور کار:
-// (۱) ورود از دکمه‌ی «اعتبارسنجی این شات» داخل Shot Composer؛ (۲) شمارش دقیق
-// BLOCKING در کارت خلاصه؛ (۳) حداقل یکی از ۱۳ Rule نور/محیط (اینجا: نور خورشید در
-// شب) واقعاً در صفحه ظاهر می‌شود؛ (۴) کارت‌های شمارش Opaque/قابل‌مشاهده‌اند. الگوی
-// راه‌اندازی عیناً از ShotsFlowTest.kt گرفته شده. جزئیات کامل تصمیمات در
-// docs/adr/055-unit16-phase5-step1-validation-screen.md.
-//
-// یافته‌ی مستندشده در ADR-055 درباره‌ی چرا این تست فقط وجود/متن/`assertIsDisplayed`
-// کارت‌های شمارش را بررسی می‌کند، نه رنگ واقعی پیکسل: این کدبیس در کل جلسه هیچ
-// زیرساخت screenshot/captureToImage ای ندارد (تأییدشده با grep)؛ الزام Opaque/
-// بدون-Alpha در سطح کد با استفاده‌ی مستقیم از توکن‌های Solid تم (بدون
-// `.copy(alpha=...)`) تضمین شده، هم‌الگو با OpaqueChip موجود.
+// یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — تست End-to-End واقعی پنل خلاصه‌ی زنده‌ی
+// پایین Shot Composer: (۱) یک شات با نقض واقعی Blocking (نور خورشید در شب — همان
+// فیکسچر ValidationFlowTest.kt) → شمارش صحیح در نوار بالا؛ (۲) کلیک آیکون کپی یک
+// چیپ مدل → محتوای واقعی Clipboard سیستم. الگوی راه‌اندازی/Clipboard عیناً از
+// ValidationFlowTest.kt و OutputDeliveryFlowTest.kt گرفته شده (createAndroidComposeRule
+// به‌جای createComposeRule، طبق یافته‌ی مستندشده‌ی همان قدم درباره‌ی جداییِ
+// ClipboardManager گرفته‌شده از ApplicationProvider در برابر LocalClipboardManager).
+// جزئیات کامل تصمیمات در docs/adr/086-shot-composer-summary-panel.md.
 
-private const val PROJECT_ID = "proj_validation_flow_test"
-private const val SCENE_ID = "scene_validation_flow_test"
-private const val SHOT_ID = "shot_validation_flow_test"
+private const val PROJECT_ID = "proj_composer_summary_flow_test"
+private const val SCENE_ID = "scene_composer_summary_flow_test"
+private const val SHOT_ID = "shot_composer_summary_flow_test"
 
-/**
- * `shotCount = 1` عمداً صریح تنظیم شده — پیش‌فرض واقعی `Scene.shotCount` صفر است؛
- * بدون این مقدار، Rule 1 واحد ۰۴ (`validateSceneHasShotsBeforeFinalize`) یک
- * BLOCKING اضافه‌ی ناخواسته تولید می‌کرد (یافته‌ی واقعی دیباگ این قدم — شمارش
- * «دقیقاً یک BLOCKING» تست بدون این فیلد هرگز درست نمی‌شد).
- */
 private val seededScene = Scene(
     sceneId = SCENE_ID,
     sceneTitle = "A Night Scene",
@@ -129,10 +119,10 @@ private val seededShot = Shot(
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class ValidationFlowTest {
+class ShotComposerSummaryFlowTest {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private lateinit var context: Context
     private lateinit var dataStoreFileName: String
@@ -145,7 +135,7 @@ class ValidationFlowTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        dataStoreFileName = "validation_flow_test_prefs_" + UUID.randomUUID().toString().replace("-", "")
+        dataStoreFileName = "composer_summary_flow_test_prefs_" + UUID.randomUUID().toString().replace("-", "")
         val dataStore = PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile(dataStoreFileName) }
         )
@@ -182,30 +172,21 @@ class ValidationFlowTest {
     fun tearDown() {
         composeRule.waitForIdle()
         context.preferencesDataStoreFile(dataStoreFileName).delete()
-        // database.close() عمداً حذف شد — ریشه‌ی واقعی Flake تاریخی این Suite
-        // (docs/adr/070-flake-root-cause-investigation.md، رفع در ADR-071):
-        // Room.inMemoryDatabaseBuilder نیازی به Close صریح ندارد (بدون فایل روی
-        // دیسک، GC آن را با نابودی نمونه‌ی این کلاس تست جمع می‌کند)؛ این خط قبلاً
-        // با Coroutine های ناتمام viewModelScope روی Executor داخلی Room مسابقه
-        // می‌داد — نه یک نشتی حافظه‌ی فراموش‌شده. waitForIdle() بالا همچنان برای
-        // Idling خودِ Compose مفید است، فقط دیگر ایمنی close() را تضمین نمی‌کند.
+        // database.close() عمداً حذف شد — طبق یافته‌ی مستندشده‌ی ADR-071
+        // (docs/adr/070-flake-root-cause-investigation.md)، هم‌الگو با
+        // ValidationFlowTest.kt/OutputDeliveryFlowTest.kt.
     }
 
-    private fun SemanticsNodeInteraction.clickViaSemantics(): SemanticsNodeInteraction =
-        performSemanticsAction(SemanticsActions.OnClick)
+    private fun SemanticsNodeInteraction.clickViaSemantics(): SemanticsNodeInteraction {
+        performScrollTo()
+        return performSemanticsAction(SemanticsActions.OnClick)
+    }
 
-    /**
-     * پروژه‌ی واقعی می‌سازد، Scene/Shot را زیر همان projectId Seed می‌کند، و وارد صفحه‌ی
-     * Validation آن شات می‌شود. طبق یافته‌ی این قدم (اجرای مکرر تحت بار سنگین این
-     * Sandbox، نه یک باگ کد واقعی — تأییدشده با اجرای مجزا/تکراری): زمان‌بندی ۵۰۰۰ms
-     * پیش‌فرض این خانواده‌ی تست (فایل‌های قبلی فاز ۴) گاهی زیر بار سنگین این محیط اجرا
-     * کافی نیست؛ اینجا به ۱۵۰۰۰ms افزایش یافت — منطق/الگوی کلیک بدون تغییر.
-     */
-    private fun createProjectAndOpenValidation() {
+    private fun createProjectAndOpenComposer() {
         composeRule.onNodeWithText(uiString("home.newProjectTitle", Language.FA)).performClick()
-        composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("Validation Flow Test")
+        composeRule.onNodeWithTag(CREATE_PROJECT_NAME_FIELD_TAG).performTextInput("Composer Summary Flow Test")
         composeRule.onNodeWithText(uiString("project.rename.confirm", Language.FA)).performClick()
-        composeRule.waitUntilAtLeastOneExists(hasText("Validation Flow Test"), timeoutMillis = 15_000)
+        composeRule.waitUntilAtLeastOneExists(hasText("Composer Summary Flow Test"), timeoutMillis = 15_000)
 
         runBlocking {
             sceneRepository.saveScene(PROJECT_ID, seededScene)
@@ -223,50 +204,44 @@ class ValidationFlowTest {
 
         composeRule.onNodeWithTag(shotCardTag(SHOT_ID)).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasText(uiString("shotComposer.title", Language.FA)), timeoutMillis = 15_000)
-
-        // یافته‌ی واقعی ADR-086: پنل خلاصه (شامل این دکمه) دیگر بیرون از ناحیه‌ی
-        // Scroll میانی Pinned نیست — بخشی از همان Scroll واحد شده (رفع باگ واقعی
-        // فشرده‌شدن به ۰dp، مستند در ShotComposerScreen.kt) — پس ممکن است بیرون از
-        // Viewport اولیه باشد؛ performScrollTo لازم است. `performClick()` مختصاتی
-        // بعد از Scroll غیرقابل‌اعتماد بود (همان یافته‌ی مستندشده‌ی این پروژه برای
-        // Card/Row های Clickable) — `clickViaSemantics()` جایگزین شد.
-        composeRule.onNodeWithTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG).performScrollTo().clickViaSemantics()
-        // یافته‌ی واقعی این قدم: انتظار روی متن دقیق «اعتبارسنجی» (uiString عنوان
-        // صفحه) غیرقابل‌اعتماد است — Nav Drawer (که همیشه در درخت Semantics حاضر
-        // است، حتی وقتی بسته/نامرئی است، طبق ModalNavigationDrawer) یک لینک با
-        // دقیقاً همان متن دارد (drawer.validation)، پس «exactly 1» هرگز درست نمی‌شود
-        // (همیشه ۲ گره). رفع با انتظار روی testTag منحصربه‌فرد این صفحه (کارت
-        // شمارش BLOCKING)، نه متن عنوان.
-        composeRule.waitUntilExactlyOneExists(hasTestTag(VALIDATION_BLOCKING_COUNT_CARD_TAG), timeoutMillis = 15_000)
+        composeRule.waitUntilExactlyOneExists(hasText("Impossible sunlight"), timeoutMillis = 15_000)
     }
 
     @Test
-    fun `opening Validation for a shot with a sunlight-at-night violation shows exactly one BLOCKING issue`() {
-        createProjectAndOpenValidation()
+    fun `the summary panel shows the real Blocking count for a shot with a sunlight-at-night violation`() {
+        createProjectAndOpenComposer()
 
-        composeRule.waitUntilExactlyOneExists(hasText("نور خورشید در شب", substring = true), timeoutMillis = 5_000)
+        // aggregateShotValidation واقعاً روی داده‌ی Seed‌شده اجرا می‌شود؛ منتظر
+        // به‌روزرسانی StateFlow (init block + refreshValidationSummary) می‌مانیم.
+        composeRule.waitUntilExactlyOneExists(hasText("1 Blocking", substring = true), timeoutMillis = 15_000)
 
-        composeRule.onNodeWithTag(VALIDATION_BLOCKING_COUNT_CARD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(VALIDATION_WARNING_COUNT_CARD_TAG).assertIsDisplayed()
-        // یک BLOCKING واقعی — کارت باید عدد «۱» را نشان دهد.
-        composeRule.onNodeWithTag(VALIDATION_BLOCKING_COUNT_CARD_TAG).assertTextContains("1", substring = true)
-        composeRule.onNodeWithTag(VALIDATION_WARNING_COUNT_CARD_TAG).assertTextContains("0", substring = true)
+        composeRule.onNodeWithTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG).assertTextContains("1", substring = true)
+        composeRule.onNodeWithTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG).assertTextContains("0", substring = true)
     }
 
     @Test
-    fun `the BLOCKING and WARNING summary cards render as distinct, fully visible, solid-styled nodes`() {
-        createProjectAndOpenValidation()
+    fun `clicking a model chip's copy icon copies the real model display name to the system clipboard`() {
+        createProjectAndOpenComposer()
+        composeRule.waitUntilExactlyOneExists(hasText("1 Blocking", substring = true), timeoutMillis = 15_000)
 
-        composeRule.onNodeWithTag(VALIDATION_BLOCKING_COUNT_CARD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(VALIDATION_WARNING_COUNT_CARD_TAG).assertIsDisplayed()
-        // یافته‌ی واقعی این قدم: هر Issue Card هم برچسب شدت («BLOCKING»/«WARNING»)
-        // نشان می‌دهد، پس جست‌وجوی سراسری صفحه برای این متن می‌تواند بیش از یک گره
-        // پیدا کند (وقتی حداقل یک Issue با همان شدت وجود دارد) — رفتار صحیح UI،
-        // نه باگ. بررسی این‌جا عمداً محدود به خودِ کارت شمارش می‌شود (assertTextContains
-        // روی testTag)، نه یک جست‌وجوی سراسری متن.
-        composeRule.onNodeWithTag(VALIDATION_BLOCKING_COUNT_CARD_TAG)
-            .assertTextContains(uiString("validation.blockingLabel", Language.FA), substring = true)
-        composeRule.onNodeWithTag(VALIDATION_WARNING_COUNT_CARD_TAG)
-            .assertTextContains(uiString("validation.warningLabel", Language.FA), substring = true)
+        val clipboardManager = composeRule.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboardManager.clearPrimaryClip()
+
+        // یافته‌ی واقعی دیباگ این تست: برخلاف OutputDeliveryFlowTest (که بعد از
+        // کلیک کپی صبر می‌کند)، اینجا composeRule.waitForIdle() منجر به OutOfMemoryError
+        // واقعی می‌شد (ArrayDeque در ShadowTrace.endSection، بعد از +۴ دقیقه Pump شدن
+        // فریم) — چون کلیک آیکون کپی هم‌زمان onShowMessage را صدا می‌زند که یک
+        // Snackbar واقعی (`snackbarHostState.showSnackbar`، MainScaffold.kt) باز
+        // می‌کند؛ Animation/تایمر آن Snackbar زیر TestMonotonicFrameClock این محیط
+        // هرگز به Idle واقعی نمی‌رسید. رفع لازم نیست چون نوشتن Clipboard خودش همگام
+        // (Synchronous) و *قبل* از فراخوانی onShowMessage داخل همان‌ Lambda کلیک انجام
+        // می‌شود — performSemanticsAction(OnClick) خودِ Lambda را بلافاصله اجرا می‌کند،
+        // پس نیازی به waitForIdle() برای مشاهده‌ی نتیجه‌ی واقعی روی Clipboard نیست.
+        val targetProfileId = ComposerSummaryModelChipKeys.first()
+        composeRule.onNodeWithTag(shotComposerCopyModelButtonTag(targetProfileId)).clickViaSemantics()
+
+        val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()
+        assertTrue("clipboard should contain the model display name", !clipText.isNullOrBlank())
+        assertTrue(clipText == modelProfileDisplayName(targetProfileId))
     }
 }

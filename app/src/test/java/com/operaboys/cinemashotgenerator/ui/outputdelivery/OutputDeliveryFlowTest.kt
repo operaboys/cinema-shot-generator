@@ -307,7 +307,14 @@ class OutputDeliveryFlowTest {
         composeRule.onNodeWithTag(shotCardTag(SHOT_ID)).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasText(uiString("shotComposer.title", Language.FA)), timeoutMillis = 15_000)
 
-        composeRule.onNodeWithTag(SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG).performClick()
+        // یافته‌ی واقعی ADR-086: پنل خلاصه (و این دکمه‌ی زیرش) دیگر بیرون از ناحیه‌ی
+        // Scroll میانی Pinned نیست — بخشی از همان Scroll واحد شده (رفع باگ واقعی
+        // فشرده‌شدن به ۰dp، مستند در ShotComposerScreen.kt) — پس ممکن است بیرون از
+        // Viewport اولیه باشد. `clickViaSemantics()` این فایل خودش از قبل
+        // `performScrollTo()` + `performSemanticsAction` را ترکیب می‌کند (تعریف‌شده
+        // بالای همین فایل) — `performClick()` مختصاتی بعد از Scroll غیرقابل‌اعتماد
+        // بود (همان یافته‌ی مستندشده‌ی این پروژه برای Card/Row های Clickable).
+        composeRule.onNodeWithTag(SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG).clickViaSemantics()
         // یافته‌ی مستندشده‌ی ADR-055 دوباره اینجا صادق است: عنوان این صفحه عمداً از
         // کلید موجود drawer.outputDelivery بازاستفاده شده، که همیشه (حتی وقتی
         // Drawer بسته است) یک گره‌ی دیگر با همان متن در درخت Semantics دارد. انتظار

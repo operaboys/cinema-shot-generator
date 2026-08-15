@@ -6,7 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.camera.AdvancedMovementType
 import com.operaboys.cinemashotgenerator.domain.camera.BasicMovementType
 import com.operaboys.cinemashotgenerator.domain.camera.CameraAngle
@@ -23,6 +29,8 @@ import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
 import com.operaboys.cinemashotgenerator.domain.camera.checkStaticMovementWithHandheldStabilization
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
@@ -51,7 +59,10 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
 import com.operaboys.cinemashotgenerator.domain.shot.validateShotDescription
+import com.operaboys.cinemashotgenerator.domain.validation.AggregatedValidationReport
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
+import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -103,9 +114,13 @@ private data class CameraValidationPartial(
 
 class ShotComposerViewModel(
     application: Application,
+    private val projectId: String,
     private val sceneId: String,
     private val existingShotId: String?,
     private val repository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao()),
+    private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
+    private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
+    private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val idProvider: () -> String = ::generateShotId,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
@@ -116,6 +131,23 @@ class ShotComposerViewModel(
 
     /** فیلدهای غیر-سطح‌بالا (Beats/تصاویر/دوربین/نور/صدا/...) از Shot موجود دست‌نخورده حفظ می‌شوند — این قدم فقط فیلدهای سطح‌بالا را می‌نویسد. */
     private var loadedShot: Shot? = null
+
+    /**
+     * یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — برای شمارش زنده‌ی Blocking/Warning
+     * پنل خلاصه‌ی پایین. Scene/DNA/Asset ها یک‌بار (پس از بارگذاری اولیه‌ی Shot)
+     * Cache می‌شوند — نه هر بار دوباره خوانده — چون characterIds/objectIds/
+     * locationIds در هیچ‌کدام از Tab های این صفحه ویرایش نمی‌شوند (تأییدشده با
+     * کامنت موجود بالای `_subjectCount`)، پس این سه لیست هرگز بعد از بارگذاری
+     * اولیه در طول عمر این ViewModel تغییر نمی‌کنند.
+     */
+    private var cachedScene: Scene? = null
+    private var cachedDna: ProjectDna? = null
+    private var cachedCharacterAssets: List<CharacterAsset> = emptyList()
+    private var cachedObjectAssets: List<ObjectAsset> = emptyList()
+    private var cachedLocationAssets: List<LocationAsset> = emptyList()
+
+    private val _validationSummary = MutableStateFlow(AggregatedValidationReport(emptyList()))
+    val validationSummary: StateFlow<AggregatedValidationReport> = _validationSummary.asStateFlow()
 
     private val _shotNumber = MutableStateFlow(0)
     val shotNumber: StateFlow<Int> = _shotNumber.asStateFlow()
@@ -347,8 +379,40 @@ class ShotComposerViewModel(
                 val existingShots = repository.loadAllShots(sceneId).first()
                 _shotNumber.value = existingShots.size + 1
             }
+
+            // یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — بارگذاری یک‌باره‌ی Scene/DNA/
+            // Asset های لازم برای شمارش زنده‌ی Blocking/Warning؛ هم‌الگو دقیق با
+            // ValidationViewModel (بارگذاری Shot→Scene→DNA با Fallback خنثی→Asset ها).
+            cachedScene = sceneRepository.loadScene(sceneId).getOrNull()
+            cachedDna = projectDnaRepository.loadProjectDna(projectId).getOrNull()
+                ?: defaultProjectDna(projectId) { "dna_placeholder" }
+            val shotForAssets = loadedShot
+            if (shotForAssets != null) {
+                cachedCharacterAssets = assetRepository.loadCharacterAssets(shotForAssets.characterIds).getOrNull() ?: emptyList()
+                cachedObjectAssets = assetRepository.loadObjectAssets(shotForAssets.objectIds).getOrNull() ?: emptyList()
+                cachedLocationAssets = assetRepository.loadLocationAssets(shotForAssets.locationIds).getOrNull() ?: emptyList()
+            }
+
             _isReady.value = true
+            refreshValidationSummary()
         }
+    }
+
+    /**
+     * یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — بازمحاسبه‌ی همزمان (نه Coroutine
+     * جدا) روی همان `Shot` تازه‌ساخته‌شده‌ی `save()`. تصمیم مستقل — بدون
+     * Debounce: `aggregateShotValidation` یک تابع خالص (بدون I/O) روی چند
+     * Enum/String ساده است؛ حتی برای یک Shot با تمام فیلدهای پر، اجرای آن چند
+     * برابر سریع‌تر از خودِ عملیات I/O ذخیره‌سازی (`repository.saveShot`) است که
+     * از قبل (بدون Debounce) با هر کلیدفشاری اجرا می‌شود — افزودن یک محاسبه‌ی
+     * خالص و سبک به همان مسیر موجود هیچ ریسک Jank تازه‌ای اضافه نمی‌کند.
+     */
+    private fun refreshValidationSummary(shot: Shot = buildShot()) {
+        val scene = cachedScene ?: return
+        val dna = cachedDna ?: return
+        _validationSummary.value = aggregateShotValidation(
+            shot, scene, dna, cachedCharacterAssets, cachedObjectAssets, cachedLocationAssets
+        )
     }
 
     fun setShotTitle(value: String) { _shotTitle.value = value; save() }
@@ -589,17 +653,46 @@ class ShotComposerViewModel(
      */
     private fun save() {
         if (!_isReady.value) return
-        ioScope.launch { repository.saveShot(buildShot()) }
+        val shot = buildShot()
+        ioScope.launch { repository.saveShot(shot) }
+        refreshValidationSummary(shot)
     }
 
     companion object {
-        fun factory(application: Application, sceneId: String, shotId: String?, repository: ShotRepository? = null): ViewModelProvider.Factory =
+        /**
+         * یافته‌ی #۱۳ appendix ADR-081 (ADR-086): سه Repository تازه (Scene/DNA/
+         * Asset) — هم‌الگو دقیق با ValidationViewModel.factory/StudioOutputViewModel.factory:
+         * هرکدام مستقل بررسی می‌شوند (نه با «&&»)، وگرنه تزریق جزئی در تست بی‌صدا
+         * به AppDatabase Production سقوط می‌کند.
+         */
+        fun factory(
+            application: Application,
+            projectId: String,
+            sceneId: String,
+            shotId: String?,
+            repository: ShotRepository? = null,
+            sceneRepository: SceneRepository? = null,
+            projectDnaRepository: ProjectDnaRepository? = null,
+            assetRepository: AssetRepository? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) ShotComposerViewModel(application, sceneId, shotId, repository)
-                        else ShotComposerViewModel(application, sceneId, shotId)
+                        if (repository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null) {
+                            ShotComposerViewModel(
+                                application = application,
+                                projectId = projectId,
+                                sceneId = sceneId,
+                                existingShotId = shotId,
+                                repository = repository ?: ShotRepository(AppDatabase.getInstance(application).shotDao()),
+                                sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
+                                projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
+                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao())
+                            )
+                        } else {
+                            ShotComposerViewModel(application, projectId, sceneId, shotId)
+                        }
                     ) as T
             }
     }

@@ -229,7 +229,9 @@ fun AppNavHost(
             val route: ShotComposer = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
             val composerLayoutVariant by workflowViewModel.composerLayoutVariant.collectAsStateWithLifecycle()
+            val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             ShotComposerScreen(
+                projectId = route.projectId,
                 sceneId = route.sceneId,
                 sceneDisplayTitle = route.sceneDisplayTitle,
                 shotId = route.shotId,
@@ -248,6 +250,11 @@ fun AppNavHost(
                     ) { launchSingleTop = true }
                 },
                 shotRepository = shotRepository,
+                sceneRepository = sceneRepository,
+                projectDnaRepository = projectDnaRepository,
+                assetRepository = assetRepository,
+                selectedModelProfileId = workflowState?.selectedModelProfileId,
+                onShowMessage = onShowMessage,
                 composerLayoutVariant = composerLayoutVariant
             )
         }

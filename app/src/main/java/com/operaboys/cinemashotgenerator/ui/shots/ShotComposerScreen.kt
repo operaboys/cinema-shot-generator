@@ -2,7 +2,9 @@ package com.operaboys.cinemashotgenerator.ui.shots
 
 import android.app.Application
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +12,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
@@ -23,6 +29,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -42,11 +49,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
@@ -60,6 +73,7 @@ import com.operaboys.cinemashotgenerator.ui.assets.AssetFormValidationIssueRow
 import com.operaboys.cinemashotgenerator.ui.dna.lightingStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
+import com.operaboys.cinemashotgenerator.ui.outputdelivery.modelProfileDisplayName
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
 // واحد ۱۶ فاز ۴ — قدم ۲ — بخش ب: اسکلت Shot Composer. طبق docs/design/README.md
@@ -87,6 +101,16 @@ const val SHOT_COMPOSER_VALIDATION_BUTTON_TAG = "shotComposer.validationButton"
 const val SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG = "shotComposer.outputDeliveryButton"
 
 /**
+ * یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — دقیقاً همان زیرمجموعه‌ی ۴تایی
+ * `chipKeys = ['veo', 'kling', 'runway', 'seedance']` mockup، نگاشت‌شده به
+ * profileId های واقعی `ModelProfileLibrary` (نه هر ۱۳ پروفایل موجود).
+ */
+internal val ComposerSummaryModelChipKeys = listOf("veo_3_1", "kling_3_0", "runway_gen_4_5", "seedance_2_5")
+
+fun shotComposerModelChipTag(profileId: String): String = "shotComposer.modelChip.$profileId"
+fun shotComposerCopyModelButtonTag(profileId: String): String = "shotComposer.copyModelButton.$profileId"
+
+/**
  * یافته‌ی ۵ appendix ADR-081 (ADR-082): گرادیان دقیق نوار Hero طبق mockup
  * (docs/design/Cinema Studio.html، `cs-shot-hero`/`cs-shot-hero-b`:
  * `linear-gradient(150deg,#2C4260 0%,#3C5570 48%,#6E5B72 100%)`)، هر دو
@@ -98,6 +122,7 @@ internal val ComposerHeroGradientColors = listOf(Color(0xFF2C4260), Color(0xFF3C
 
 @Composable
 fun ShotComposerScreen(
+    projectId: String,
     sceneId: String,
     sceneDisplayTitle: String,
     shotId: String?,
@@ -106,6 +131,14 @@ fun ShotComposerScreen(
     onNavigateToValidation: (shotId: String) -> Unit = {},
     onNavigateToOutputDelivery: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
+    sceneRepository: SceneRepository? = null,
+    projectDnaRepository: ProjectDnaRepository? = null,
+    assetRepository: AssetRepository? = null,
+    // یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — چیپ‌های مدل پنل خلاصه فقط نمایشگر
+    // مدل سراسری فعلی‌اند (WorkflowState.selectedModelProfileId، همان مفهوم
+    // استفاده‌شده در OutputDeliveryScreen)، نه یک انتخاب مستقل هرشات.
+    selectedModelProfileId: String? = null,
+    onShowMessage: (String) -> Unit = {},
     // رفع G12 باقی‌مانده (دستور کار ۲۰۲۶-۰۸-۱۳، docs/adr/081-...): پیش‌فرض TABS
     // — رفتار موجود (تست‌ها/فراخوان‌های قدیمی) بدون تغییر می‌ماند.
     composerLayoutVariant: ComposerLayoutVariant = ComposerLayoutVariant.TABS,
@@ -113,7 +146,9 @@ fun ShotComposerScreen(
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: ShotComposerViewModel = viewModel(
-        factory = ShotComposerViewModel.factory(application, sceneId, shotId, shotRepository)
+        factory = ShotComposerViewModel.factory(
+            application, projectId, sceneId, shotId, shotRepository, sceneRepository, projectDnaRepository, assetRepository
+        )
     )
 
     val shotNumber by viewModel.shotNumber.collectAsStateWithLifecycle()
@@ -124,6 +159,7 @@ fun ShotComposerScreen(
     val durationSecondsText by viewModel.durationSecondsText.collectAsStateWithLifecycle()
     val motionLevel by viewModel.motionLevel.collectAsStateWithLifecycle()
     val descriptionValidation by viewModel.shotDescriptionValidation.collectAsStateWithLifecycle()
+    val validationSummary by viewModel.validationSummary.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableStateOf(ShotComposerTab.MAIN) }
 
@@ -135,32 +171,27 @@ fun ShotComposerScreen(
             backTestTag = SHOT_COMPOSER_BACK_BUTTON_TAG
         )
 
-        // دکمه‌ی ورود به صفحه‌ی Validation — طبق تصمیم مستند (ADR-055) فقط برای یک
-        // شات از قبل ذخیره‌شده معنا دارد (shotId != null)؛ شات هنوز-ذخیره‌نشده چیزی
-        // در Repository ندارد که Validate شود.
-        if (shotId != null) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                TextButton(
-                    onClick = { onNavigateToValidation(shotId) },
-                    modifier = Modifier.testTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                    Text(uiString("validation.entryButtonLabel", language))
-                }
-                // ورودی مستقیم به Output Delivery — طبق دستور کار قدم ۳ فاز ۵ («نقطه‌ی
-                // ورود می‌تواند هم از Validation و هم مستقیم از Shot Composer باشد»)،
-                // دقیقاً هم‌الگو با دکمه‌ی Validation بالا (همان شرط shotId != null: شات
-                // هنوز-ذخیره‌نشده چیزی برای رندر کردن ندارد).
-                TextButton(
-                    onClick = { onNavigateToOutputDelivery(shotId) },
-                    modifier = Modifier.testTag(SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG)
-                ) {
-                    Icon(Icons.Filled.MovieFilter, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                    Text(uiString("outputDelivery.entryButtonLabel", language))
-                }
-            }
-        }
-
+        // یافته‌ی واقعی دیباگ ADR-086: قبلاً فقط این بخش (بین Hero و پنل خلاصه‌ی
+        // تازه) خودش Scroll مستقل داشت (`weight(1f)` + `verticalScroll` جدا)، و
+        // پنل خلاصه‌ + دکمه‌ی Output Delivery بیرون از آن، به‌صورت واقعاً Pinned
+        // (طبق `flex:none` mockup) قرار داشتند. تست End-to-End واقعی این قدم
+        // (ShotComposerAccordionFlowTest) این ترکیب را روی Viewport واقعی تست
+        // (۳۲۰×۴۷۰dp) اجرا کرد و ثابت کرد: مجموع ارتفاع ثابت (Header+Hero+پنل
+        // تازه+دکمه‌ی Output Delivery) از کل ارتفاع صفحه بیشتر می‌شود و ناحیه‌ی
+        // Scroll میانی را به‌طور کامل به ۰dp/۰dp فشرده می‌کند (اندازه‌گیری مستقیم:
+        // `boundsInRoot` گره MAIN، `Rect.fromLTRB(0,0,0,0)`) — یعنی محتوای فرم اصلاً
+        // در درخت نمایش‌داده‌نشده باقی می‌ماند، نه صرفاً نیازمند Scroll بیشتر (Scroll
+        // روی یک ناحیه‌ی صفر-ارتفاع کمکی نمی‌کند). رفع: به‌جای دو ناحیه‌ی Scroll
+        // جدا (میانی + Pinned)، همه‌چیز بعد از Header (Hero + محتوای Tab/Accordion +
+        // پنل خلاصه + دکمه‌ی Output Delivery) در یک Column با یک Scroll واحد قرار
+        // گرفت — پنل خلاصه دیگر به‌صورت فنی «Pinned» نیست (انحراف مستند از
+        // `flex:none` دقیق mockup)، اما تضمین می‌کند هیچ محتوایی هرگز واقعاً
+        // غیرقابل‌دسترس نشود؛ روی هر دستگاه واقعی (که طول صفحه‌اش خیلی بیشتر از
+        // این Viewport تستی است) همچنان بلافاصله بعد از محتوا و نزدیک پایین دیده
+        // می‌شود.
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,7 +201,7 @@ fun ShotComposerScreen(
         )
 
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             when (composerLayoutVariant) {
@@ -250,6 +281,155 @@ fun ShotComposerScreen(
                     descriptionValidation = descriptionValidation,
                     language = language
                 )
+            }
+        }
+
+        // یافته‌ی #۱۳ appendix ADR-081 (ADR-086): پنل خلاصه‌ی زنده — طبق تصمیم
+        // مستند (ADR-055/ADR-057) فقط برای یک شات از قبل ذخیره‌شده معنا دارد
+        // (shotId != null). این پنل اکنون بخشی از همان Scroll واحد بالاست (نه
+        // یک بلوک Pinned جدا) — طبق یافته‌ی مستندشده‌ی بالای این تابع.
+        if (shotId != null) {
+            ComposerSummaryFooter(
+                blockingCount = validationSummary.blockingCount,
+                warningCount = validationSummary.warningCount,
+                language = language,
+                selectedModelProfileId = selectedModelProfileId,
+                onValidationClick = { onNavigateToValidation(shotId) },
+                onCopyModel = { _, displayName ->
+                    onShowMessage(uiTemplate("shotComposer.summary.modelCopiedMessage", language, "model" to displayName))
+                }
+            )
+            // ورودی مستقیم به Output Delivery — طبق تصمیم مستند ADR-057 («نقطه‌ی
+            // ورود می‌تواند هم از Validation و هم مستقیم از Shot Composer باشد»).
+            // یافته‌ی واقعی این قدم: mockup پنل پایین Composer هیچ دکمه‌ی مستقیم
+            // Output Delivery ای ندارد (فقط نوار Validation + چیپ‌های مدل)؛ اما حذف
+            // این دکمه یک تصمیم مستند قبلی (ADR-057) را بی‌سروصدا نقض می‌کرد — پس
+            // بدون تغییر، فقط زیر پنل تازه نگه داشته شد.
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                TextButton(
+                    onClick = { onNavigateToOutputDelivery(shotId) },
+                    modifier = Modifier.testTag(SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG)
+                ) {
+                    Icon(Icons.Filled.MovieFilter, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                    Text(uiString("outputDelivery.entryButtonLabel", language))
+                }
+            }
+        }
+        }
+    }
+}
+
+/**
+ * یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — پنل خلاصه‌ی زنده‌ی پایین Composer.
+ * سه بخش دقیقاً طبق mockup (`docs/design/Cinema Studio.html`، آفست ۲٬۰۲۵٬۹۳۵):
+ * (۱) نوار قابل‌کلیک Blocking/Warning (کل نوار → `onValidationClick`، دقیقاً
+ * هم‌الگو با `act.goValidation` مسیر)؛ (۲) کارت برچسب «Full Video Prompt»
+ * + هشدار شرطی وقتی Blocking>0؛ (۳) ردیف افقی Scroll‌شونده‌ی ۴ چیپ مدل
+ * (veo/kling/runway/seedance — دقیقاً همان زیرمجموعه‌ی `chipKeys` mockup، نه
+ * هر ۱۳ پروفایل). طبق خواندن دقیق markup خام mockup، خودِ چیپ هیچ
+ * onClick ای ندارد (فقط آیکون `content_copy` داخلش دارد) — یعنی چیپ صرفاً
+ * نشانگر بصری مدل سراسری فعلی است (رنگ/گرادیان بر اساس `selectedModelProfileId`)،
+ * نه یک دکمه‌ی انتخاب.
+ */
+@Composable
+private fun ComposerSummaryFooter(
+    blockingCount: Int,
+    warningCount: Int,
+    language: Language,
+    selectedModelProfileId: String?,
+    onValidationClick: () -> Unit,
+    onCopyModel: (profileId: String, displayName: String) -> Unit
+) {
+    // مستقیماً روی Clipboard واقعی می‌نویسد — دقیقاً همان الگوی
+    // OutputDeliveryScreen.kt (`LocalClipboardManager.current.setText(...)` در
+    // همان محل کلیک، نه از طریق callback بالادستی).
+    val clipboardManager: ClipboardManager = LocalClipboardManager.current
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(color = Color(0xFFFF5A6A).copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp))
+                .clickable(onClick = onValidationClick)
+                .padding(horizontal = 16.dp)
+                .heightIn(min = 40.dp)
+                .testTag(SHOT_COMPOSER_VALIDATION_BUTTON_TAG),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Filled.Error, contentDescription = null, tint = Color(0xFFFF5A6A))
+            Text(
+                text = uiTemplate("shotComposer.summary.blockingTemplate", language, "count" to blockingCount.toString()),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFFF5A6A)
+            )
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = Color(0xFFFFB648))
+            Text(
+                text = uiTemplate("shotComposer.summary.warningTemplate", language, "count" to warningCount.toString()),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFFFB648)
+            )
+            Box(modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = CinemaTheme.extendedColors.fg3)
+        }
+
+        Card(colors = CardDefaults.cardColors(), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = uiString("shotComposer.summary.promptLabel", language),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+                if (blockingCount > 0) {
+                    Text(
+                        text = uiString("shotComposer.summary.blockedHint", language),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFFF5A6A),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ComposerSummaryModelChipKeys.forEach { profileId ->
+                val selected = profileId == selectedModelProfileId
+                val displayName = modelProfileDisplayName(profileId)
+                Row(
+                    modifier = Modifier
+                        .background(
+                            brush = if (selected) Brush.linearGradient(listOf(Color(0xFF7C5CFF), Color(0xFF8E74FF))) else Brush.linearGradient(listOf(CinemaTheme.extendedColors.solidSurface, CinemaTheme.extendedColors.solidSurface)),
+                            shape = RoundedCornerShape(18.dp)
+                        )
+                        .border(1.dp, CinemaTheme.extendedColors.hairline, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 16.dp)
+                        .heightIn(min = 40.dp)
+                        .testTag(shotComposerModelChipTag(profileId)),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (selected) Color.White else CinemaTheme.extendedColors.fg2
+                    )
+                    Icon(
+                        Icons.Filled.ContentCopy,
+                        contentDescription = uiString("shotComposer.summary.copyModelAction", language),
+                        tint = if (selected) Color.White else CinemaTheme.extendedColors.fg3,
+                        modifier = Modifier
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(displayName))
+                                onCopyModel(profileId, displayName)
+                            }
+                            .testTag(shotComposerCopyModelButtonTag(profileId))
+                    )
+                }
             }
         }
     }
