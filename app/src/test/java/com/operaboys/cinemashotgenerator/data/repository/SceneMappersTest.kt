@@ -6,7 +6,9 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 // واحد ۰۴ — تست round-trip برای Scene.locationAssetId
@@ -33,5 +35,45 @@ class SceneMappersTest {
 
         val withoutLocationAssetId = baseScene(locationAssetId = null)
         assertEquals(withoutLocationAssetId, withoutLocationAssetId.toDto().toDomain())
+    }
+
+    // یافته‌ی #۱۱ appendix ADR-081 (ADR-085): تست round-trip linkedAssetIds — هم‌الگو
+    // با تست بالا برای locationAssetId.
+    @Test
+    fun `Scene toDto then toDomain round-trips linkedAssetIds exactly, both populated and empty`() {
+        val withLinkedAssets = baseScene(locationAssetId = null).copy(linkedAssetIds = listOf("char_1", "loc_2", "obj_3"))
+        assertEquals(withLinkedAssets, withLinkedAssets.toDto().toDomain())
+
+        val withoutLinkedAssets = baseScene(locationAssetId = null)
+        assertEquals(emptyList<String>(), withoutLinkedAssets.linkedAssetIds)
+        assertEquals(withoutLinkedAssets, withoutLinkedAssets.toDto().toDomain())
+    }
+
+    /**
+     * یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — الزام صریح دستور کار: اثبات اینکه
+     * داده‌ی JSON قدیمیِ ذخیره‌شده (پیش از این قدم، بدون کلید linkedAssetIds اصلاً)
+     * بدون خطا Decode می‌شود و مقدار پیش‌فرض (لیست خالی) می‌گیرد — نه یک فرض
+     * نظری درباره‌ی رفتار kotlinx.serialization، بلکه یک تست واقعی روی یک رشته‌ی
+     * JSON دستی که عمداً این کلید را ندارد (دقیقاً شبیه یک ردیف واقعی Room که قبل
+     * از این قدم ذخیره شده بود).
+     */
+    @Test
+    fun `decoding an old SceneDataJson without the linkedAssetIds key succeeds with an empty default`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val oldJsonWithoutLinkedAssetIds = """
+            {
+              "sceneId": "scene_legacy",
+              "sceneNumber": 1,
+              "narrativeRole": "DEVELOPMENT",
+              "location": { "type": "OUTDOOR", "description": "a quiet street" },
+              "timeOfDay": "NIGHT",
+              "atmospherePrimary": "CALM"
+            }
+        """.trimIndent()
+
+        val decoded = json.decodeFromString(SceneDto.serializer(), oldJsonWithoutLinkedAssetIds)
+
+        assertTrue(decoded.linkedAssetIds.isEmpty())
+        assertEquals("scene_legacy", decoded.sceneId)
     }
 }

@@ -9,7 +9,9 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
@@ -57,6 +59,18 @@ class SceneDetailViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * یافته‌ی #۱۱ appendix ADR-081 (ADR-085): برای Tab «دارایی‌ها» — لیست کامل
+     * Character/Object های پروژه (برای هم دیالوگ انتخاب و هم نمایش کارت‌های
+     * متصل‌شده لازم است؛ locationAssets بالا از قبل موجود بود). هم‌الگو دقیق با
+     * locationAssets — Flow زنده، نه یک‌بار خواندن.
+     */
+    val characterAssets: StateFlow<List<CharacterAsset>> = assetRepository.loadAllCharacterAssets(projectId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val objectAssets: StateFlow<List<ObjectAsset>> = assetRepository.loadAllObjectAssets(projectId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
      * یافته‌ی ۱ appendix ADR-081 (ADR-083): Badge عددی Tab «شات‌ها» طبق mockup
      * (`sceneTabs`، `t.badge`). هم‌الگو دقیق با `locationAssets` بالا — Flow زنده،
      * نه یک بار خواندن.
@@ -76,6 +90,17 @@ class SceneDetailViewModel(
     }
 
     fun connectLocationAsset(locationAssetId: String) = updateAndSave { it.copy(locationAssetId = locationAssetId) }
+
+    /**
+     * یافته‌ی #۱۱ appendix ADR-081 (ADR-085): اتصال/قطع‌اتصال Character/Location/
+     * Object Asset به این Scene. `unlinkAsset` صریحاً در دستور کار خواسته نشده
+     * بود (mockup فقط دکمه‌ی «افزودن» را نشان می‌دهد)، اما بدون یک راه واقعی
+     * برای رفع اتصال اشتباه، این ویژگی یک‌طرفه و عملاً ناقص می‌بود — یک نیاز
+     * عملکردی بدیهی، نه یک ویژگی اضافه‌ی حدسی.
+     */
+    fun linkAsset(assetId: String) = updateAndSave { it.copy(linkedAssetIds = (it.linkedAssetIds + assetId).distinct()) }
+
+    fun unlinkAsset(assetId: String) = updateAndSave { it.copy(linkedAssetIds = it.linkedAssetIds - assetId) }
 
     /**
      * طبق «مشخصات دقیق فیلدهای تنظیمات Scene» بلوپرینت ۱۶ — این فرم عمداً یک دکمه‌ی

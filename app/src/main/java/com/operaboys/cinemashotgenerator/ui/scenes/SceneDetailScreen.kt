@@ -1,7 +1,9 @@
 package com.operaboys.cinemashotgenerator.ui.scenes
 
 import android.app.Application
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,14 +15,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Forest
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -42,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -50,7 +59,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.asset.AssetType
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
@@ -60,6 +72,12 @@ import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
+import com.operaboys.cinemashotgenerator.ui.assets.assetTypeLabel
+import com.operaboys.cinemashotgenerator.ui.assets.characterContinuityLevelLabel
+import com.operaboys.cinemashotgenerator.ui.assets.characterTierLabel
+import com.operaboys.cinemashotgenerator.ui.assets.locationContinuityLevelLabel
+import com.operaboys.cinemashotgenerator.ui.assets.objectSubtypeLabel
+import com.operaboys.cinemashotgenerator.ui.assets.propContinuityLevelLabel
 import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.shots.ShotListScreen
@@ -95,8 +113,13 @@ const val SCENE_DETAIL_BACK_BUTTON_TAG = "sceneDetail.backButton"
 const val SCENE_DETAIL_MENU_BUTTON_TAG = "sceneDetail.menuButton"
 const val SCENE_DETAIL_DELETE_MENU_ITEM_TAG = "sceneDetail.deleteMenuItem"
 const val SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG = "sceneDetail.deleteConfirmButton"
+/** یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — دکمه‌ی «افزودن Asset» پایین Tab. */
+const val SCENE_DETAIL_ADD_ASSET_BUTTON_TAG = "sceneDetail.addAssetButton"
 
 fun sceneDetailLocationPickerItemTag(assetId: String): String = "sceneDetail.locationPicker.item.$assetId"
+fun sceneDetailLinkedAssetCardTag(assetId: String): String = "sceneDetail.linkedAsset.$assetId"
+fun sceneDetailUnlinkAssetButtonTag(assetId: String): String = "sceneDetail.unlinkAssetButton.$assetId"
+fun sceneDetailAssetPickerItemTag(assetId: String): String = "sceneDetail.assetPicker.item.$assetId"
 
 @Composable
 fun SceneDetailScreen(
@@ -124,6 +147,8 @@ fun SceneDetailScreen(
     val scene by viewModel.scene.collectAsStateWithLifecycle()
     val isLoaded by viewModel.isLoaded.collectAsStateWithLifecycle()
     val locationAssets by viewModel.locationAssets.collectAsStateWithLifecycle()
+    val characterAssets by viewModel.characterAssets.collectAsStateWithLifecycle()
+    val objectAssets by viewModel.objectAssets.collectAsStateWithLifecycle()
     val shotCount by viewModel.shotCount.collectAsStateWithLifecycle()
     val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
     val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
@@ -138,6 +163,7 @@ fun SceneDetailScreen(
     var selectedTab by remember { mutableStateOf(SceneDetailTab.entries.find { it.name == initialTab } ?: SceneDetailTab.OVERVIEW) }
     var showLocationPicker by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showAssetPicker by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     // رفع G22 ممیزی post-Unit16: هم‌الگو دقیق با ArchiveProjectDialog/DeleteBackupDialog
     // (docs/adr/060-...) — یک AlertDialog تأیید واقعی، نه حذف بی‌واسطه از منو.
@@ -177,7 +203,16 @@ fun SceneDetailScreen(
             Tab(
                 selected = selectedTab == SceneDetailTab.ASSETS,
                 onClick = { selectedTab = SceneDetailTab.ASSETS },
-                text = { Text(uiString("sceneDetail.tab.assets", language)) },
+                text = {
+                    // یافته‌ی #۱۱ appendix ADR-081 (ADR-085): اتصال واقعی Asset↔Scene
+                    // اکنون پیاده شد — Badge این Tab هم‌الگو دقیق با Badge Tab SHOTS
+                    // بالا (ADR-083) اضافه شد (قبلاً عمداً بدون Badge مانده بود چون این
+                    // اتصال هنوز وجود نداشت).
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(uiString("sceneDetail.tab.assets", language))
+                        Text((scene?.linkedAssetIds?.size ?: 0).toString(), color = CinemaTheme.extendedColors.fg3)
+                    }
+                },
                 modifier = Modifier.testTag(SCENE_DETAIL_ASSETS_TAB_TAG)
             )
         }
@@ -213,7 +248,16 @@ fun SceneDetailScreen(
                     shotRepository = shotRepository,
                     modifier = Modifier.fillMaxSize()
                 )
-                SceneDetailTab.ASSETS -> EmptyTabState(uiString("sceneDetail.assetsEmptyState", language))
+                SceneDetailTab.ASSETS -> AssetsTab(
+                    scene = currentScene,
+                    characterAssets = characterAssets,
+                    locationAssets = locationAssets,
+                    objectAssets = objectAssets,
+                    language = language,
+                    onAddClick = { showAssetPicker = true },
+                    onRemoveClick = { assetId -> viewModel.unlinkAsset(assetId) },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }
@@ -224,6 +268,19 @@ fun SceneDetailScreen(
             locationAssets = locationAssets,
             onDismiss = { showLocationPicker = false },
             onSelect = { assetId -> viewModel.connectLocationAsset(assetId); showLocationPicker = false }
+        )
+    }
+
+    val sceneForAssetPicker = scene
+    if (showAssetPicker && sceneForAssetPicker != null) {
+        AssetLinkPickerDialog(
+            scene = sceneForAssetPicker,
+            characterAssets = characterAssets,
+            locationAssets = locationAssets,
+            objectAssets = objectAssets,
+            language = language,
+            onDismiss = { showAssetPicker = false },
+            onSelect = { assetId -> viewModel.linkAsset(assetId); showAssetPicker = false }
         )
     }
 
@@ -393,7 +450,7 @@ private fun QuickActionsRow(
 }
 
 @Composable
-private fun QuickActionTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, testTag: String, modifier: Modifier = Modifier) {
+private fun QuickActionTile(icon: ImageVector, label: String, onClick: () -> Unit, testTag: String, modifier: Modifier = Modifier) {
     Card(onClick = onClick, modifier = modifier.testTag(testTag)) {
         Column(
             modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth(),
@@ -411,6 +468,204 @@ private fun EmptyTabState(message: String) {
     Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Text(text = message, style = MaterialTheme.typography.bodyLarge, color = CinemaTheme.extendedColors.fg3)
     }
+}
+
+/**
+ * یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — خلاصه‌ی نمایشی یک Asset متصل، مستقل
+ * از سه نوع Kotlin کاملاً جدای CharacterAsset/LocationAsset/ObjectAsset (طبق
+ * mockup `linkedAssets`: یک فهرست ناهمگون، نه سه فهرست جدا). فقط UI — دامنه
+ * (`domain/asset/`) بدون تغییر ماند.
+ */
+private data class LinkedAssetSummary(
+    val assetId: String,
+    val kind: AssetType,
+    val name: String,
+    val meta: String,
+    val lockLabel: String
+)
+
+/**
+ * سه فهرست Character/Location/Object را به یک فهرست واحد `LinkedAssetSummary`
+ * تبدیل می‌کند — meta/lock هرکدام از Label های موجود `AssetLabels.kt` می‌آیند
+ * (بدون هیچ رشته‌ی جدید اختراع‌شده): meta = «نوع · زیرگروه» (طبق نمونه‌ی واقعی
+ * mockup: «CHARACTER · MAIN»)، lock = همان continuityLockLevel هر نوع (که خودِ
+ * appendix صراحتاً به آن اشاره کرده بود).
+ */
+private fun buildAssetSummaries(
+    characterAssets: List<CharacterAsset>,
+    locationAssets: List<LocationAsset>,
+    objectAssets: List<ObjectAsset>,
+    language: Language
+): List<LinkedAssetSummary> = buildList {
+    characterAssets.forEach { asset ->
+        add(
+            LinkedAssetSummary(
+                assetId = asset.assetId,
+                kind = AssetType.CHARACTER,
+                name = asset.name,
+                meta = "${assetTypeLabel(AssetType.CHARACTER, language)} · ${characterTierLabel(asset.characterTier, language)}",
+                lockLabel = characterContinuityLevelLabel(asset.continuityLockLevel, language)
+            )
+        )
+    }
+    locationAssets.forEach { asset ->
+        add(
+            LinkedAssetSummary(
+                assetId = asset.assetId,
+                kind = AssetType.LOCATION,
+                name = asset.name,
+                meta = assetTypeLabel(AssetType.LOCATION, language),
+                lockLabel = locationContinuityLevelLabel(asset.continuityLockLevel, language)
+            )
+        )
+    }
+    objectAssets.forEach { asset ->
+        add(
+            LinkedAssetSummary(
+                assetId = asset.assetId,
+                kind = AssetType.OBJECT,
+                name = asset.name,
+                meta = "${assetTypeLabel(AssetType.OBJECT, language)} · ${objectSubtypeLabel(asset.subtype, language)}",
+                lockLabel = propContinuityLevelLabel(asset.continuityLockLevel, language)
+            )
+        )
+    }
+}
+
+/** طبق نمونه‌ی واقعی mockup (`linkedAssets`: icon 'person'/'forest'/'radio' برای هر سه نوع) — تابعی از نوع Asset، نه یک فیلد تازه روی خودِ دامنه. */
+private fun assetKindIcon(kind: AssetType): ImageVector = when (kind) {
+    AssetType.CHARACTER -> Icons.Filled.Person
+    AssetType.LOCATION -> Icons.Filled.Forest
+    AssetType.OBJECT -> Icons.Filled.Radio
+}
+
+@Composable
+private fun AssetsTab(
+    scene: Scene,
+    characterAssets: List<CharacterAsset>,
+    locationAssets: List<LocationAsset>,
+    objectAssets: List<ObjectAsset>,
+    language: Language,
+    onAddClick: () -> Unit,
+    onRemoveClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val allSummaries = remember(characterAssets, locationAssets, objectAssets, language) {
+        buildAssetSummaries(characterAssets, locationAssets, objectAssets, language)
+    }
+    val linkedSummaries = allSummaries.filter { it.assetId in scene.linkedAssetIds }
+
+    Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (linkedSummaries.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = uiString("sceneDetail.assetsEmptyState", language),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(linkedSummaries, key = { it.assetId }) { summary ->
+                    LinkedAssetCard(summary = summary, language = language, onRemoveClick = { onRemoveClick(summary.assetId) })
+                }
+            }
+        }
+        AddAssetButton(language = language, onClick = onAddClick)
+    }
+}
+
+@Composable
+private fun LinkedAssetCard(summary: LinkedAssetSummary, language: Language, onRemoveClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().testTag(sceneDetailLinkedAssetCardTag(summary.assetId))) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(assetKindIcon(summary.kind), contentDescription = null, tint = Color(0xFF7C5CFF))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = summary.name, style = MaterialTheme.typography.bodyLarge)
+                Text(text = summary.meta, style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
+            }
+            Text(text = summary.lockLabel, style = MaterialTheme.typography.bodySmall, color = Color(0xFF3DDC97))
+            IconButton(onClick = onRemoveClick, modifier = Modifier.testTag(sceneDetailUnlinkAssetButtonTag(summary.assetId))) {
+                Icon(Icons.Filled.Close, contentDescription = uiString("sceneDetail.assets.removeAction", language))
+            }
+        }
+    }
+}
+
+/**
+ * طبق mockup (`act.openSheet`، `x.k34`) این دکمه در mockup یک ModalBottomSheet
+ * باز می‌کرد؛ این پروژه عمداً از ModalBottomSheet استفاده نمی‌کند (تصمیم
+ * ADR-052، مستند در appendix ADR-081 «عناصر مشترک») — همان‌جا که mockup Sheet
+ * باز می‌کرد، اینجا (Tab Assets صحنه) هم مثل بقیه‌ی نقاط مشابه یک Dialog باز
+ * می‌شود (`AssetLinkPickerDialog` پایین‌تر).
+ */
+@Composable
+private fun AddAssetButton(language: Language, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(BorderStroke(1.dp, CinemaTheme.extendedColors.hairlineStrong), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp)
+            .testTag(SCENE_DETAIL_ADD_ASSET_BUTTON_TAG),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Add, contentDescription = null, tint = Color(0xFF7C5CFF))
+        Text(text = uiString("sceneDetail.assets.addButton", language), modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun AssetLinkPickerDialog(
+    scene: Scene,
+    characterAssets: List<CharacterAsset>,
+    locationAssets: List<LocationAsset>,
+    objectAssets: List<ObjectAsset>,
+    language: Language,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    val unlinkedSummaries = remember(characterAssets, locationAssets, objectAssets, scene.linkedAssetIds, language) {
+        buildAssetSummaries(characterAssets, locationAssets, objectAssets, language)
+            .filter { it.assetId !in scene.linkedAssetIds }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(uiString("sceneDetail.assets.pickerTitle", language)) },
+        text = {
+            if (unlinkedSummaries.isEmpty()) {
+                Text(uiString("sceneDetail.assets.pickerEmpty", language), color = CinemaTheme.extendedColors.fg3)
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    items(unlinkedSummaries, key = { it.assetId }) { summary ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(summary.assetId) }
+                                .testTag(sceneDetailAssetPickerItemTag(summary.assetId))
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(assetKindIcon(summary.kind), contentDescription = null, tint = Color(0xFF7C5CFF))
+                            Column {
+                                Text(text = summary.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(text = summary.meta, style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(uiString("assetForm.saveButton", language)) }
+        }
+    )
 }
 
 @Composable

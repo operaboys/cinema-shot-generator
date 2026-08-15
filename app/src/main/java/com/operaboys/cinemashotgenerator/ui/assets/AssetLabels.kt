@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.ui.assets
 
+import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
@@ -9,6 +10,16 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+
+/** یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — Tab «دارایی‌ها»ی Scene Detail اولین مصرف‌کننده‌ی این تابع است. */
+fun assetTypeLabel(type: AssetType, language: Language): String = uiString(
+    when (type) {
+        AssetType.CHARACTER -> "assetKind.character"
+        AssetType.LOCATION -> "assetKind.location"
+        AssetType.OBJECT -> "assetKind.object"
+    },
+    language
+)
 
 // واحد ۱۶ فاز ۳ — قدم ۱: نگاشت enum های واحد ۰۶ (Asset & Continuity) به کلید
 // ترجمه، هم‌الگو با ui/dna/DnaLabels.kt.

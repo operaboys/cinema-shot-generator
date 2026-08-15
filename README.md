@@ -1589,6 +1589,24 @@ Shot → دیالوگ انتخاب کوتاه. پیاده‌سازی سبک‌و
 (جایگزینی Quality Score، تفکیک Shot) + یافته‌های دیباگ + جدول تست در
 `docs/adr/084-studio-output-tab.md`.
 
+### ✅ اتصال واقعی Asset↔Scene برای Tab «دارایی‌ها» (ADR-085)
+
+یافته‌ی #۱۱ appendix ADR-081: Tab «دارایی‌ها»ی Scene Detail تا این قدم
+همیشه یک empty-state ثابت نشان می‌داد، صرف‌نظر از وجود اتصال واقعی — هیچ
+رابطه‌ی ذخیره‌شده‌ای بین Scene و Character/Object Asset وجود نداشت (فقط
+`locationAssetId` تکی از قبل). اکنون `Scene.linkedAssetIds: List<String>`
+تازه (همان الگوی کم‌ریسک `locationAssetId` — بدون Migration رسمی Room،
+چون `SceneEntity` فقط یک JSON Blob است، نه ستون‌های مجزا؛ با یک تست واقعی
+Decode روی JSON قدیمی بدون این کلید هم اثبات شد) این اتصال را نگه می‌دارد.
+Tab اکنون فهرست واقعی کارت‌های متصل (آیکون بر اساس نوع + نام + متا +
+`continuityLockLevel`، طبق نمونه‌ی واقعی mockup) + دکمه‌ی افزودن (که طبق
+تصمیم ثابت این پروژه — بدون ModalBottomSheet — یک Dialog باز می‌کند، نه
+Sheet) را نشان می‌دهد؛ Badge شمارشی Tab هم اضافه شد (بستن یافته‌ی #۶
+appendix که قبلاً در ADR-083 عمداً بدون Badge رها شده بود). یک دکمه‌ی حذف
+اتصال هم اضافه شد — mockup آن را نشان نداده اما بدون آن این ویژگی
+یک‌طرفه و ناقص می‌بود. جزئیات کامل + جدول تست در
+`docs/adr/085-scene-asset-linking.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

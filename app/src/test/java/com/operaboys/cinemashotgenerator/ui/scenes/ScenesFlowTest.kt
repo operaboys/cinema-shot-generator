@@ -23,8 +23,15 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
+import com.operaboys.cinemashotgenerator.domain.asset.Outfit
+import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
@@ -72,6 +79,9 @@ import java.util.UUID
 
 private const val PROJECT_ID = "proj_scenes_flow_test"
 private const val SEEDED_LOCATION_ID = "loc_scenes_flow_test"
+/** یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — برای تست اتصال واقعی Asset↔Scene. */
+private const val SEEDED_CHARACTER_ID = "char_scenes_flow_test"
+private const val SEEDED_OBJECT_ID = "obj_scenes_flow_test"
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -116,6 +126,28 @@ class ScenesFlowTest {
                     name = "Bridge of the Ship",
                     description = "the ship's command bridge",
                     environment = Environment(type = "indoor", size = "medium", lightingCondition = "bright")
+                )
+            )
+            // یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — برای تست‌های اتصال Asset↔Scene.
+            assetRepository.saveCharacterAsset(
+                PROJECT_ID,
+                CharacterAsset(
+                    assetId = SEEDED_CHARACTER_ID,
+                    characterTier = CharacterTier.MAIN,
+                    name = "Elias",
+                    physicalAppearance = PhysicalAppearance(ageRange = "30s", gender = Gender.MALE),
+                    outfits = listOf(Outfit(id = "outfit_default", name = "Default", description = "Default outfit", isDefault = true))
+                )
+            )
+            assetRepository.saveObjectAsset(
+                PROJECT_ID,
+                ObjectAsset(
+                    assetId = SEEDED_OBJECT_ID,
+                    name = "Signal Receiver",
+                    description = "an old radio device",
+                    subtype = ObjectSubtype.PERSONAL_PROP,
+                    size = "small",
+                    materialAndColor = "metal, silver"
                 )
             )
         }
@@ -292,5 +324,45 @@ class ScenesFlowTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNode(hasTestTag(SCENE_DETAIL_SHOTS_TAB_TAG) and hasAnyDescendant(hasText("1")), useUnmergedTree = true).assertExists()
+    }
+
+    /**
+     * یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — تست End-to-End واقعی مسیر کامل:
+     * افزودن یک Asset واقعی (Character) به یک Scene از دیالوگ انتخاب، دیدن آن
+     * در فهرست کارت‌های متصل، و به‌روزرسانی زنده‌ی Badge شمارشی Tab «دارایی‌ها».
+     */
+    @Test
+    fun `adding a character asset from the picker links it, shows it as a card, and updates the assets badge`() {
+        createProjectAndOpenScenesTab("Scenes Asset Link Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_ASSETS_TAB_TAG).clickViaSemantics()
+        composeRule.onNode(hasTestTag(SCENE_DETAIL_ASSETS_TAB_TAG) and hasAnyDescendant(hasText("0")), useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText(uiString("sceneDetail.assetsEmptyState", Language.FA)).assertExists()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_ADD_ASSET_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.assets.pickerTitle", Language.FA)), timeoutMillis = 5_000)
+        // هر سه نوع (کاراکتر/مکان/شیء) باید در دیالوگ قابل‌انتخاب باشند — نه فقط Location.
+        composeRule.onNodeWithTag(sceneDetailAssetPickerItemTag(SEEDED_CHARACTER_ID)).assertExists()
+        composeRule.onNodeWithTag(sceneDetailAssetPickerItemTag(SEEDED_LOCATION_ID)).assertExists()
+        composeRule.onNodeWithTag(sceneDetailAssetPickerItemTag(SEEDED_OBJECT_ID)).assertExists()
+
+        composeRule.onNodeWithTag(sceneDetailAssetPickerItemTag(SEEDED_CHARACTER_ID)).clickViaSemantics()
+
+        composeRule.waitUntilExactlyOneExists(hasTestTag(sceneDetailLinkedAssetCardTag(SEEDED_CHARACTER_ID)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText("Elias").assertExists()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodes(hasTestTag(SCENE_DETAIL_ASSETS_TAB_TAG) and hasAnyDescendant(hasText("1")), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // حذف اتصال — نیاز عملکردی بدیهی (mockup صریح نشانش نداده، اما بدون آن
+        // اتصال اشتباه هرگز قابل‌رفع نیست).
+        composeRule.onNodeWithTag(sceneDetailUnlinkAssetButtonTag(SEEDED_CHARACTER_ID)).clickViaSemantics()
+        composeRule.waitUntilDoesNotExist(hasTestTag(sceneDetailLinkedAssetCardTag(SEEDED_CHARACTER_ID)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(uiString("sceneDetail.assetsEmptyState", Language.FA)).assertExists()
+        composeRule.onNode(hasTestTag(SCENE_DETAIL_ASSETS_TAB_TAG) and hasAnyDescendant(hasText("0")), useUnmergedTree = true).assertExists()
     }
 }

@@ -27,6 +27,8 @@ data class GlobalVisualStyleRefDto(val source: String = "project_dna", val overr
 // محافظه‌کارانه‌ی ADR-036 (سطح DTO هم nullable، چون دامنه هم nullable است؛ اینجا نیازی
 // به یک پیش‌فرض غیر-null محافظه‌کارانه‌تر نیست چون null در دامنه هم یک مقدار کاملاً
 // معتبر است، نه یک حالت جاافتاده).
+// یافته‌ی #۱۱ appendix ADR-081 (ADR-085): linkedAssetIds اضافه شد — همان الگوی
+// محافظه‌کارانه‌ی locationAssetId بالا (پیش‌فرض، بدون Migration رسمی).
 @Serializable
 data class SceneDto(
     val sceneId: String,
@@ -35,6 +37,7 @@ data class SceneDto(
     val narrativeRole: String,
     val location: SceneLocationDto,
     val locationAssetId: String? = null,
+    val linkedAssetIds: List<String> = emptyList(),
     val timeOfDay: String,
     val atmospherePrimary: String,
     val atmosphereSecondary: String? = null,

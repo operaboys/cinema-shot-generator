@@ -49,6 +49,18 @@ data class GlobalVisualStyleRef(
  * ساخت واقعی main (`StoryToDomainMapper.kt`، `SceneMappers.kt`) و همه‌ی محل‌های
  * تست فقط Named Argument دارند).
  */
+/**
+ * MIGRATED (یافته‌ی #۱۱ appendix ADR-081): linkedAssetIds — ارجاع Character/
+ * Location/Object Asset های متصل به این Scene (طبق mockup، `sc.assets`/
+ * `linkedAssets`). برخلاف locationAssetId (تکی، فقط Location)، این فیلد
+ * می‌تواند شامل هر سه نوع Asset باشد — طبق نمونه‌ی واقعی mockup
+ * (`linkedAssets`) که یک کاراکتر + یک Location + یک Object را در یک فهرست
+ * واحد نشان می‌دهد. پیش‌فرض لیست خالی — دقیقاً هم‌الگو با locationAssetId
+ * (ADR-038): چون SceneEntity فقط یک sceneDataJson Blob است (بدون ستون‌های
+ * مجزای SQL)، افزودن این فیلد نیازمند Migration رسمی Room نیست؛
+ * kotlinx.serialization به‌طور پیش‌فرض هر کلید غایب در JSON قدیمی را با همین
+ * مقدار پیش‌فرض (لیست خالی) پر می‌کند.
+ */
 data class Scene(
     val sceneId: String,
     val sceneTitle: String? = null,
@@ -56,6 +68,7 @@ data class Scene(
     val narrativeRole: NarrativeRole,
     val location: SceneLocation,
     val locationAssetId: String? = null,
+    val linkedAssetIds: List<String> = emptyList(),
     val timeOfDay: TimeOfDay,
     val atmospherePrimary: Atmosphere,
     val atmosphereSecondary: Atmosphere? = null,
