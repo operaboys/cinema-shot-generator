@@ -27,6 +27,7 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 
@@ -40,15 +41,21 @@ const val CHARACTER_FORM_TIER_FIELD_TAG = "characterForm.tierField"
 const val CHARACTER_FORM_AGE_RANGE_FIELD_TAG = "characterForm.ageRangeField"
 const val CHARACTER_FORM_GENDER_FIELD_TAG = "characterForm.genderField"
 const val CHARACTER_FORM_SAVE_BUTTON_TAG = "characterForm.saveButton"
+const val CHARACTER_FORM_BACK_BUTTON_TAG = "characterForm.backButton"
+const val CHARACTER_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "characterForm.toggleLanguageButton"
+const val CHARACTER_FORM_TOGGLE_THEME_BUTTON_TAG = "characterForm.toggleThemeButton"
 
 @Composable
 fun CharacterAssetFormScreen(
     language: Language,
+    theme: AppTheme,
     // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): دیگر PLACEHOLDER_ACTIVE_PROJECT_ID
     // نیست — از AppNavHost.kt (resolveActiveOrRecentProjectId) تزریق می‌شود.
     projectId: String,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
     assetRepository: AssetRepository? = null,
     existingAssetId: String? = null,
@@ -85,7 +92,18 @@ fun CharacterAssetFormScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        AssetFormHeader(title = uiString("characterForm.title", language), subtitle = uiString("characterForm.subtitle", language), onBack = onBack)
+        AssetFormHeader(
+            title = uiString("characterForm.title", language),
+            subtitle = uiString("characterForm.subtitle", language),
+            onBack = onBack,
+            backTestTag = CHARACTER_FORM_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = CHARACTER_FORM_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = CHARACTER_FORM_TOGGLE_THEME_BUTTON_TAG
+        )
 
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),

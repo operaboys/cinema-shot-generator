@@ -9,7 +9,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,8 +34,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
+import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import java.util.UUID
 
@@ -49,9 +55,29 @@ internal fun generateAssetFormId(prefix: String): String = "${prefix}_" + UUID.r
  * `backTestTag` اختیاری (واحد ۱۶ فاز ۴ قدم ۲) — پیش‌فرض null، رفتار موجود سه فرم
  * Asset را بدون تغییر نگه می‌دارد؛ Shot Composer (اولین مصرف‌کننده‌ی جدید این
  * پارامتر) برای هدف‌گیری قابل‌اعتماد دکمه‌ی برگشت در تست نیاز دارد.
+ *
+ * یافته‌ی #۱۶ appendix ADR-081 (ADR-087) — دکمه‌های سریع زبان/تم که قبلاً فقط
+ * روی HomeHeader بودند اکنون به هر صفحه‌ی داخلی هم تزریق می‌شوند. `language`/
+ * `theme`/`onToggleLanguage`/`onToggleTheme` عمداً الزامی‌اند (نه اختیاری با
+ * پیش‌فرض) — دقیقاً هم‌قاعده با `language` که در تمام صفحات این پروژه از قبل
+ * الزامی بوده؛ منطق شرطی آیکون تم دقیقاً کپی همان `HomeHeader` (ui/home/
+ * HomeScreen.kt) است، همان دو کلید ترجمه‌ی موجود (`home.toggleLanguageButton`/
+ * `home.toggleThemeButton`) بازاستفاده شدند — این دو رشته عمومی‌اند، مخصوص
+ * Home نیستند.
  */
 @Composable
-internal fun AssetFormHeader(title: String, subtitle: String, onBack: () -> Unit, backTestTag: String? = null) {
+internal fun AssetFormHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    backTestTag: String? = null,
+    language: Language,
+    theme: AppTheme,
+    onToggleLanguage: () -> Unit,
+    onToggleTheme: () -> Unit,
+    toggleLanguageTestTag: String? = null,
+    toggleThemeTestTag: String? = null
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -62,9 +88,24 @@ internal fun AssetFormHeader(title: String, subtitle: String, onBack: () -> Unit
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
-        Column(modifier = Modifier.padding(start = 4.dp)) {
+        Column(modifier = Modifier.padding(start = 4.dp).weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
             Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.fg3)
+        }
+        IconButton(
+            onClick = onToggleLanguage,
+            modifier = if (toggleLanguageTestTag != null) Modifier.testTag(toggleLanguageTestTag) else Modifier
+        ) {
+            Icon(Icons.Filled.Translate, contentDescription = uiString("home.toggleLanguageButton", language))
+        }
+        IconButton(
+            onClick = onToggleTheme,
+            modifier = if (toggleThemeTestTag != null) Modifier.testTag(toggleThemeTestTag) else Modifier
+        ) {
+            Icon(
+                if (theme == AppTheme.DARK) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                contentDescription = uiString("home.toggleThemeButton", language)
+            )
         }
     }
 }

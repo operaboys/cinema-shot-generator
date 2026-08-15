@@ -42,6 +42,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckResult
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -60,6 +61,8 @@ const val OUTPUT_DELIVERY_PREVIEW_CARD_TAG = "outputDelivery.previewCard"
 const val OUTPUT_DELIVERY_COPY_BUTTON_TAG = "outputDelivery.copyButton"
 const val OUTPUT_DELIVERY_REGENERATE_BUTTON_TAG = "outputDelivery.regenerateButton"
 const val OUTPUT_DELIVERY_EXPORT_BUTTON_TAG = "outputDelivery.exportButton"
+const val OUTPUT_DELIVERY_TOGGLE_LANGUAGE_BUTTON_TAG = "outputDelivery.toggleLanguageButton"
+const val OUTPUT_DELIVERY_TOGGLE_THEME_BUTTON_TAG = "outputDelivery.toggleThemeButton"
 
 fun outputDeliveryModelChipTag(profileId: String): String = "outputDelivery.modelChip.$profileId"
 
@@ -67,8 +70,11 @@ fun outputDeliveryModelChipTag(profileId: String): String = "outputDelivery.mode
 fun OutputDeliveryScreen(
     shotId: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
     initialModelProfileId: String?,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onModelProfileSelected: (String) -> Unit = {},
     onShowMessage: (String) -> Unit = {},
     promptGenerationRepository: PromptGenerationRepository? = null,
@@ -104,7 +110,13 @@ fun OutputDeliveryScreen(
             title = uiString("drawer.outputDelivery", language),
             subtitle = uiString("outputDelivery.subtitle", language),
             onBack = onBack,
-            backTestTag = OUTPUT_DELIVERY_BACK_BUTTON_TAG
+            backTestTag = OUTPUT_DELIVERY_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = OUTPUT_DELIVERY_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = OUTPUT_DELIVERY_TOGGLE_THEME_BUTTON_TAG
         )
 
         Column(

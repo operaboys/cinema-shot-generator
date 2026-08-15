@@ -36,6 +36,8 @@ import com.operaboys.cinemashotgenerator.ui.studio.StudioShell
 import com.operaboys.cinemashotgenerator.ui.outputdelivery.OutputDeliveryScreen
 import com.operaboys.cinemashotgenerator.ui.validation.ValidationScreen
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 
 // واحد ۱۶ — فاز ۱: Navigation Graph با محتوای واقعی هر ۴ مسیر ریشه (فاز ۰ فقط
@@ -147,6 +149,9 @@ fun AppNavHost(
         composable<AssetForm> { backStackEntry ->
             val route: AssetForm = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
+            val onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA); Unit }
+            val onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK); Unit }
             val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             val projectSummaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
             val activeProjectId = resolveActiveOrRecentProjectId(workflowState, projectSummaries)
@@ -162,26 +167,35 @@ fun AppNavHost(
             when (route.kind) {
                 AssetKind.CHARACTER -> CharacterAssetFormScreen(
                     language = language,
+                    theme = theme,
                     projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
+                    onToggleLanguage = onToggleLanguage,
+                    onToggleTheme = onToggleTheme,
                     onShowMessage = onShowMessage,
                     assetRepository = assetRepository,
                     existingAssetId = route.existingAssetId
                 )
                 AssetKind.LOCATION -> LocationAssetFormScreen(
                     language = language,
+                    theme = theme,
                     projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
+                    onToggleLanguage = onToggleLanguage,
+                    onToggleTheme = onToggleTheme,
                     assetRepository = assetRepository,
                     existingAssetId = route.existingAssetId
                 )
                 AssetKind.OBJECT -> ObjectAssetFormScreen(
                     language = language,
+                    theme = theme,
                     projectId = activeProjectId,
                     onBack = onFormBack,
                     onSaved = onFormBack,
+                    onToggleLanguage = onToggleLanguage,
+                    onToggleTheme = onToggleTheme,
                     assetRepository = assetRepository,
                     existingAssetId = route.existingAssetId
                 )
@@ -190,10 +204,14 @@ fun AppNavHost(
         composable<AiStoryBreakdown> { backStackEntry ->
             val route: AiStoryBreakdown = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             AiStoryBreakdownScreen(
                 projectId = route.projectId,
                 language = language,
+                theme = theme,
                 onBack = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 onConfirmedAndSaved = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
                 storyRepository = storyRepository,
                 assetRepository = assetRepository,
@@ -204,12 +222,16 @@ fun AppNavHost(
         composable<SceneDetail> { backStackEntry ->
             val route: SceneDetail = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             SceneDetailScreen(
                 projectId = route.projectId,
                 sceneId = route.sceneId,
                 language = language,
+                theme = theme,
                 onBack = { navController.navigate(Studio(route.projectId)) { launchSingleTop = true } },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 onNavigateToScene = { newSceneId ->
                     navController.navigate(SceneDetail(route.projectId, newSceneId)) { launchSingleTop = true }
                 },
@@ -228,6 +250,7 @@ fun AppNavHost(
         composable<ShotComposer> { backStackEntry ->
             val route: ShotComposer = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             val composerLayoutVariant by workflowViewModel.composerLayoutVariant.collectAsStateWithLifecycle()
             val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             ShotComposerScreen(
@@ -236,9 +259,12 @@ fun AppNavHost(
                 sceneDisplayTitle = route.sceneDisplayTitle,
                 shotId = route.shotId,
                 language = language,
+                theme = theme,
                 onBack = {
                     navController.navigate(SceneDetail(route.projectId, route.sceneId, SceneDetailTab.SHOTS.name)) { launchSingleTop = true }
                 },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 onNavigateToValidation = { shotId ->
                     navController.navigate(
                         Validation(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
@@ -261,16 +287,20 @@ fun AppNavHost(
         composable<Validation> { backStackEntry ->
             val route: Validation = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             ValidationScreen(
                 projectId = route.projectId,
                 sceneId = route.sceneId,
                 shotId = route.shotId,
                 language = language,
+                theme = theme,
                 onBack = {
                     navController.navigate(
                         ShotComposer(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, route.shotId)
                     ) { launchSingleTop = true }
                 },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 onNavigateToOutputDelivery = { shotId ->
                     navController.navigate(
                         OutputDelivery(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, shotId)
@@ -286,15 +316,19 @@ fun AppNavHost(
         composable<OutputDelivery> { backStackEntry ->
             val route: OutputDelivery = backStackEntry.toRoute()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             OutputDeliveryScreen(
                 shotId = route.shotId,
                 language = language,
+                theme = theme,
                 onBack = {
                     navController.navigate(
                         ShotComposer(route.projectId, route.sceneId, route.sceneNumber, route.sceneDisplayTitle, route.shotId)
                     ) { launchSingleTop = true }
                 },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 initialModelProfileId = workflowState?.selectedModelProfileId,
                 onModelProfileSelected = workflowViewModel::setSelectedModelProfileId,
                 onShowMessage = onShowMessage,
@@ -316,6 +350,7 @@ fun AppNavHost(
             // docs/adr/059-unit16-phase6-step2-backups-final-review.md.
             val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
             val language by workflowViewModel.language.collectAsStateWithLifecycle()
+            val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
             val summaries by projectListViewModel.projectSummaries.collectAsStateWithLifecycle()
             val activeProjectId = workflowState?.projectId
             val activeProjectName = summaries.find { it.project.projectId == activeProjectId }?.project?.projectName ?: activeProjectId.orEmpty()
@@ -323,7 +358,10 @@ fun AppNavHost(
                 projectId = activeProjectId,
                 projectName = activeProjectName,
                 language = language,
+                theme = theme,
                 onBack = { navController.navigate(Home) { launchSingleTop = true } },
+                onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+                onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
                 onShowMessage = onShowMessage,
                 backupFileStorage = backupFileStorage,
                 database = database

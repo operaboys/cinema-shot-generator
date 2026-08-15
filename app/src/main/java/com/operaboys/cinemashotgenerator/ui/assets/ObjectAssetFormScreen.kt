@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 
@@ -38,15 +39,21 @@ const val OBJECT_FORM_SUBTYPE_FIELD_TAG = "objectForm.subtypeField"
 const val OBJECT_FORM_SIZE_FIELD_TAG = "objectForm.sizeField"
 const val OBJECT_FORM_MATERIAL_FIELD_TAG = "objectForm.materialAndColorField"
 const val OBJECT_FORM_SAVE_BUTTON_TAG = "objectForm.saveButton"
+const val OBJECT_FORM_BACK_BUTTON_TAG = "objectForm.backButton"
+const val OBJECT_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "objectForm.toggleLanguageButton"
+const val OBJECT_FORM_TOGGLE_THEME_BUTTON_TAG = "objectForm.toggleThemeButton"
 
 @Composable
 fun ObjectAssetFormScreen(
     language: Language,
+    theme: AppTheme,
     // رفع G6 ممیزی post-Unit16 (docs/adr/062-...): دیگر PLACEHOLDER_ACTIVE_PROJECT_ID
     // نیست — از AppNavHost.kt (resolveActiveOrRecentProjectId) تزریق می‌شود.
     projectId: String,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     assetRepository: AssetRepository? = null,
     existingAssetId: String? = null,
     modifier: Modifier = Modifier
@@ -72,7 +79,18 @@ fun ObjectAssetFormScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        AssetFormHeader(title = uiString("objectForm.title", language), subtitle = uiString("objectForm.subtitle", language), onBack = onBack)
+        AssetFormHeader(
+            title = uiString("objectForm.title", language),
+            subtitle = uiString("objectForm.subtitle", language),
+            onBack = onBack,
+            backTestTag = OBJECT_FORM_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = OBJECT_FORM_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = OBJECT_FORM_TOGGLE_THEME_BUTTON_TAG
+        )
 
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),

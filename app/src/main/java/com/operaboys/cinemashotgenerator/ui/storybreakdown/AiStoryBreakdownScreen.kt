@@ -23,8 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,6 +60,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.JsonDiagnosis
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownResult
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -77,12 +81,18 @@ const val AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG = "aiBreakdown.generatePromptB
 
 /** رفع G14 ممیزی post-Unit16 — کارت خطای واقعی validateTargetShotCountRange (به‌جای کوتاه‌سازی خاموش). */
 const val AI_BREAKDOWN_TARGET_SHOT_COUNT_ERROR_TAG = "aiBreakdown.targetShotCountError"
+const val AI_BREAKDOWN_BACK_BUTTON_TAG = "aiBreakdown.backButton"
+const val AI_BREAKDOWN_TOGGLE_LANGUAGE_BUTTON_TAG = "aiBreakdown.toggleLanguageButton"
+const val AI_BREAKDOWN_TOGGLE_THEME_BUTTON_TAG = "aiBreakdown.toggleThemeButton"
 
 @Composable
 fun AiStoryBreakdownScreen(
     projectId: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onConfirmedAndSaved: () -> Unit,
     storyRepository: StoryRepository? = null,
     assetRepository: AssetRepository? = null,
@@ -115,7 +125,13 @@ fun AiStoryBreakdownScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        BreakdownHeader(language = language, onBack = onBack)
+        BreakdownHeader(
+            language = language,
+            theme = theme,
+            onBack = onBack,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme
+        )
         PhaseStepperRow(
             currentPhase = phase,
             onPhaseSelected = { selected ->
@@ -175,22 +191,37 @@ fun AiStoryBreakdownScreen(
 }
 
 @Composable
-private fun BreakdownHeader(language: Language, onBack: () -> Unit) {
+private fun BreakdownHeader(
+    language: Language,
+    theme: AppTheme,
+    onBack: () -> Unit,
+    onToggleLanguage: () -> Unit,
+    onToggleTheme: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(onClick = onBack, modifier = Modifier.testTag(AI_BREAKDOWN_BACK_BUTTON_TAG)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
-        Column(modifier = Modifier.padding(start = 4.dp)) {
+        Column(modifier = Modifier.padding(start = 4.dp).weight(1f)) {
             Text(text = uiString("drawer.aiBreakdown", language), style = MaterialTheme.typography.titleMedium)
             Text(
                 text = uiString("aiBreakdown.subtitle", language),
                 style = MaterialTheme.typography.labelSmall,
                 color = CinemaTheme.extendedColors.fg3
+            )
+        }
+        IconButton(onClick = onToggleLanguage, modifier = Modifier.testTag(AI_BREAKDOWN_TOGGLE_LANGUAGE_BUTTON_TAG)) {
+            Icon(Icons.Filled.Translate, contentDescription = uiString("home.toggleLanguageButton", language))
+        }
+        IconButton(onClick = onToggleTheme, modifier = Modifier.testTag(AI_BREAKDOWN_TOGGLE_THEME_BUTTON_TAG)) {
+            Icon(
+                if (theme == AppTheme.DARK) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                contentDescription = uiString("home.toggleThemeButton", language)
             )
         }
     }

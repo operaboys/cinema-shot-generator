@@ -264,6 +264,30 @@ class BackupsFlowTest {
         assertTrue(runBlocking { fakeBackupStorage.listFiles("backup_${PROJECT_ID.length}_${PROJECT_ID}_") }.isEmpty())
     }
 
+    /**
+     * یافته‌ی #۱۶ appendix ADR-081 (ADR-087): دکمه‌های سریع زبان/تم که قبلاً فقط
+     * روی HomeHeader بودند اکنون به هر صفحه‌ی داخلی هم تزریق شده‌اند. این تست
+     * اثبات می‌کند کلیک این دو دکمه‌ی تازه‌ی Backups واقعاً State سراسری
+     * WorkflowViewModel را عوض می‌کند — نه فقط این‌که دکمه‌ها رندر می‌شوند.
+     */
+    @Test
+    fun `the header's language and theme toggle buttons actually change global WorkflowViewModel state`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        val initialLanguage = workflowViewModel.language.value
+        val initialTheme = workflowViewModel.theme.value
+
+        composeRule.onNodeWithTag(BACKUPS_TOGGLE_LANGUAGE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.language.value != initialLanguage)
+
+        composeRule.onNodeWithTag(BACKUPS_TOGGLE_THEME_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.theme.value != initialTheme)
+    }
+
     /** رفع یافته‌ی 🔴 G20 ممیزی post-Unit16: Cancel دیالوگ Delete نباید بکاپ را حذف کند. */
     @Test
     fun `cancelling the delete confirmation dialog leaves the backup in the list`() {

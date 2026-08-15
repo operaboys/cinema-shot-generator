@@ -60,6 +60,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -268,5 +269,27 @@ class ValidationFlowTest {
             .assertTextContains(uiString("validation.blockingLabel", Language.FA), substring = true)
         composeRule.onNodeWithTag(VALIDATION_WARNING_COUNT_CARD_TAG)
             .assertTextContains(uiString("validation.warningLabel", Language.FA), substring = true)
+    }
+
+    /**
+     * یافته‌ی #۱۶ appendix ADR-081 (ADR-087): دکمه‌های سریع زبان/تم که قبلاً فقط
+     * روی HomeHeader بودند اکنون به هر صفحه‌ی داخلی هم تزریق شده‌اند. این تست
+     * اثبات می‌کند کلیک این دو دکمه‌ی تازه‌ی Validation واقعاً State سراسری
+     * WorkflowViewModel را عوض می‌کند — نه فقط این‌که دکمه‌ها رندر می‌شوند.
+     */
+    @Test
+    fun `the header's language and theme toggle buttons actually change global WorkflowViewModel state`() {
+        createProjectAndOpenValidation()
+
+        val initialLanguage = workflowViewModel.language.value
+        val initialTheme = workflowViewModel.theme.value
+
+        composeRule.onNodeWithTag(VALIDATION_TOGGLE_LANGUAGE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.language.value != initialLanguage)
+
+        composeRule.onNodeWithTag(VALIDATION_TOGGLE_THEME_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.theme.value != initialTheme)
     }
 }

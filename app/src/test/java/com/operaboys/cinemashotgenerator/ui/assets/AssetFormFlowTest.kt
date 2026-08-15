@@ -33,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -200,6 +201,30 @@ class AssetFormFlowTest {
     // شناسه‌ی موجود را به‌روزرسانی می‌کند (نه یک رکورد تازه) — با REPLACE بودن
     // OnConflictStrategy در AssetDao، اثبات «فقط یک رکورد باقی می‌ماند» دقیقاً همان
     // اثبات «شناسه تکرار نشد» است.
+
+    /**
+     * یافته‌ی #۱۶ appendix ADR-081 (ADR-087): دکمه‌های سریع زبان/تم که قبلاً فقط
+     * روی HomeHeader بودند اکنون به هر صفحه‌ی داخلی هم تزریق شده‌اند. این تست
+     * اثبات می‌کند کلیک این دو دکمه‌ی تازه‌ی فرم Character واقعاً State سراسری
+     * WorkflowViewModel را عوض می‌کند — نه فقط این‌که دکمه‌ها رندر می‌شوند.
+     */
+    @Test
+    fun `the character form header's language and theme toggle buttons actually change global WorkflowViewModel state`() {
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("characterForm.title", Language.FA)), timeoutMillis = 5_000)
+
+        val initialLanguage = workflowViewModel.language.value
+        val initialTheme = workflowViewModel.theme.value
+
+        composeRule.onNodeWithTag(CHARACTER_FORM_TOGGLE_LANGUAGE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.language.value != initialLanguage)
+
+        composeRule.onNodeWithTag(CHARACTER_FORM_TOGGLE_THEME_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        assertTrue(workflowViewModel.theme.value != initialTheme)
+    }
 
     @Test
     fun `clicking an existing character card opens the edit form pre-filled, and saving updates the same asset instead of creating a new one`() {

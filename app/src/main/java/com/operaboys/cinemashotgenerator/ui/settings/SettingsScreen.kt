@@ -76,6 +76,8 @@ const val SETTINGS_HOME_IMAGE_PREVIEW_TAG = "settings.homeImagePreview"
 const val SETTINGS_HOME_IMAGE_PREVIEW_IMAGE_TAG = "settings.homeImagePreview.image"
 /** یافته‌ی ۳ appendix ADR-081 (ADR-083): رشته‌ی نسخه‌ی واقعی کارت درباره. */
 const val SETTINGS_ABOUT_VERSION_TAG = "settings.aboutVersion"
+const val SETTINGS_TOGGLE_LANGUAGE_BUTTON_TAG = "settings.toggleLanguageButton"
+const val SETTINGS_TOGGLE_THEME_BUTTON_TAG = "settings.toggleThemeButton"
 
 fun settingsAutoSaveCadenceChipTag(seconds: Long): String = "settings.autoSaveCadence.$seconds"
 
@@ -122,7 +124,13 @@ fun SettingsScreen(
             title = uiString("drawer.settings", language),
             subtitle = uiString("settings.subtitle", language),
             onBack = onBack,
-            backTestTag = SETTINGS_BACK_BUTTON_TAG
+            backTestTag = SETTINGS_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+            onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) },
+            toggleLanguageTestTag = SETTINGS_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = SETTINGS_TOGGLE_THEME_BUTTON_TAG
         )
 
         Column(

@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +46,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.dna.DnaTabContent
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
@@ -76,6 +80,8 @@ import kotlinx.coroutines.isActive
 // به Home، تنها راه واقعی رسیدن به Drawer — StudioShell خودش دکمه‌ی همبرگری ندارد).
 const val STUDIO_BACK_BUTTON_TAG = "studio.backButton"
 const val STUDIO_TITLE_TAG = "studio.title"
+const val STUDIO_TOGGLE_LANGUAGE_BUTTON_TAG = "studio.toggleLanguageButton"
+const val STUDIO_TOGGLE_THEME_BUTTON_TAG = "studio.toggleThemeButton"
 
 @Composable
 fun StudioShell(
@@ -108,6 +114,7 @@ fun StudioShell(
     onNavigateToOutputDelivery: (sceneId: String, sceneNumber: Int, sceneDisplayTitle: String, shotId: String) -> Unit = { _, _, _, _ -> }
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
+    val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
     val autoSaveCadenceSeconds by workflowViewModel.autoSaveCadenceSeconds.collectAsStateWithLifecycle()
     val allowFreeStepJump by workflowViewModel.allowFreeStepJump.collectAsStateWithLifecycle()
@@ -184,7 +191,10 @@ fun StudioShell(
             sceneCount = summary?.sceneCount ?: 0,
             shotCount = summary?.shotCount ?: 0,
             language = language,
-            onBack = onBack
+            theme = theme,
+            onBack = onBack,
+            onToggleLanguage = { workflowViewModel.setLanguage(if (language == Language.FA) Language.EN else Language.FA) },
+            onToggleTheme = { workflowViewModel.setTheme(if (theme == AppTheme.DARK) AppTheme.LIGHT else AppTheme.DARK) }
         )
         StudioTopTabRow(
             selectedTab = selectedTab,
@@ -235,7 +245,16 @@ fun StudioShell(
 }
 
 @Composable
-private fun StudioHeader(title: String, sceneCount: Int, shotCount: Int, language: Language, onBack: () -> Unit) {
+private fun StudioHeader(
+    title: String,
+    sceneCount: Int,
+    shotCount: Int,
+    language: Language,
+    theme: AppTheme,
+    onBack: () -> Unit,
+    onToggleLanguage: () -> Unit,
+    onToggleTheme: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -251,6 +270,15 @@ private fun StudioHeader(title: String, sceneCount: Int, shotCount: Int, languag
                 text = uiTemplate("project.metaTemplate", language, "scenes" to sceneCount.toString(), "shots" to shotCount.toString()),
                 style = MaterialTheme.typography.labelSmall,
                 color = CinemaTheme.extendedColors.fg3
+            )
+        }
+        IconButton(onClick = onToggleLanguage, modifier = Modifier.testTag(STUDIO_TOGGLE_LANGUAGE_BUTTON_TAG)) {
+            Icon(Icons.Filled.Translate, contentDescription = uiString("home.toggleLanguageButton", language))
+        }
+        IconButton(onClick = onToggleTheme, modifier = Modifier.testTag(STUDIO_TOGGLE_THEME_BUTTON_TAG)) {
+            Icon(
+                if (theme == AppTheme.DARK) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                contentDescription = uiString("home.toggleThemeButton", language)
             )
         }
         // یافته‌ی واقعی بازبینی نهایی (واحد ۱۶ فاز ۶ قدم ۲، ADR-059): همان کلاس باگ

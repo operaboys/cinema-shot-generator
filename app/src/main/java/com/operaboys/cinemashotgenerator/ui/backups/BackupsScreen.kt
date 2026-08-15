@@ -41,6 +41,7 @@ import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.BackupKind
 import com.operaboys.cinemashotgenerator.data.repository.BackupSummary
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -55,6 +56,8 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 const val BACKUPS_BACK_BUTTON_TAG = "backups.backButton"
 const val BACKUPS_CREATE_BUTTON_TAG = "backups.createButton"
 const val BACKUPS_CLOUD_SYNC_BANNER_TAG = "backups.cloudSyncBanner"
+const val BACKUPS_TOGGLE_LANGUAGE_BUTTON_TAG = "backups.toggleLanguageButton"
+const val BACKUPS_TOGGLE_THEME_BUTTON_TAG = "backups.toggleThemeButton"
 
 fun backupRestoreButtonTag(backupId: String): String = "backups.restoreButton.$backupId"
 fun backupDeleteButtonTag(backupId: String): String = "backups.deleteButton.$backupId"
@@ -65,7 +68,10 @@ fun BackupsScreen(
     projectId: String?,
     projectName: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
     backupFileStorage: BackupFileStorage? = null,
     database: AppDatabase? = null,
@@ -76,7 +82,13 @@ fun BackupsScreen(
             title = uiString("drawer.backups", language),
             subtitle = uiString("backups.subtitle", language),
             onBack = onBack,
-            backTestTag = BACKUPS_BACK_BUTTON_TAG
+            backTestTag = BACKUPS_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = BACKUPS_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = BACKUPS_TOGGLE_THEME_BUTTON_TAG
         )
 
         CloudSyncBanner(language = language, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))

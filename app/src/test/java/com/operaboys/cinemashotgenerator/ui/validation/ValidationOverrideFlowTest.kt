@@ -62,6 +62,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationLevel
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -182,6 +183,7 @@ class ValidationOverrideFlowTest {
                     sceneId = SCENE_ID,
                     shotId = SHOT_ID,
                     language = Language.FA,
+                    theme = AppTheme.DARK,
                     onBack = {},
                     shotRepository = shotRepository,
                     sceneRepository = sceneRepository,

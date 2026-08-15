@@ -22,12 +22,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forest
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +72,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
@@ -115,6 +119,8 @@ const val SCENE_DETAIL_DELETE_MENU_ITEM_TAG = "sceneDetail.deleteMenuItem"
 const val SCENE_DETAIL_DELETE_CONFIRM_BUTTON_TAG = "sceneDetail.deleteConfirmButton"
 /** یافته‌ی #۱۱ appendix ADR-081 (ADR-085) — دکمه‌ی «افزودن Asset» پایین Tab. */
 const val SCENE_DETAIL_ADD_ASSET_BUTTON_TAG = "sceneDetail.addAssetButton"
+const val SCENE_DETAIL_TOGGLE_LANGUAGE_BUTTON_TAG = "sceneDetail.toggleLanguageButton"
+const val SCENE_DETAIL_TOGGLE_THEME_BUTTON_TAG = "sceneDetail.toggleThemeButton"
 
 fun sceneDetailLocationPickerItemTag(assetId: String): String = "sceneDetail.locationPicker.item.$assetId"
 fun sceneDetailLinkedAssetCardTag(assetId: String): String = "sceneDetail.linkedAsset.$assetId"
@@ -126,7 +132,10 @@ fun SceneDetailScreen(
     projectId: String,
     sceneId: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onNavigateToScene: (String) -> Unit,
     /** (shotId، سطر null یعنی «شات جدید»، sceneNumber، عنوان نمایشی صحنه) — این دو مقدار آخر مستقیماً از اینجا منتقل می‌شوند تا Shot Composer نیازی به بارگذاری مجدد Scene نداشته باشد. */
     onNavigateToShot: (String?, Int, String) -> Unit = { _, _, _ -> },
@@ -173,7 +182,10 @@ fun SceneDetailScreen(
         SceneDetailHeader(
             title = scene?.let { sceneDisplayTitle(it.sceneTitle, it.sceneNumber, language) } ?: "",
             language = language,
+            theme = theme,
             onBack = onBack,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
             menuExpanded = showOverflowMenu,
             onMenuExpandedChange = { showOverflowMenu = it },
             onHistoryClick = { showOverflowMenu = false; onShowMessage(uiString("sceneDetail.historyComingSoon", language)) },
@@ -340,7 +352,10 @@ private fun DeleteSceneDialog(language: Language, onDismiss: () -> Unit, onConfi
 private fun SceneDetailHeader(
     title: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit,
+    onToggleTheme: () -> Unit,
     menuExpanded: Boolean,
     onMenuExpandedChange: (Boolean) -> Unit,
     onHistoryClick: () -> Unit,
@@ -354,6 +369,15 @@ private fun SceneDetailHeader(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
         }
         Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 4.dp))
+        IconButton(onClick = onToggleLanguage, modifier = Modifier.testTag(SCENE_DETAIL_TOGGLE_LANGUAGE_BUTTON_TAG)) {
+            Icon(Icons.Filled.Translate, contentDescription = uiString("home.toggleLanguageButton", language))
+        }
+        IconButton(onClick = onToggleTheme, modifier = Modifier.testTag(SCENE_DETAIL_TOGGLE_THEME_BUTTON_TAG)) {
+            Icon(
+                if (theme == AppTheme.DARK) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                contentDescription = uiString("home.toggleThemeButton", language)
+            )
+        }
         Box {
             IconButton(onClick = { onMenuExpandedChange(true) }, modifier = Modifier.testTag(SCENE_DETAIL_MENU_BUTTON_TAG)) {
                 Icon(Icons.Filled.MoreVert, contentDescription = null)

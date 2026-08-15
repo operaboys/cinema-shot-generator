@@ -65,6 +65,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
@@ -99,6 +100,8 @@ const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
 const val SHOT_COMPOSER_BACK_BUTTON_TAG = "shotComposer.backButton"
 const val SHOT_COMPOSER_VALIDATION_BUTTON_TAG = "shotComposer.validationButton"
 const val SHOT_COMPOSER_OUTPUT_DELIVERY_BUTTON_TAG = "shotComposer.outputDeliveryButton"
+const val SHOT_COMPOSER_TOGGLE_LANGUAGE_BUTTON_TAG = "shotComposer.toggleLanguageButton"
+const val SHOT_COMPOSER_TOGGLE_THEME_BUTTON_TAG = "shotComposer.toggleThemeButton"
 
 /**
  * یافته‌ی #۱۳ appendix ADR-081 (ADR-086) — دقیقاً همان زیرمجموعه‌ی ۴تایی
@@ -127,7 +130,10 @@ fun ShotComposerScreen(
     sceneDisplayTitle: String,
     shotId: String?,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onNavigateToValidation: (shotId: String) -> Unit = {},
     onNavigateToOutputDelivery: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
@@ -168,7 +174,13 @@ fun ShotComposerScreen(
             title = uiString("shotComposer.title", language),
             subtitle = uiTemplate("shotComposer.subtitleTemplate", language, "scene" to sceneDisplayTitle, "number" to shotNumber.toString()),
             onBack = onBack,
-            backTestTag = SHOT_COMPOSER_BACK_BUTTON_TAG
+            backTestTag = SHOT_COMPOSER_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = SHOT_COMPOSER_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = SHOT_COMPOSER_TOGGLE_THEME_BUTTON_TAG
         )
 
         // یافته‌ی واقعی دیباگ ADR-086: قبلاً فقط این بخش (بین Hero و پنل خلاصه‌ی

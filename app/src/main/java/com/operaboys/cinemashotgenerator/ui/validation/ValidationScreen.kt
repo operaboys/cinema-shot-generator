@@ -53,6 +53,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.LeveledValidationIssu
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationLevel
+import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
@@ -71,6 +72,8 @@ const val VALIDATION_BACK_BUTTON_TAG = "validation.backButton"
 const val VALIDATION_BLOCKING_COUNT_CARD_TAG = "validation.blockingCountCard"
 const val VALIDATION_WARNING_COUNT_CARD_TAG = "validation.warningCountCard"
 const val VALIDATION_OUTPUT_DELIVERY_BUTTON_TAG = "validation.outputDeliveryButton"
+const val VALIDATION_TOGGLE_LANGUAGE_BUTTON_TAG = "validation.toggleLanguageButton"
+const val VALIDATION_TOGGLE_THEME_BUTTON_TAG = "validation.toggleThemeButton"
 
 fun validationLevelSectionTag(level: ValidationLevel): String = "validation.levelSection.${level.name}"
 fun validationIssueCardTag(level: ValidationLevel, index: Int): String = "validation.issueCard.${level.name}.$index"
@@ -81,7 +84,10 @@ fun ValidationScreen(
     sceneId: String,
     shotId: String,
     language: Language,
+    theme: AppTheme,
     onBack: () -> Unit,
+    onToggleLanguage: () -> Unit = {},
+    onToggleTheme: () -> Unit = {},
     onNavigateToOutputDelivery: (shotId: String) -> Unit = {},
     shotRepository: ShotRepository? = null,
     sceneRepository: SceneRepository? = null,
@@ -123,7 +129,13 @@ fun ValidationScreen(
             title = uiString("validation.title", language),
             subtitle = uiString("validation.subtitle", language),
             onBack = onBack,
-            backTestTag = VALIDATION_BACK_BUTTON_TAG
+            backTestTag = VALIDATION_BACK_BUTTON_TAG,
+            language = language,
+            theme = theme,
+            onToggleLanguage = onToggleLanguage,
+            onToggleTheme = onToggleTheme,
+            toggleLanguageTestTag = VALIDATION_TOGGLE_LANGUAGE_BUTTON_TAG,
+            toggleThemeTestTag = VALIDATION_TOGGLE_THEME_BUTTON_TAG
         )
 
         // ورودی مستقیم به Output Delivery — طبق دستور کار قدم ۳ فاز ۵ («نقطه‌ی ورود
