@@ -99,6 +99,8 @@ fun AppNavHost(
                 storyRepository = storyRepository,
                 projectDnaRepository = projectDnaRepository,
                 sceneRepository = sceneRepository,
+                shotRepository = shotRepository,
+                assetRepository = assetRepository,
                 autoSaveManager = autoSaveManager,
                 backupFileStorage = backupFileStorage,
                 database = database,
@@ -108,6 +110,16 @@ fun AppNavHost(
                 },
                 onNavigateToScene = { sceneId ->
                     navController.navigate(SceneDetail(studio.projectId, sceneId)) { launchSingleTop = true }
+                },
+                onNavigateToValidation = { sceneId, sceneNumber, sceneDisplayTitle, shotId ->
+                    navController.navigate(
+                        Validation(studio.projectId, sceneId, sceneNumber, sceneDisplayTitle, shotId)
+                    ) { launchSingleTop = true }
+                },
+                onNavigateToOutputDelivery = { sceneId, sceneNumber, sceneDisplayTitle, shotId ->
+                    navController.navigate(
+                        OutputDelivery(studio.projectId, sceneId, sceneNumber, sceneDisplayTitle, shotId)
+                    ) { launchSingleTop = true }
                 }
             )
         }

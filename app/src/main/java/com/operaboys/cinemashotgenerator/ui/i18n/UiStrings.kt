@@ -93,6 +93,15 @@ val faStrings: Map<String, String> = mapOf(
     // فاز ۱ — Studio Shell
     "studio.saved" to "ذخیره شد",
     "studio.tabPlaceholder" to "این بخش در فاز بعدی تکمیل می‌شود",
+    // یافته‌ی #۱۴ appendix ADR-081 (ADR-084) — Tab «خروجی» Studio، متن دقیق mockup
+    // (docs/design/Cinema Studio.html، x.k19-k22).
+    "studioOutput.validationCardTitle" to "مرحله ۶ — Validation",
+    "studioOutput.validationCountsTemplate" to "{blocking} Blocking · {warning} Warning — تا رفع Blocking، Prompt Generation غیرفعال است",
+    "studioOutput.promptGenerationCardTitle" to "مرحله ۷ — Prompt Generation",
+    "studioOutput.readyShotsTemplate" to "{ready} از {total} شات آماده (بدون خطای Blocking)",
+    "studioOutput.shareButtonLabel" to "مرحله ۸ — Output Delivery",
+    "studioOutput.emptyState" to "هنوز هیچ شاتی در این پروژه نیست",
+    "studioOutput.pickShotDialogTitle" to "انتخاب شات",
 
     // فاز ۲ — Story Tab
     "story.titleLabel" to "عنوان پروژه",
@@ -909,6 +918,13 @@ val enStrings: Map<String, String> = mapOf(
     // Phase 1 — Studio Shell
     "studio.saved" to "Saved",
     "studio.tabPlaceholder" to "This section will be completed in a later phase",
+    "studioOutput.validationCardTitle" to "Step 6 — Validation",
+    "studioOutput.validationCountsTemplate" to "{blocking} Blocking · {warning} Warning — until Blocking is resolved, Prompt Generation is disabled",
+    "studioOutput.promptGenerationCardTitle" to "Step 7 — Prompt Generation",
+    "studioOutput.readyShotsTemplate" to "{ready} of {total} shots ready (no Blocking issues)",
+    "studioOutput.shareButtonLabel" to "Step 8 — Output Delivery",
+    "studioOutput.emptyState" to "No shots in this project yet",
+    "studioOutput.pickShotDialogTitle" to "Choose a shot",
 
     // Phase 2 — Story Tab
     "story.titleLabel" to "Project Title",

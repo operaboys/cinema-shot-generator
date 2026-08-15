@@ -1570,6 +1570,25 @@ URI)، با استخراج منطق decode مشترک از HomeScreen.kt؛ (۳) 
 پیاده‌سازی این اپ هم دقیقاً همان رفتار ثابت را کپی کرد. جزئیات کامل +
 جدول تست در `docs/adr/083-appendix-audit-tier2-fixes.md`.
 
+### ✅ Tab «خروجی» Studio — بزرگ‌ترین یافته‌ی باز appendix (ADR-084)
+
+یافته‌ی #۱۴ appendix ADR-081: `StudioShell.kt` تا این قدم Tab «خروجی» را
+به `StudioTabPlaceholder` می‌فرستاد. اکنون طبق mockup (`st.output`) یک
+Dashboard سطح‌پروژه‌ی واقعی است — نه خودِ `OutputDeliveryScreen` (که
+نیازمند `shotId` مشخص است، درحالی‌که این Tab سطح‌پروژه است): (۱) کارت
+وضعیت Validation با شمارش واقعی Blocking/Warning کل پروژه (کلیک →
+Validation)؛ (۲) کارت آماده‌بودن Prompt Generation با شمارش واقعی «N از
+M شات آماده (بدون خطای Blocking)» — به‌جای «Quality Score» جعلی mockup
+که هیچ الگوریتم واقعی پشتش نیست؛ (۳) دکمه‌ی گرادیانی اشتراک‌گذاری (کلیک
+→ Output Delivery). چون هر دو مقصد Navigate نیازمند یک Shot مشخص‌اند و
+این Tab بدون Shot خاص است: صفر Shot → غیرفعال؛ یک Shot → مستقیم؛ چند
+Shot → دیالوگ انتخاب کوتاه. پیاده‌سازی سبک‌وزن ماند —
+`ShotRepository.loadAllShotsForProject` تازه + یک `StudioOutputViewModel`
+که فقط `aggregateShotValidation` موجود (واحد ۰۷) را روی همه‌ی Shot های
+پروژه حلقه می‌زند، بدون هیچ Rule دامنه‌ی تازه. جزئیات کامل تصمیم‌ها
+(جایگزینی Quality Score، تفکیک Shot) + یافته‌های دیباگ + جدول تست در
+`docs/adr/084-studio-output-tab.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

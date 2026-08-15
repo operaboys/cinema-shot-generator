@@ -30,6 +30,7 @@ import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.studioTabTestTag
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
+import com.operaboys.cinemashotgenerator.ui.studio.STUDIO_OUTPUT_EMPTY_STATE_TAG
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -192,14 +193,25 @@ class HomeProjectsStudioFlowTest {
         composeRule.onNodeWithText(uiString("dna.group.coreIdentity", Language.FA)).assertIsDisplayed()
 
         // واحد ۱۶ فاز ۴ قدم ۱: Tab «صحنه‌ها» هم دیگر Placeholder نیست (محتوای واقعی
-        // ScenesListScreen دارد) — طبق docs/adr/050-unit16-phase4-step1-scene-detail.md؛
-        // این تست حالا Tab «خروجی» (تنها Tab باقی‌مانده‌ی واقعاً Placeholder) را برای
-        // اثبات «هنوز Placeholder» بررسی می‌کند.
+        // ScenesListScreen دارد) — طبق docs/adr/050-unit16-phase4-step1-scene-detail.md.
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.SCENES)).performClick()
         composeRule.onNodeWithText(uiString("scenesList.emptyState", Language.FA)).assertIsDisplayed()
 
+        // یافته‌ی #۱۴ appendix ADR-081 (ADR-084): Tab «خروجی» هم دیگر Placeholder
+        // نیست — برای پروژه‌ی تازه‌ساخته‌شده (بدون هیچ Shot) حالت خالی واقعی خودش
+        // (StudioOutputTabContent's emptyState) را نشان می‌دهد. جریان کامل با Shot
+        // واقعی Seed شده در StudioOutputTabFlowTest.kt پوشش داده شده است.
+        //
+        // یافته‌ی واقعی دیباگ این قدم: این تست (برخلاف StudioOutputTabFlowTest.kt)
+        // shotRepository/assetRepository را صریح به MainScaffold تزریق نمی‌کند، پس
+        // StudioOutputViewModel به AppDatabase.getInstance واقعی (نه دیتابیس
+        // In-Memory این تست) سقوط می‌کند — بارگذاری واقعاً کندتر می‌شود. این
+        // testTag بدون هیچ `waitUntil` صریحی، بلافاصله بعد از کلیک Tab بررسی
+        // می‌شود؛ `assertExists` (نه `assertIsDisplayed`) عمداً استفاده شد — همان
+        // الگوی مستندشده‌ی `OutputDeliveryFlowTest.kt` — چون آنچه این تست واقعاً
+        // می‌سنجد وجود واقعی حالت خالی است، نه رفتار دقیق Layout/Viewport.
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.OUTPUT)).performClick()
-        composeRule.onNodeWithText(uiString("studio.tabPlaceholder", Language.FA)).assertIsDisplayed()
+        composeRule.waitUntilExactlyOneExists(hasTestTag(STUDIO_OUTPUT_EMPTY_STATE_TAG), timeoutMillis = 15_000)
     }
 
     @Test

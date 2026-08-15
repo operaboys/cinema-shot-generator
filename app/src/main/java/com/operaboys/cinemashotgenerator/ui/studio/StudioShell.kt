@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.AutoSaveManager
 import com.operaboys.cinemashotgenerator.data.repository.BackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.BackupKind
@@ -39,6 +40,7 @@ import com.operaboys.cinemashotgenerator.data.repository.BackupManager
 import com.operaboys.cinemashotgenerator.data.repository.DeviceBackupFileStorage
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.dna.DnaTabContent
@@ -85,6 +87,8 @@ fun StudioShell(
     storyRepository: StoryRepository? = null,
     projectDnaRepository: ProjectDnaRepository? = null,
     sceneRepository: SceneRepository? = null,
+    shotRepository: ShotRepository? = null,
+    assetRepository: AssetRepository? = null,
     autoSaveManager: AutoSaveManager? = null,
     backupFileStorage: BackupFileStorage? = null,
     database: AppDatabase? = null,
@@ -95,7 +99,13 @@ fun StudioShell(
     // Persisted نیست).
     initialTab: String = "STORY",
     onNavigateToAiBreakdown: (String) -> Unit = {},
-    onNavigateToScene: (String) -> Unit = {}
+    onNavigateToScene: (String) -> Unit = {},
+    // یافته‌ی #۱۴ appendix ADR-081 (ADR-084): Tab «خروجی» — هر دو مقصد نیازمند
+    // یک shotId مشخص‌اند (Validation/OutputDelivery)؛ خودِ Tab این را با منطق
+    // «صفر/یک/چند شات» در StudioOutputTabContent حل می‌کند، فقط مسیر واقعی
+    // Navigate را از این‌جا می‌گیرد.
+    onNavigateToValidation: (sceneId: String, sceneNumber: Int, sceneDisplayTitle: String, shotId: String) -> Unit = { _, _, _, _ -> },
+    onNavigateToOutputDelivery: (sceneId: String, sceneNumber: Int, sceneDisplayTitle: String, shotId: String) -> Unit = { _, _, _, _ -> }
 ) {
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val workflowState by workflowViewModel.workflowState.collectAsStateWithLifecycle()
@@ -206,6 +216,17 @@ fun StudioShell(
                 language = language,
                 onOpenScene = onNavigateToScene,
                 sceneRepository = sceneRepository,
+                modifier = Modifier.fillMaxSize()
+            )
+            StudioTab.OUTPUT -> StudioOutputTabContent(
+                projectId = projectId,
+                language = language,
+                onNavigateToValidation = onNavigateToValidation,
+                onNavigateToOutputDelivery = onNavigateToOutputDelivery,
+                shotRepository = shotRepository,
+                sceneRepository = sceneRepository,
+                projectDnaRepository = projectDnaRepository,
+                assetRepository = assetRepository,
                 modifier = Modifier.fillMaxSize()
             )
             else -> StudioTabPlaceholder(language = language, modifier = Modifier.fillMaxSize())

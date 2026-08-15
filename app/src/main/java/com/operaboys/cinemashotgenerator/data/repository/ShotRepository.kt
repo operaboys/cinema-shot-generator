@@ -53,6 +53,16 @@ class ShotRepository(private val shotDao: ShotDao) {
         }
     }
 
+    /**
+     * یافته‌ی #۱۴ appendix ADR-081 (ADR-084) — Tab «خروجی» Studio: تنها معادل
+     * سطح دامنه‌ی `ShotDao.getShotsForProject` که تا این قدم وجود نداشت (فقط
+     * `findShotIdsUsingAsset` زیر همین Query را داخلی Decode می‌کرد، بدون افشای
+     * لیست کامل Shot). همان الگوی Decode دقیق آن تابع.
+     */
+    suspend fun loadAllShotsForProject(projectId: String): List<Shot> =
+        shotDao.getShotsForProject(projectId)
+            .map { json.decodeFromString(ShotDto.serializer(), it.shotDataJson).toDomain() }
+
     // رفع G22 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md، docs/adr/062-...):
     // ShotDao.deleteShot از قبل موجود بود اما هیچ Repository/UI ای صدایش نمی‌زد.
     // برخلاف Scene/Asset، هیچ Rule دامنه‌ای حذف Shot را مشروط نکرده (بلوپرینت‌های
