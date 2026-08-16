@@ -623,7 +623,7 @@ private fun LinkedAssetCard(summary: LinkedAssetSummary, language: Language, onR
 /**
  * طبق mockup (`act.openSheet`، `x.k34`) این دکمه در mockup یک ModalBottomSheet
  * باز می‌کرد؛ این پروژه عمداً از ModalBottomSheet استفاده نمی‌کند (تصمیم
- * ADR-052، مستند در appendix ADR-081 «عناصر مشترک») — همان‌جا که mockup Sheet
+ * ADR-085، مستند در appendix ADR-081 «عناصر مشترک») — همان‌جا که mockup Sheet
  * باز می‌کرد، اینجا (Tab Assets صحنه) هم مثل بقیه‌ی نقاط مشابه یک Dialog باز
  * می‌شود (`AssetLinkPickerDialog` پایین‌تر).
  */
