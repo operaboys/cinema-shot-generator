@@ -400,7 +400,7 @@ fun evaluatePromptQuality(renderedOutput: RenderedOutput, blueprint: PromptBluep
 
 | بخش این سند | ادعا | واقعیت پیاده‌سازی‌شده | چرا |
 |---|---|---|---|
-| «یادداشت پیاده‌سازی» + معیارهای موفقیت | استفاده از `ModalBottomSheet` (Material 3) برای انتخاب Asset | یک **Dialog** استاندارد (`AssetLinkPickerDialog`) — نه `ModalBottomSheet` | تصمیم معماری صریح پروژه (`ADR-052`، دوباره تأیید شده در `ADR-085`): کل پروژه عمداً از الگوی `ModalBottomSheet` صرف‌نظر کرد و همه‌جا از Dialog/Dropdown استفاده کرد. `grep -rln "ModalBottomSheet" app/src/main` در کل رپو نتیجه‌ی کاملاً خالی می‌دهد. |
+| «یادداشت پیاده‌سازی» + معیارهای موفقیت | استفاده از `ModalBottomSheet` (Material 3) برای انتخاب Asset | یک **Dialog** استاندارد (`AssetLinkPickerDialog`) — نه `ModalBottomSheet` | تصمیم معماری صریح پروژه (`ADR-085`): کل پروژه عمداً از الگوی `ModalBottomSheet` صرف‌نظر کرد و همه‌جا از Dialog/Dropdown استفاده کرد. `grep -rln "ModalBottomSheet" app/src/main` در کل رپو نتیجه‌ی کاملاً خالی می‌دهد. |
 | سنجش کیفیت (Quality Rubric) | `evaluatePromptQuality`/`QualityScore` «ابزار کمکی/اختیاری» | پیاده‌سازی کامل الگوریتم موجود است (نه `TODO()`)، اما **صفر فراخوان‌کننده در UI** دارد | این بخشِ سند از ابتدا این ابزار را «اختیاری» توصیف کرده بود، پس نبود اتصال UI با متن سند در تضاد نیست — فقط یک یادآوری که این ویژگی هنوز به هیچ صفحه‌ای وصل نشده، برخلاف آنچه ممکن است از عبارت «به‌عنوان یک قابلیت داخلی اپ» برداشت شود. |
 
 **نتیجه:** اگر Claude Code یا یک معمار در آینده بخواهد بر اساس این بلوپرینت کاری
