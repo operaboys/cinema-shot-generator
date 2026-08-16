@@ -11,7 +11,12 @@ import com.operaboys.cinemashotgenerator.data.repository.BackupKind
 import com.operaboys.cinemashotgenerator.data.repository.BackupManager
 import com.operaboys.cinemashotgenerator.data.repository.BackupSummary
 import com.operaboys.cinemashotgenerator.data.repository.DeviceBackupFileStorage
+import com.operaboys.cinemashotgenerator.data.repository.DeviceExportFileWriter
+import com.operaboys.cinemashotgenerator.data.repository.ExportFileWriter
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.ExportFile
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +33,11 @@ class BackupsViewModel(
     private val projectId: String,
     backupFileStorage: BackupFileStorage? = null,
     database: AppDatabase? = null,
+    // رفع یافته‌ی #۱۲ appendix (ADR-089): هم‌الگو دقیق با
+    // OutputDeliveryViewModel.exportFileWriter — تزریق‌پذیر برای تست، در اپ واقعی
+    // همیشه پیش‌فرض DeviceExportFileWriter(application) است (بدون نیاز به سیم‌کشی
+    // از BackupsScreen/AppNavHost، دقیقاً هم‌الگو با OutputDeliveryScreen).
+    private val exportFileWriter: ExportFileWriter = DeviceExportFileWriter(application),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -93,6 +103,34 @@ class BackupsViewModel(
         ioScope.launch {
             backupManager.deleteBackup(backupId)
             refresh()
+        }
+    }
+
+    // رفع یافته‌ی #۱۲ appendix (ADR-089): هم‌الگو دقیق با
+    // OutputDeliveryViewModel.exportedFiles/exportOutput/clearExportedFiles —
+    // یک رویداد یک‌باره؛ UI این را Observe می‌کند تا Intent.ACTION_SEND[_MULTIPLE]
+    // واقعی را بسازد/باز کند (فقط لایه‌ی UI با Context یک Activity می‌تواند این
+    // کار را انجام دهد)، سپس clearExportedFiles را صدا می‌زند.
+    private val _exportedFiles = MutableStateFlow<List<File>?>(null)
+    val exportedFiles: StateFlow<List<File>?> = _exportedFiles.asStateFlow()
+
+    fun clearExportedFiles() {
+        _exportedFiles.value = null
+    }
+
+    /** تمام بکاپ‌های فعلی این پروژه را واقعاً روی دیسک می‌نویسد (برای Export All). */
+    fun exportAll(): Job = ioScope.launch {
+        val pairs = backupManager.readAllBackupsForExport().getOrElse { emptyList() }
+        if (pairs.isEmpty()) return@launch
+        val exportFiles = pairs.map { (fileName, content) -> ExportFile(fileName, content, "text/plain") }
+        _exportedFiles.value = exportFileWriter.writeExportFiles(exportFiles)
+    }
+
+    fun importBackup(content: String, onDone: (Result<String>) -> Unit = {}) {
+        ioScope.launch {
+            val result = backupManager.importBackup(content)
+            refresh()
+            onDone(result)
         }
     }
 

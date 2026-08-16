@@ -315,6 +315,99 @@ class BackupManagerTest {
         assertEquals(1, summariesAfter.size)
         assertTrue(summariesAfter.none { it.backupId == summariesBefore.first().backupId })
     }
+
+    // رفع یافته‌ی #۱۲ appendix (ADR-089، آخرین یافته‌ی سطح ۳ باقی‌مانده): Export All
+    // / Import Backup. یافته‌ی واقعی این قدم درباره‌ی سطح تست: کلیک واقعی روی
+    // دکمه‌ی Import در یک تست Compose End-to-End، خودِ سیستم‌عامل File Picker
+    // (ActivityResultContracts.GetContent) را باز می‌کند که در این کدبیس هیچ‌جای
+    // دیگری (حتی Import Project موجود، ADR-065) واقعاً شبیه‌سازی نشده — فقط سطح
+    // ViewModel/Repository تست شده (ProjectListViewModelImportTest.kt). همان مرز
+    // اینجا هم رعایت شد: این ۴ تست مستقیماً BackupManager.importBackup/
+    // readAllBackupsForExport را می‌سنجند (منطق واقعی اعتبارسنجی/جمع‌آوری
+    // محتوا)؛ سیم‌کشی واقعی دکمه‌ی Export All تا Intent.ACTION_SEND[_MULTIPLE]
+    // واقعی در BackupsFlowTest.kt (End-to-End UI) پوشش داده شده.
+
+    @Test
+    fun `importBackup accepts a valid backup file for the same project and it appears in the list`() = runBlocking {
+        seedFullProject(database)
+        val exportedContent = serializeFullProject(
+            projectId, database.projectDao(), database.sceneDao(), database.shotDao(),
+            database.assetDao(), database.projectDnaDao(), database.audioContextDao()
+        ).getOrThrow()
+
+        val before = backupManager.listBackups().getOrThrow()
+        assertTrue(before.isEmpty())
+
+        val result = backupManager.importBackup(exportedContent)
+        assertTrue(result.isSuccess)
+
+        val after = backupManager.listBackups().getOrThrow()
+        assertEquals(1, after.size)
+        assertEquals(BackupKind.MANUAL, after.first().kind)
+    }
+
+    @Test
+    fun `importBackup rejects malformed content with a real error, not silence`() = runBlocking {
+        val result = backupManager.importBackup("این یک بکاپ معتبر نیست، فقط متن ساده است")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.isNotBlank() == true)
+        assertTrue(backupManager.listBackups().getOrThrow().isEmpty())
+    }
+
+    @Test
+    fun `importBackup rejects a well-formed backup that belongs to a different project`() = runBlocking {
+        val otherProjectId = "proj_other_999"
+        val otherDatabase = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDatabase::class.java
+        ).allowMainThreadQueries().build()
+        otherDatabase.projectDao().saveProject(
+            ProjectEntity(otherProjectId, "Someone Else's Movie", "2026-07-01T00:00:00Z", "2026-07-01T00:00:00Z", "fa")
+        )
+        val foreignContent = serializeFullProject(
+            otherProjectId, otherDatabase.projectDao(), otherDatabase.sceneDao(), otherDatabase.shotDao(),
+            otherDatabase.assetDao(), otherDatabase.projectDnaDao(), otherDatabase.audioContextDao()
+        ).getOrThrow()
+        otherDatabase.close()
+
+        val result = backupManager.importBackup(foreignContent)
+
+        assertTrue(result.isFailure)
+        assertTrue(backupManager.listBackups().getOrThrow().isEmpty())
+    }
+
+    @Test
+    fun `readAllBackupsForExport returns the real file name and content of every existing backup`() = runBlocking {
+        seedFullProject(database)
+        val counter = intArrayOf(1)
+        // idProvider ثابت buildManager برای این تست کافی نیست (هر دو بکاپ باید
+        // backupId متفاوت داشته باشند تا هر دو در listFiles باقی بمانند)، پس یک
+        // manager جدا با idProvider شمارشی ساخته شد — هم‌الگو دقیق با تست بالای
+        // همین فایل («deleteBackup») که همین مشکل را همین‌طور حل کرده.
+        val counterManager = BackupManager(
+            projectId = projectId,
+            projectDao = database.projectDao(),
+            sceneDao = database.sceneDao(),
+            shotDao = database.shotDao(),
+            assetDao = database.assetDao(),
+            projectDnaDao = database.projectDnaDao(),
+            audioContextDao = database.audioContextDao(),
+            backupFileStorage = fakeStorage,
+            maxBackupsToKeep = 10,
+            idProvider = { "export_test_${counter[0]++}" }
+        )
+        counterManager.createBackup(BackupKind.MANUAL)
+        counterManager.createBackup(BackupKind.AUTO)
+
+        val exported = counterManager.readAllBackupsForExport().getOrThrow()
+
+        assertEquals(2, exported.size)
+        exported.forEach { (fileName, content) ->
+            assertTrue(fileName.endsWith(".csgb"))
+            assertTrue(content.contains(projectId))
+        }
+    }
 }
 
 /** Fake in-memory برای BackupFileStorage — تست‌پذیر بدون I/O واقعی دستگاه. */

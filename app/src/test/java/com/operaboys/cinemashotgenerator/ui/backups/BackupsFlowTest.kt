@@ -2,13 +2,17 @@ package com.operaboys.cinemashotgenerator.ui.backups
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -42,6 +46,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import java.util.UUID
 
@@ -69,7 +74,12 @@ private const val PROJECT_ID = "proj_backups_flow_test"
 class BackupsFlowTest {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    // رفع یافته‌ی #۱۲ appendix (ADR-089): createAndroidComposeRule<ComponentActivity>()
+    // به‌جای createComposeRule() (هم‌الگو دقیق با OutputDeliveryFlowTest.kt، ADR-069؛
+    // خودِ همان‌جا مستند شده که این دو Rule داخلاً یکسان می‌سازند، فقط این یکی
+    // `.activity` را هم افشا می‌کند) — برای تست واقعی Export All به Shadow Intent
+    // سیستم‌عامل (`Shadows.shadowOf(composeRule.activity)`) نیاز است.
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private lateinit var context: Context
     private lateinit var dataStoreFileName: String
@@ -189,8 +199,13 @@ class BackupsFlowTest {
         composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
 
         composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.kindManual", Language.FA)), timeoutMillis = 10_000)
-        composeRule.onNodeWithText(uiString("backups.restoreButton", Language.FA)).assertIsDisplayed()
-        composeRule.onNodeWithText(uiString("backups.deleteButton", Language.FA)).assertIsDisplayed()
+        // یافته‌ی واقعی این قدم (ADR-089): افزودن ردیف دکمه‌های Export All/Import
+        // Backup بالای فهرست، ارتفاع محتوای بالای این کارت را زیاد کرد — روی
+        // صفحه‌ی کوچک شبیه‌سازی‌شده‌ی تست، دکمه‌های Restore/Delete دیگر همیشه از
+        // ابتدا در Viewport نیستند؛ performScrollTo لازم شد (هم‌الگو دقیق با هر
+        // ارجاع دیگر به این دو دکمه در همین فایل).
+        composeRule.onNodeWithText(uiString("backups.restoreButton", Language.FA)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(uiString("backups.deleteButton", Language.FA)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -305,5 +320,65 @@ class BackupsFlowTest {
 
         composeRule.onNodeWithText(uiString("backups.kindManual", Language.FA)).assertIsDisplayed()
         assertTrue(runBlocking { fakeBackupStorage.listFiles("backup_${PROJECT_ID.length}_${PROJECT_ID}_") }.isNotEmpty())
+    }
+
+    /**
+     * رفع یافته‌ی #۱۲ appendix (ADR-089، آخرین یافته‌ی سطح ۳ باقی‌مانده) — Export
+     * All. هم‌الگو دقیق با تست معادل OutputDeliveryFlowTest.kt («the Export
+     * button starts a real ACTION_SEND_MULTIPLE chooser», ADR-069): طبق دستور
+     * کار («بدون نیاز به تست واقعی Intent System»)، فقط بررسی می‌شود چه Intent
+     * ای واقعاً startActivity شده — نه رفتار واقعی Chooser/اپ مقصد. با ۲ بکاپ
+     * دستی Seed‌شده، Intent باید دقیقاً ۲ Uri داشته باشد.
+     */
+    @Test
+    fun `the Export All button starts a real ACTION_SEND_MULTIPLE chooser containing every existing backup`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
+        composeRule.waitUntilAtLeastOneExists(hasText(uiString("backups.kindManual", Language.FA)), timeoutMillis = 10_000)
+        composeRule.onNodeWithTag(BACKUPS_CREATE_BUTTON_TAG).performScrollTo().clickViaSemantics()
+        // یافته‌ی واقعی این قدم: بررسی مستقیم fakeBackupStorage با runBlocking
+        // درون waitUntil (اولین تلاش) بی‌اعتماد بود — دو Dispatcher (Compose
+        // Idling در این Thread، Coroutine واقعی createManualBackup روی
+        // viewModelScope) واقعاً هم‌زمان نمی‌شدند. رفع: ماندن کاملاً درون درخت
+        // Semantics خودِ Compose (شمارش واقعی تعداد دکمه‌ی «بازیابی» رندرشده)،
+        // هم‌الگو با بقیه‌ی waitUntilXxx این فایل.
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText(uiString("backups.restoreButton", Language.FA)).fetchSemanticsNodes().size == 2
+        }
+
+        composeRule.onNodeWithTag(BACKUPS_EXPORT_ALL_BUTTON_TAG).performScrollTo().clickViaSemantics()
+        // exportAll() نوشتن فایل را روی Dispatchers.IO انجام می‌دهد
+        // (ExportFileWriter.kt) — یک واقعی Hop به Executor دیگر که به‌تنهایی با
+        // waitForIdle هم‌زمان نمی‌شود؛ Poll صریح روی خودِ Shadow لازم است (همان
+        // یافته‌ی مستندشده‌ی OutputDeliveryFlowTest.kt).
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            Shadows.shadowOf(composeRule.activity).peekNextStartedActivity() != null
+        }
+
+        val startedIntent = Shadows.shadowOf(composeRule.activity).nextStartedActivity
+        assertTrue("دکمه‌ی Export All باید یک Activity واقعی (Chooser) باز کند", startedIntent != null)
+        assertEquals(Intent.ACTION_CHOOSER, startedIntent!!.action)
+
+        val innerIntent = startedIntent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+        assertTrue("Chooser باید یک Intent.ACTION_SEND_MULTIPLE واقعی بپوشاند", innerIntent != null)
+        assertEquals(Intent.ACTION_SEND_MULTIPLE, innerIntent!!.action)
+        assertEquals("text/plain", innerIntent.type)
+        val uris = innerIntent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+        assertEquals(2, uris?.size)
+    }
+
+    /** یافته‌ی واقعی این قدم: بدون هیچ بکاپی، Export All چیزی برای فرستادن ندارد. */
+    @Test
+    fun `the Export All button is disabled when the project has no backups yet`() {
+        setContent()
+        createProjectAndEnterStudio()
+        navigateToBackupsFromStudio()
+
+        composeRule.onNodeWithTag(BACKUPS_EXPORT_ALL_BUTTON_TAG)
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
     }
 }

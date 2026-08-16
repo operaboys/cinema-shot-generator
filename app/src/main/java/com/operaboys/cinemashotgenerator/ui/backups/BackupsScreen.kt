@@ -1,6 +1,9 @@
 package com.operaboys.cinemashotgenerator.ui.backups
 
 import android.app.Application
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +48,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.outputdelivery.buildExportShareIntent
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
 // واحد ۱۶ فاز ۶ — قدم ۲ (آخرین قدم کل واحد ۱۶): صفحه‌ی Backups. طبق
@@ -58,6 +63,9 @@ const val BACKUPS_CREATE_BUTTON_TAG = "backups.createButton"
 const val BACKUPS_CLOUD_SYNC_BANNER_TAG = "backups.cloudSyncBanner"
 const val BACKUPS_TOGGLE_LANGUAGE_BUTTON_TAG = "backups.toggleLanguageButton"
 const val BACKUPS_TOGGLE_THEME_BUTTON_TAG = "backups.toggleThemeButton"
+// رفع یافته‌ی #۱۲ appendix (ADR-089): Export All / Import Backup.
+const val BACKUPS_EXPORT_ALL_BUTTON_TAG = "backups.exportAllButton"
+const val BACKUPS_IMPORT_BUTTON_TAG = "backups.importButton"
 
 fun backupRestoreButtonTag(backupId: String): String = "backups.restoreButton.$backupId"
 fun backupDeleteButtonTag(backupId: String): String = "backups.deleteButton.$backupId"
@@ -105,10 +113,50 @@ fun BackupsScreen(
         }
 
         val application = LocalContext.current.applicationContext as Application
+        val context = LocalContext.current
         val viewModel: BackupsViewModel = viewModel(
             factory = BackupsViewModel.factory(application, projectId, backupFileStorage, database)
         )
         val backups by viewModel.backups.collectAsStateWithLifecycle()
+
+        // رفع یافته‌ی #۱۲ appendix (ADR-089) — Export All: هم‌الگو دقیق با
+        // OutputDeliveryScreen.kt (ADR-069) — وقتی exportAll() فایل‌ها را واقعاً
+        // روی دیسک نوشت، این Effect یک Intent.ACTION_SEND[_MULTIPLE] واقعی
+        // می‌سازد و Chooser سیستم را باز می‌کند؛ این کار فقط از لایه‌ی UI
+        // (Context یک Activity واقعی) ممکن است، نه ViewModel.
+        val exportedFiles by viewModel.exportedFiles.collectAsStateWithLifecycle()
+        LaunchedEffect(exportedFiles) {
+            val files = exportedFiles ?: return@LaunchedEffect
+            val shareIntent = buildExportShareIntent(context, files, "text/plain")
+            context.startActivity(Intent.createChooser(shareIntent, uiString("backups.exportChooserTitle", language)))
+            viewModel.clearExportedFiles()
+        }
+
+        // رفع یافته‌ی #۱۲ appendix (ADR-089) — Import Backup: GetContent() (نه
+        // OpenDocument)، هم‌الگو دقیق با importLauncher موجود ProjectsScreen.kt
+        // (ADR-065) — محتوای فایل انتخاب‌شده همین‌جا یک‌بار و فوری خوانده و به
+        // BackupManager.importBackup داده می‌شود؛ برخلاف chooseImageLauncher
+        // Settings (G10/ADR-075) که OpenDocument می‌خواهد چون آن Uri باید بین
+        // اجراهای بعدی اپ Persist بماند (takePersistableUriPermission)، اینجا Uri
+        // فقط همین یک بار، همین‌جا لازم است — هیچ نیازی به معتبر ماندنش بعد از
+        // این تابع نیست.
+        val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                val content = runCatching {
+                    context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader -> reader.readText() }
+                        ?: throw IllegalStateException("فایل انتخاب‌شده قابل خواندن نیست")
+                }.getOrElse { error ->
+                    onShowMessage(error.message ?: uiString("backups.importFailedMessage", language))
+                    return@rememberLauncherForActivityResult
+                }
+                viewModel.importBackup(content) { result ->
+                    onShowMessage(
+                        if (result.isSuccess) uiString("backups.importedMessage", language)
+                        else result.exceptionOrNull()?.message ?: uiString("backups.importFailedMessage", language)
+                    )
+                }
+            }
+        }
 
         // رفع یافته‌های 🔴 G19/G20 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md):
         // Restore/Delete بدون هیچ دیالوگ تأیید مستقیماً اجرا می‌شدند. هم‌الگو دقیق با
@@ -130,6 +178,25 @@ fun BackupsScreen(
                 modifier = Modifier.fillMaxWidth().testTag(BACKUPS_CREATE_BUTTON_TAG)
             ) {
                 Text(uiString("backups.createManualButton", language))
+            }
+
+            // رفع یافته‌ی #۱۲ appendix (ADR-089، آخرین یافته‌ی سطح ۳ باقی‌مانده):
+            // Export All (فقط وقتی حداقل یک بکاپ وجود دارد — چیزی برای Export
+            // نیست وگرنه) + Import Backup (همیشه فعال).
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { viewModel.exportAll() },
+                    enabled = backups.isNotEmpty(),
+                    modifier = Modifier.weight(1f).testTag(BACKUPS_EXPORT_ALL_BUTTON_TAG)
+                ) {
+                    Text(uiString("backups.exportAllButton", language))
+                }
+                OutlinedButton(
+                    onClick = { importLauncher.launch("application/json") },
+                    modifier = Modifier.weight(1f).testTag(BACKUPS_IMPORT_BUTTON_TAG)
+                ) {
+                    Text(uiString("backups.importButton", language))
+                }
             }
 
             if (backups.isEmpty()) {

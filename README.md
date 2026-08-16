@@ -1648,6 +1648,16 @@ Drawer طبق ADR-061 همیشه به Tab «صحنه‌ها» می‌رفتند 
 `SceneRepository` موجود پیاده شد. جزئیات کامل + جدول تست در
 `docs/adr/088-nav-drawer-single-shot-jump.md`.
 
+### ✅ Export All / Import Backup در صفحه‌ی Backups (ADR-089)
+
+یافته‌ی #۱۲ appendix ADR-081 (آخرین یافته‌ی سطح ۳ باقی‌مانده): صفحه‌ی Backups
+فقط عملیات تک‌تک (Restore/Delete) داشت. اکنون دو دکمه‌ی تازه دارد: «خروجی
+گرفتن از همه» (تمام بکاپ‌های پروژه با `Intent.ACTION_SEND_MULTIPLE` واقعی
+اشتراک‌گذاری می‌شوند، هم‌الگو با Export خروجی پرامپت ADR-069) و «وارد کردن
+بکاپ» (یک فایل بکاپ خارجی، بعد از اعتبارسنجی — شکل معتبر JSON + تطابق
+`projectId` — فقط به فهرست همین پروژه معرفی می‌شود؛ Restore فوری نیست).
+جزئیات کامل + جدول تست در `docs/adr/089-backups-export-all-import.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

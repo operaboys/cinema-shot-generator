@@ -849,7 +849,14 @@ val faStrings: Map<String, String> = mapOf(
     "backups.ageJustNow" to "همین الان",
     "backups.ageMinutesTemplate" to "{minutes} دقیقه پیش",
     "backups.ageHoursTemplate" to "{hours} ساعت پیش",
-    "backups.ageDaysTemplate" to "{days} روز پیش"
+    "backups.ageDaysTemplate" to "{days} روز پیش",
+    // رفع یافته‌ی #۱۲ appendix (ADR-089، آخرین یافته‌ی سطح ۳ باقی‌مانده): Export
+    // All / Import Backup.
+    "backups.exportAllButton" to "خروجی گرفتن از همه",
+    "backups.exportChooserTitle" to "اشتراک‌گذاری بکاپ‌ها",
+    "backups.importButton" to "وارد کردن بکاپ",
+    "backups.importedMessage" to "بکاپ وارد شد",
+    "backups.importFailedMessage" to "وارد کردن بکاپ ناموفق بود"
 )
 
 val enStrings: Map<String, String> = mapOf(
@@ -1679,7 +1686,12 @@ val enStrings: Map<String, String> = mapOf(
     "backups.ageJustNow" to "just now",
     "backups.ageMinutesTemplate" to "{minutes}m ago",
     "backups.ageHoursTemplate" to "{hours}h ago",
-    "backups.ageDaysTemplate" to "{days}d ago"
+    "backups.ageDaysTemplate" to "{days}d ago",
+    "backups.exportAllButton" to "Export All",
+    "backups.exportChooserTitle" to "Share backups",
+    "backups.importButton" to "Import Backup",
+    "backups.importedMessage" to "Backup imported",
+    "backups.importFailedMessage" to "Importing this backup failed"
 )
 
 val uiTranslations: Map<Language, Map<String, String>> = mapOf(

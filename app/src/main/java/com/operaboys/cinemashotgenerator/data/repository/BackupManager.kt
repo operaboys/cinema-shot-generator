@@ -57,6 +57,40 @@ class BackupManager(
         backupFileStorage.deleteFile(match.path)
     }
 
+    // رفع یافته‌ی #۱۲ appendix (ADR-089): محتوای واقعی هر بکاپ این پروژه (نام فایل +
+    // محتوا) برای Export All — هم‌الگو دقیق با ورودی موردنیاز
+    // ExportFileWriter.writeExportFiles (ADR-069). نام فایل مستقیماً از خودِ مسیر
+    // واقعی هر بکاپ گرفته می‌شود (نه بازسازی از backupFileName)، تا همیشه دقیقاً
+    // با فایل روی دیسک یکی باشد.
+    suspend fun readAllBackupsForExport(): Result<List<Pair<String, String>>> = runCatching {
+        listBackups().getOrThrow().map { summary ->
+            summary.path.substringAfterLast('/') to backupFileStorage.readFile(summary.path)
+        }
+    }
+
+    // رفع یافته‌ی #۱۲ appendix (ADR-089): محتوای یک فایل بکاپ خارجی را فقط به
+    // فهرست بکاپ‌های همین پروژه «معرفی» می‌کند — Restore فوری نیست؛ کاربر بعداً از
+    // همان دکمه‌ی Restore موجود روی این ردیف تازه استفاده می‌کند (دقیقاً مثل هر
+    // بکاپ دیگر). اعتبارسنجی عمداً هم‌سطح چیزی است که restoreFromBackup از قبل
+    // اعتماد می‌کند (فقط Deserialize موفق FullProjectSnapshot، بدون بررسی
+    // یکپارچگی ارجاعی سخت‌گیرانه‌ی ExportImportRepository.importProject) — یک
+    // بکاپ همین اپ از قبل در همین سطح مورد اعتماد است؛ فقط یک بررسی تازه اضافه شد
+    // که آنجا لازم نبود: projectId داخل فایل باید با پروژه‌ی جاری یکی باشد، وگرنه
+    // این بکاپ بی‌صدا زیر پیشوند نام‌فایل این پروژه ثبت می‌شد اما وقتی روزی
+    // Restore می‌شد، داده‌ی یک پروژه‌ی کاملاً دیگر را می‌نوشت.
+    suspend fun importBackup(content: String): Result<String> {
+        val snapshot = deserializeFullProject(content).getOrElse {
+            return Result.failure(IllegalArgumentException("فایل انتخاب‌شده یک بکاپ معتبر نیست"))
+        }
+        if (snapshot.project.projectId != projectId) {
+            return Result.failure(IllegalArgumentException("این فایل بکاپ متعلق به پروژه‌ی دیگری است"))
+        }
+        val backupId = idProvider()
+        val path = backupFileStorage.writeFile(backupFileName(BackupKind.MANUAL, backupId), content)
+        cleanOldBackups()
+        return Result.success(path)
+    }
+
     /** فقط جدیدترین maxBackupsToKeep بک‌آپ نگه داشته می‌شود؛ بقیه حذف می‌شوند. */
     private suspend fun cleanOldBackups() {
         val backups = backupFileStorage.listFiles(backupPrefix()).sortedByDescending { it.createdAt }
