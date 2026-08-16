@@ -340,4 +340,28 @@ class AssetFormFlowTest {
             timeoutMillis = 5_000
         )
     }
+
+    // رفع G5 (ADR-067 بخش ه، ADR-095): افزودن/حذف واقعی Outfit از صفحه — مکمل
+    // تست‌های ViewModel-level در CharacterAssetFormViewModelTest.kt.
+    @Test
+    fun `adding a second outfit from the real character form shows it in the list, and removing it removes it again`() {
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("characterForm.title", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(outfitRowTag(0)).assertExists()
+        composeRule.onNodeWithTag(outfitRowTag(1)).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(CHARACTER_FORM_OUTFIT_NAME_FIELD_TAG).performTextInput("Winter coat")
+        composeRule.onNodeWithTag(CHARACTER_FORM_OUTFIT_DESCRIPTION_FIELD_TAG).performTextInput("a heavy wool coat")
+        composeRule.onNodeWithTag(CHARACTER_FORM_ADD_OUTFIT_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(outfitRowTag(1)).assertExists()
+        composeRule.onNodeWithText("Winter coat").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(outfitRemoveButtonTag(1)).performClick()
+
+        composeRule.onNodeWithTag(outfitRowTag(1)).assertDoesNotExist()
+        composeRule.onNodeWithText("Winter coat").assertDoesNotExist()
+    }
 }

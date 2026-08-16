@@ -15,11 +15,15 @@ import com.operaboys.cinemashotgenerator.domain.asset.FacialFeatures
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
+import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,17 +35,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
-// واحد ۱۶ فاز ۳ — قدم ۲ — بخش الف: ViewModel فرم ساخت Character (شامل تصمیم F5).
+// واحد ۱۶ فاز ۳ — قدم ۲ — بخش الف: ViewModel فرم ساخت Character.
 // هم‌الگو با AiStoryBreakdownViewModel/DnaViewModel: تزریق‌پذیری Repository،
 // `ioScope` قابل‌Override برای تست، سیگنال `saveCompleted` برای برگشت خودکار به
 // صفحه‌ی Assets بعد از ذخیره‌ی موفق. جزئیات کامل تصمیمات در
 // docs/adr/049-unit16-phase3-step2-asset-forms.md.
 //
-// تصمیم F5 (نگهداری‌شده از ممیزی pre-unit16): فرم فقط یک Outfit پیش‌فرض ساده
-// می‌سازد (نام + توضیح، isDefault همیشه true) — دقیقاً هم‌الگو با
-// defaultOutfitPlaceholder در domain/storybreakdown/StoryToDomainMapper.kt.
-// مدیریت کامل چند-Outfit («مدیریت لباس‌ها») به یک بخش پیشرفته‌ی آینده موکول شده؛
-// دکمه‌اش در این قدم فقط Placeholder (Snackbar) است.
+// رفع G5 (ADR-067 بخش ه، ADR-095): مدیریت کامل چند-Outfit شرطی — قبلاً فرم فقط
+// یک Outfit پیش‌فرض ساده می‌ساخت (تصمیم F5 قدیمی، Placeholder Snackbar روی دکمه‌ی
+// «مدیریت لباس‌ها»)؛ اکنون `_outfits` یک لیست واقعی است. منطق انتخاب خودکار
+// (`selectOutfitForScene`، domain/asset/AssetSelection.kt) و مصرف‌کننده‌ی واقعی‌اش
+// (`enforceCharacterContinuity`، domain/promptengine/CharacterContinuity.kt) از قبل
+// درست پیاده بودند و در این قدم تغییر نکردند — این قدم فقط UI را به آن‌ها وصل
+// می‌کند.
 class CharacterAssetFormViewModel(
     application: Application,
     private val projectId: String,
@@ -101,10 +107,11 @@ class CharacterAssetFormViewModel(
     private val _basePrompt = MutableStateFlow("")
     val basePrompt: StateFlow<String> = _basePrompt.asStateFlow()
 
-    private val _outfitName = MutableStateFlow("Default")
-    val outfitName: StateFlow<String> = _outfitName.asStateFlow()
-    private val _outfitDescription = MutableStateFlow("")
-    val outfitDescription: StateFlow<String> = _outfitDescription.asStateFlow()
+    // همیشه با دقیقاً یک Outfit پیش‌فرض شروع می‌شود — دقیقاً هم‌رفتار با مقدار
+    // پیش‌فرض قدیمی («Default» + توضیح خالی)، تا Rule ۵ (validateDefaultOutfitExists)
+    // برای یک Character تازه‌ساز بدون هیچ تعامل کاربر هم برقرار بماند.
+    private val _outfits = MutableStateFlow(listOf(Outfit(id = generateAssetFormId("outfit"), name = "Default", description = "", isDefault = true)))
+    val outfits: StateFlow<List<Outfit>> = _outfits.asStateFlow()
 
     // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): existingNames از همان
     // Repository.loadAllCharacterAssets (Flow زنده، هم‌الگو با AssetLibraryViewModel)
@@ -113,10 +120,10 @@ class CharacterAssetFormViewModel(
     private val existingNames = repository.loadAllCharacterAssets(projectId)
         .map { list -> list.filter { it.assetId != existingAssetId }.map { it.name } }
 
-    /** Rule 11 (Warning) روی basePrompt — Rule 5 (Outfit پیش‌فرض) همیشه ارضا می‌شود چون فرم همیشه یک Outfit با isDefault=true می‌سازد؛ همچنان برای اثبات صریح فراخوانی می‌شود. */
-    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_name, _outfitName, _outfitDescription, _basePrompt, existingNames) { name, outfitName, outfitDescription, basePrompt, names ->
+    /** Rule 11 (Warning) روی basePrompt — Rule 5 اکنون روی لیست واقعی `_outfits` بررسی می‌شود (نه یک preview مصنوعی که همیشه true بود). */
+    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_name, _outfits, _basePrompt, existingNames) { name, outfits, basePrompt, names ->
         listOfNotNull(
-            validateDefaultOutfitExists(listOf(Outfit(id = "preview", name = outfitName, description = outfitDescription, isDefault = true))),
+            validateDefaultOutfitExists(outfits),
             validateBasePrompt(basePrompt.ifBlank { null }),
             name.takeIf { it.isNotBlank() }?.let { checkSimilarAssetName(it, names) }
         )
@@ -125,8 +132,12 @@ class CharacterAssetFormViewModel(
     private val _saveCompleted = MutableStateFlow(false)
     val saveCompleted: StateFlow<Boolean> = _saveCompleted.asStateFlow()
 
-    val canSave: StateFlow<Boolean> = combine(_name, _ageRange) { name, ageRange -> name.isNotBlank() && ageRange.isNotBlank() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    // outfits.isNotEmpty() دفاع دومی است (اولی: removeOutfit هرگز آخرین Outfit را
+    // حذف نمی‌کند) — پوشش حالت مرزی ویرایش یک Character موجودی که مستقیم (نه از
+    // طریق این فرم) با لیست Outfit خالی ساخته شده بود.
+    val canSave: StateFlow<Boolean> = combine(_name, _ageRange, _outfits) { name, ageRange, outfits ->
+        name.isNotBlank() && ageRange.isNotBlank() && outfits.isNotEmpty()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     // رفع G7 ممیزی post-Unit16: بارگذاری واقعی Asset موجود برای پیش‌پرکردن فرم —
     // loadCharacterAssets (نه یک متد load-by-id تازه) بازاستفاده شد، چون از قبل
@@ -156,11 +167,7 @@ class CharacterAssetFormViewModel(
         _physicalFeatures.value = asset.physicalAppearance.physicalFeatures.orEmpty()
         _defaultMood.value = asset.defaultMood.orEmpty()
         _basePrompt.value = asset.basePrompt.orEmpty()
-        val defaultOutfit = asset.outfits.find { it.isDefault } ?: asset.outfits.firstOrNull()
-        if (defaultOutfit != null) {
-            _outfitName.value = defaultOutfit.name
-            _outfitDescription.value = defaultOutfit.description
-        }
+        _outfits.value = asset.outfits
     }
 
     fun setName(value: String) { _name.value = value }
@@ -178,8 +185,76 @@ class CharacterAssetFormViewModel(
     fun setPhysicalFeatures(value: String) { _physicalFeatures.value = value }
     fun setDefaultMood(value: String) { _defaultMood.value = value }
     fun setBasePrompt(value: String) { _basePrompt.value = value }
-    fun setOutfitName(value: String) { _outfitName.value = value }
-    fun setOutfitDescription(value: String) { _outfitDescription.value = value }
+
+    /** اولین Outfit افزوده‌شده به یک لیست خالی خودکار isDefault=true می‌شود — تنها راهی که لیست می‌تواند از صفر شروع کند و Rule ۵ همچنان برقرار بماند. */
+    fun addOutfit(name: String, description: String) {
+        if (name.isBlank()) return
+        val newOutfit = Outfit(
+            id = generateAssetFormId("outfit"),
+            name = name,
+            description = description,
+            isDefault = _outfits.value.isEmpty()
+        )
+        _outfits.value = _outfits.value + newOutfit
+    }
+
+    /**
+     * رفتار مرزی «حذف Outfit پیش‌فرض»: با grep در پروژه هیچ الگوی مشابه موجودی
+     * (حذف از یک لیست با دقیقاً یک عضو الزامی/پیش‌فرض) پیدا نشد — این اولین مورد
+     * است. تصمیم: حذف تنها Outfit باقی‌مانده مسدود می‌شود (no-op)، نه فقط با یک
+     * ValidationIssue بلوکه‌شده — چون selectOutfitForScene/selectOutfitForShot
+     * دقیقاً `outfits.first { it.isDefault }` را روی یک لیست خالی صدا می‌زنند
+     * (NoSuchElementException واقعی در زمان اجرا، نه فقط یک نقض Rule قابل‌نادیده-
+     * گرفتن) — تضمین ساختاری در سطح ViewModel امن‌تر از تکیه بر canSave/Validation
+     * است (هم‌راستا با اصل «تضمین ساختاری، نه Runtime» دیده‌شده در ADR-006/ADR-093).
+     * اگر Outfit حذف‌شده پیش‌فرض بود، اولین عضو باقی‌مانده خودکار پیش‌فرض می‌شود.
+     */
+    fun removeOutfit(index: Int) {
+        val current = _outfits.value
+        if (index !in current.indices || current.size <= 1) return
+        val removedWasDefault = current[index].isDefault
+        val updated = current.filterIndexed { i, _ -> i != index }
+        _outfits.value = if (removedWasDefault) {
+            updated.mapIndexed { i, outfit -> if (i == 0) outfit.copy(isDefault = true) else outfit }
+        } else updated
+    }
+
+    fun setOutfitAsDefault(index: Int) {
+        val current = _outfits.value
+        if (index !in current.indices) return
+        _outfits.value = current.mapIndexed { i, outfit -> outfit.copy(isDefault = i == index) }
+    }
+
+    // سه شرط condition — هر سه enum بسته‌ی از‌قبل‌موجود در دامنه (نه رشته‌ی آزاد،
+    // طبق بررسی صریح این قدم): weather از WeatherType (sceneconditions/
+    // EnvironmentModels.kt، هم‌الگو با sceneWeather واقعی در PromptAssembly.kt —
+    // `weatherType.name.lowercase()`)؛ timeOfDay/locationType از TimeOfDay/
+    // LocationType واحد ۰۴ (domain/scene/SceneModels.kt) — همان enum هایی که خودِ
+    // Scene.locationType/timeOfDay استفاده می‌کنند، نه enum جدای Asset Library
+    // (domain.asset.LocationType، مفهوم دیگری: دسته‌بندی فیلتر کتابخانه، طبق کامنت
+    // صریح خودِ AssetModels.kt خط ۲۰۲-۲۱۲). هر سه با همان قرارداد `.name.lowercase()`
+    // ذخیره می‌شوند تا اگر matching آینده به timeOfDay/locationType هم گسترش یابد
+    // (فعلاً فقط weather در selectOutfitForScene مقایسه می‌شود)، بدون نیاز به تغییر
+    // Casing کار کند.
+    fun setOutfitConditionWeather(index: Int, weather: WeatherType?) {
+        updateOutfitCondition(index) { it.copy(weather = weather?.name?.lowercase()) }
+    }
+
+    fun setOutfitConditionTimeOfDay(index: Int, timeOfDay: TimeOfDay?) {
+        updateOutfitCondition(index) { it.copy(timeOfDay = timeOfDay?.name?.lowercase()) }
+    }
+
+    fun setOutfitConditionLocationType(index: Int, locationType: LocationType?) {
+        updateOutfitCondition(index) { it.copy(locationType = locationType?.name?.lowercase()) }
+    }
+
+    private fun updateOutfitCondition(index: Int, transform: (OutfitCondition) -> OutfitCondition) {
+        val current = _outfits.value
+        if (index !in current.indices) return
+        val newCondition = transform(current[index].condition ?: OutfitCondition())
+        val normalized = if (newCondition.weather == null && newCondition.timeOfDay == null && newCondition.locationType == null) null else newCondition
+        _outfits.value = current.mapIndexed { i, outfit -> if (i == index) outfit.copy(condition = normalized) else outfit }
+    }
 
     fun save() {
         if (!canSave.value) return
@@ -204,7 +279,7 @@ class CharacterAssetFormViewModel(
                 physicalFeatures = _physicalFeatures.value.ifBlank { null },
                 facialFeatures = facialFeatures
             ),
-            outfits = listOf(Outfit(id = generateAssetFormId("outfit"), name = _outfitName.value, description = _outfitDescription.value, isDefault = true)),
+            outfits = _outfits.value,
             defaultMood = _defaultMood.value.ifBlank { null },
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityRules = ContinuityRules(),
