@@ -1637,6 +1637,17 @@ Translate/تم داشت؛ همه‌ی صفحات داخلی دیگر فقط بر
 Refactor بزرگ روی ۱۲+ فایل. جزئیات کامل + جدول تست در
 `docs/adr/087-global-language-theme-quick-access.md`.
 
+### ✅ پرش مستقیم Nav Drawer به Validation/Output Delivery با دقیقاً یک Shot (ADR-088)
+
+یافته‌ی #۱۰ appendix ADR-081: لینک‌های «اعتبارسنجی»/«تحویل خروجی» در Nav
+Drawer طبق ADR-061 همیشه به Tab «صحنه‌ها» می‌رفتند (چون Drawer هیچ `shotId`
+ای نمی‌شناسد). اکنون اگر پروژه‌ی جاری دقیقاً یک Shot داشته باشد، این دو لینک
+مستقیماً همان Shot را باز می‌کنند؛ در غیر این صورت (صفر/بیش‌از‌یک Shot)
+رفتار قبلی بدون تغییر می‌ماند. منطق در `MainScaffold.kt` (نه `NavDrawer.kt`،
+که عمداً لایه‌ی Presentation خالص باقی ماند) با `ShotRepository`/
+`SceneRepository` موجود پیاده شد. جزئیات کامل + جدول تست در
+`docs/adr/088-nav-drawer-single-shot-jump.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

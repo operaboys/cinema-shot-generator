@@ -35,13 +35,18 @@ import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationReposit
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.ui.home.CreateProjectDialog
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.project.ProjectListViewModel
 import com.operaboys.cinemashotgenerator.ui.scenes.SceneDetailTab
+import com.operaboys.cinemashotgenerator.ui.scenes.sceneDisplayTitle
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // واحد ۱۶ — فاز ۰/۱: نقطه‌ی اتصال ساختار Navigation دو‌لایه — Scaffold بالاترین سطح
 // اپ که نوار پایین ثابت (لایه‌ی ۱)، Back Navigation Contextual، Drawer (بخش ه فاز ۱)،
@@ -178,6 +183,67 @@ fun MainScaffold(
                         coroutineScope.launch { snackbarHostState.showSnackbar(noActiveProjectMessage) }
                     }
                 },
+                // رفع یافته‌ی #۱۰ appendix (ADR-088): برخلاف Studio/AiBreakdown بالا،
+                // تصمیم مقصد اینجا به یک Query ناهمگام نیاز دارد (تعداد Shotهای
+                // پروژه)، پس نمی‌تواند مثل بالا synchronous باشد. یافته‌ی واقعی این
+                // قدم: navController.navigate بعد از یک نقطه‌ی suspend (Query
+                // Repository) همیشه تضمین نمی‌کند روی Main Thread ادامه یابد (در
+                // این محیط تست حتی صریحاً روی Thread دیگری ادامه یافت و با خطای
+                // واقعی «Method setCurrentState must be called on the main thread»
+                // شکست خورد) — پس Navigate صریحاً با withContext(Dispatchers.Main.immediate)
+                // به Main Thread برگردانده می‌شود.
+                onNavigateValidation = {
+                    coroutineScope.launch {
+                        drawerState.close()
+                        val projectId = activeOrRecentProjectId
+                        val resolved = projectId?.let { resolveSingleShotForProject(it, shotRepository, sceneRepository) }
+                        withContext(Dispatchers.Main.immediate) {
+                            when {
+                                projectId == null -> navController.navigate(Projects) { launchSingleTop = true }
+                                resolved != null -> {
+                                    val (scene, shot) = resolved
+                                    navController.navigate(
+                                        Validation(
+                                            projectId = projectId,
+                                            sceneId = scene.sceneId,
+                                            sceneNumber = scene.sceneNumber,
+                                            sceneDisplayTitle = sceneDisplayTitle(scene.sceneTitle, scene.sceneNumber, language),
+                                            shotId = shot.shotId
+                                        )
+                                    ) { launchSingleTop = true }
+                                }
+                                else -> navController.navigate(Studio(projectId, "SCENES")) { launchSingleTop = true }
+                            }
+                        }
+                        if (projectId == null) snackbarHostState.showSnackbar(noActiveProjectMessage)
+                    }
+                },
+                onNavigateOutputDelivery = {
+                    coroutineScope.launch {
+                        drawerState.close()
+                        val projectId = activeOrRecentProjectId
+                        val resolved = projectId?.let { resolveSingleShotForProject(it, shotRepository, sceneRepository) }
+                        withContext(Dispatchers.Main.immediate) {
+                            when {
+                                projectId == null -> navController.navigate(Projects) { launchSingleTop = true }
+                                resolved != null -> {
+                                    val (scene, shot) = resolved
+                                    navController.navigate(
+                                        OutputDelivery(
+                                            projectId = projectId,
+                                            sceneId = scene.sceneId,
+                                            sceneNumber = scene.sceneNumber,
+                                            sceneDisplayTitle = sceneDisplayTitle(scene.sceneTitle, scene.sceneNumber, language),
+                                            shotId = shot.shotId
+                                        )
+                                    ) { launchSingleTop = true }
+                                }
+                                else -> navController.navigate(Studio(projectId, "SCENES")) { launchSingleTop = true }
+                            }
+                        }
+                        if (projectId == null) snackbarHostState.showSnackbar(noActiveProjectMessage)
+                    }
+                },
                 onComingSoon = {
                     coroutineScope.launch {
                         drawerState.close()
@@ -267,4 +333,23 @@ fun MainScaffold(
             onDismiss = { showQuickCreateDialog = false }
         )
     }
+}
+
+// رفع یافته‌ی #۱۰ appendix (ADR-088): پرش مستقیم Validation/OutputDelivery فقط
+// وقتی معنادار است که پروژه دقیقاً یک Shot داشته باشد (وگرنه معلوم نیست کدام
+// Shot مقصود کاربر است). این تابع همان تک‌شرط را بررسی می‌کند و Scene والدش را
+// هم بار می‌کند (چون Validation/OutputDelivery به sceneNumber/sceneDisplayTitle
+// نیاز دارند که فقط از Scene در دسترس‌اند، نه از خودِ Shot). هر شکست دفاعی
+// (Repository تزریق‌نشده، صفر/بیش‌از‌یک Shot، یا Scene والد پیدا نشد) باعث
+// null می‌شود که فراخوان آن را دقیقاً مثل Fallback فعلی (Tab «صحنه‌ها») تفسیر
+// می‌کند.
+private suspend fun resolveSingleShotForProject(
+    projectId: String,
+    shotRepository: ShotRepository?,
+    sceneRepository: SceneRepository?
+): Pair<Scene, Shot>? {
+    if (shotRepository == null || sceneRepository == null) return null
+    val shot = shotRepository.loadAllShotsForProject(projectId).singleOrNull() ?: return null
+    val scene = sceneRepository.loadScene(shot.sceneId).getOrNull() ?: return null
+    return scene to shot
 }
