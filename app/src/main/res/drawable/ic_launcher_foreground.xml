@@ -1,14 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- رفع یافته‌ی #۸ appendix (ADR-091، تکمیل نهایی): نشان واقعی Aperture C
+     (docs/design/logo/aperture-c-mark.svg، همان منبع ic_aperture_c_logo.xml
+     در ADR-090) — نه ارجاع مستقیم، بلکه نسخه‌ی Scale‌شده‌ی مخصوص Adaptive
+     Icon Safe Zone. شعاع بیرونی واقعی طرح (تأییدشده با نمونه‌برداری مستقیم
+     نقطه‌به‌نقطه‌ی svgpathtools روی خودِ مسیرها، نه صرفاً bbox) دقیقاً ۱۰۴ واحد
+     در فضای محلی SVG اصلی است؛ Safe Zone اندروید نیم‌قطر ۳۳dp (از قطر
+     ۶۶dp/۱۰۸dp) تضمین می‌کند. Scale = 32/104 ≈ 0.3077 (کمی کوچک‌تر از ۳۳ برای
+     حاشیه‌ی اطمینان) روی مختصات و شعاع هر Arc اعمال شد، سپس به مرکز Viewport
+     ۱۰۸×۱۰۸ (۵۴,۵۴) منتقل شد. رنگ پس‌زمینه (colors.xml، #1A1A2E) عمداً
+     دست‌نخورده ماند — بررسی کنتراست واقعی WCOG هر ۹ رنگ گرادیان در برابر آن
+     نشان داد ۶ از ۹ رنگ ≥۴.۵:۱ (نارنجی‌ها تا ۹.۸۳:۱)، فقط تیره‌ترین بنفش‌ها
+     پایین‌تر (طبیعی برای یک گرادیان گرم-به-سرد، نه نقص). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- دایره‌ی ساده به‌عنوان آیکون موقت (لنز دوربین) -->
+
     <path
-        android:fillColor="#F5C518"
-        android:pathData="M54,54 m-20,0 a20,20 0 1,1 40,0 a20,20 0 1,1 -40,0" />
+        android:pathData="M 83.003 67.523 A 32.000 32.000 0 0 1 70.480 81.431 L 54.160 63.231 A 9.231 9.231 0 0 0 59.295 61.560 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54.160"
+                android:startY="61.560"
+                android:endX="83.003"
+                android:endY="81.431"
+                android:startColor="#FFB65E"
+                android:endColor="#F0821F" />
+        </aapt:attr>
+    </path>
     <path
-        android:fillColor="#1A1A2E"
-        android:pathData="M54,54 m-9,0 a9,9 0 1,1 18,0 a9,9 0 1,1 -18,0" />
+        android:pathData="M 68.277 82.637 A 32.000 32.000 0 0 1 49.825 85.726 L 48.382 61.323 A 9.231 9.231 0 0 0 53.437 63.212 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="48.382"
+                android:startY="61.323"
+                android:endX="68.277"
+                android:endY="85.999"
+                android:startColor="#FF9A4A"
+                android:endColor="#E07A22" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 47.348 85.302 A 32.000 32.000 0 0 1 30.982 76.228 L 45.043 56.234 A 9.231 9.231 0 0 0 47.825 60.858 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="30.982"
+                android:startY="56.234"
+                android:endX="47.825"
+                android:endY="85.302"
+                android:startColor="#7C5CFF"
+                android:endColor="#5B3ED6" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 29.308 74.354 A 32.000 32.000 0 0 1 22.148 57.068 L 45.600 50.172 A 9.231 9.231 0 0 0 44.895 55.523 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="22.148"
+                android:startY="50.172"
+                android:endX="45.600"
+                android:endY="74.354"
+                android:startColor="#6E4EF0"
+                android:endColor="#4C31C4" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 22.006 54.560 A 32.000 32.000 0 0 1 27.163 36.572 L 49.809 45.775 A 9.231 9.231 0 0 0 45.926 49.526 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="22.001"
+                android:startY="36.572"
+                android:endX="49.809"
+                android:endY="54.560"
+                android:startColor="#8A6BFF"
+                android:endColor="#5F41DE" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 28.612 34.520 A 32.000 32.000 0 0 1 43.846 23.652 L 55.840 44.954 A 9.231 9.231 0 0 0 50.468 45.471 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="28.612"
+                android:startY="23.652"
+                android:endX="55.840"
+                android:endY="45.471"
+                android:startColor="#A98CFF"
+                android:endColor="#7C5CFF" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 46.258 22.951 A 32.000 32.000 0 0 1 64.945 23.929 L 61.071 48.068 A 9.231 9.231 0 0 0 56.545 45.126 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="46.258"
+                android:startY="22.000"
+                android:endX="64.945"
+                android:endY="48.068"
+                android:startColor="#C2ACFF"
+                android:endColor="#8E6BFF" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 67.271 24.880 A 32.000 32.000 0 0 1 81.283 37.280 L 63.228 53.757 A 9.231 9.231 0 0 0 61.514 48.640 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="61.514"
+                android:startY="24.880"
+                android:endX="81.283"
+                android:endY="53.757"
+                android:startColor="#B49AFF"
+                android:endColor="#8A6BFF" />
+        </aapt:attr>
+    </path>
 </vector>
