@@ -233,9 +233,10 @@ class CharacterAssetFormViewModel(
     // Scene.locationType/timeOfDay استفاده می‌کنند، نه enum جدای Asset Library
     // (domain.asset.LocationType، مفهوم دیگری: دسته‌بندی فیلتر کتابخانه، طبق کامنت
     // صریح خودِ AssetModels.kt خط ۲۰۲-۲۱۲). هر سه با همان قرارداد `.name.lowercase()`
-    // ذخیره می‌شوند تا اگر matching آینده به timeOfDay/locationType هم گسترش یابد
-    // (فعلاً فقط weather در selectOutfitForScene مقایسه می‌شود)، بدون نیاز به تغییر
-    // Casing کار کند.
+    // ذخیره می‌شوند — قراردادی که این‌جا انتخاب شد دقیقاً همان چیزی بود که تکمیل G5
+    // (ADR-096) به آن نیاز داشت: matching اکنون واقعاً به هر سه فیلد گسترش یافته
+    // (selectOutfitForScene/selectExpressionForScene، domain/asset/AssetSelection.kt)،
+    // بدون نیاز به هیچ تغییر Casing در این ViewModel.
     fun setOutfitConditionWeather(index: Int, weather: WeatherType?) {
         updateOutfitCondition(index) { it.copy(weather = weather?.name?.lowercase()) }
     }

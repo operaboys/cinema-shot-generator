@@ -16,6 +16,12 @@ import com.operaboys.cinemashotgenerator.domain.scene.Scene
 //    ندارد و هیچ منبع داده‌ی دیگری هم برای «انتخاب دستی Outfit در یک شات خاص» در
 //    واحدهای پیاده‌شده وجود ندارد — manualOverrideId همیشه null است.
 //
+// تکمیل G5 (ADR-096، محدودیت مستندشده‌ی ADR-095 را می‌بندد): برخلاف weather،
+// scene.timeOfDay و scene.location.type واقعاً روی خودِ Scene موجودند (نیازی به
+// پارامتر خارجی جدید نبود) — این دو اکنون هم‌قرارداد با sceneWeather (`.name.lowercase()`)
+// از همین scene استخراج و به selectOutfitForScene پاس داده می‌شوند. امضای این تابع
+// عمداً تغییر نکرد (بدون پارامتر جدید) — فقط بدنه‌اش کامل‌تر شد.
+//
 // MIGRATED (docs/adr/031-unit06-physical-appearance-gender-migration.md): تابع محلی
 // describePhysicalAppearance حذف شد — PhysicalAppearance.toPromptString() (واحد ۰۶،
 // نسخه ۵) اکنون همان کار را انجام می‌دهد. این دقیقاً همان باگی بود که بلوپرینت واحد ۰۶
@@ -29,8 +35,10 @@ fun enforceCharacterContinuity(
     scene: Scene,
     sceneWeather: String?
 ): List<String> {
+    val sceneTimeOfDay = scene.timeOfDay.name.lowercase()
+    val sceneLocationType = scene.location.type.name.lowercase()
     return characters.map { character ->
-        val outfit = selectOutfitForScene(character.outfits, sceneWeather, manualOverrideId = null)
+        val outfit = selectOutfitForScene(character.outfits, sceneWeather, sceneTimeOfDay, sceneLocationType, manualOverrideId = null)
         "${character.physicalAppearance.toPromptString()}, wearing ${outfit.description}"
     }
 }

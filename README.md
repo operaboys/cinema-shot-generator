@@ -1724,6 +1724,18 @@ Validation نشان می‌داد. جزئیات کامل در
 لیست خالی Crash می‌کند)؛ حذف Outfit پیش‌فرض اولین عضو باقی‌مانده را خودکار
 پیش‌فرض می‌کند. جزئیات کامل در `docs/adr/095-g5-multi-outfit-management.md`.
 
+### ✅ تکمیل G5 — انتخاب خودکار Outfit اکنون به timeOfDay/locationType هم توجه می‌کند (ADR-096)
+
+محدودیت مستندشده‌ی ADR-095 بسته شد: `selectOutfitForScene`/
+`selectExpressionForScene` قبلاً فقط `condition.weather` را مقایسه
+می‌کردند؛ اکنون هر سه فیلد `OutfitCondition` را با منطق AND-روی-فیلد-پرشده
+بررسی می‌کنند (یک فیلد `null` در condition یعنی «قیدی روی این بعد نیست»، نه
+«باید صحنه هم null باشد»). `enforceCharacterContinuity` بدون تغییر امضا،
+اکنون `scene.timeOfDay`/`scene.location.type` را هم از خودِ `scene` موجود
+استخراج و پاس می‌دهد. `selectExpressionForScene` برای تقارن امضایش گسترش
+یافت اما همچنان صفر فراخوان‌کننده‌ی واقعی دارد (کد مرده‌ی احتمالی، تأییدشده
+با grep). جزئیات کامل در `docs/adr/096-g5-multi-field-outfit-condition-matching.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

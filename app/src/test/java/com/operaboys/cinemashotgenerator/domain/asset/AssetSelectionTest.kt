@@ -48,6 +48,54 @@ class AssetSelectionTest {
         assertEquals("outfit_01", result.id)
     }
 
+    // --- تکمیل G5 (ADR-096): matching چندفیلدی (weather/timeOfDay/locationType) ---
+    // outfit_02 و outfit_03 عمداً مقدار weather متفاوت دارند (rain در برابر storm)
+    // تا هر تست بتواند رفتار یکی را بدون دخالت دیگری بسنجد.
+
+    private val multiConditionOutfits = listOf(
+        Outfit(id = "outfit_01", name = "Default Look", description = "black leather jacket, jeans", isDefault = true),
+        Outfit(
+            id = "outfit_02",
+            name = "Rain Coat",
+            description = "long dark raincoat",
+            isDefault = false,
+            condition = OutfitCondition(weather = "rain")
+        ),
+        Outfit(
+            id = "outfit_03",
+            name = "Storm Night Outdoor Gear",
+            description = "tactical gear with flashlight",
+            isDefault = false,
+            condition = OutfitCondition(weather = "storm", timeOfDay = "night", locationType = "outdoor")
+        )
+    )
+
+    @Test
+    fun `an outfit whose condition only specifies weather matches on weather alone, ignoring timeOfDay and locationType`() {
+        val result = selectOutfitForScene(multiConditionOutfits, sceneWeather = "rain", sceneTimeOfDay = "noon", sceneLocationType = "indoor")
+        assertEquals("outfit_02", result.id)
+    }
+
+    @Test
+    fun `an outfit whose condition specifies all three fields is selected only when all three match the scene`() {
+        val result = selectOutfitForScene(multiConditionOutfits, sceneWeather = "storm", sceneTimeOfDay = "night", sceneLocationType = "outdoor")
+        assertEquals("outfit_03", result.id)
+    }
+
+    @Test
+    fun `an outfit requiring all three fields is not selected when only some of them match, and falls back to default`() {
+        // weather=storm منطبق است، اما timeOfDay صحنه noon است نه night — طبق AND، outfit_03 رد می‌شود.
+        // outfit_02 هم رد می‌شود چون weather صحنه‌اش storm است نه rain. نتیجه باید Default باشد.
+        val result = selectOutfitForScene(multiConditionOutfits, sceneWeather = "storm", sceneTimeOfDay = "noon", sceneLocationType = "outdoor")
+        assertEquals("outfit_01", result.id)
+    }
+
+    @Test
+    fun `falls back to default when nothing matches any condition`() {
+        val result = selectOutfitForScene(multiConditionOutfits, sceneWeather = "sunny", sceneTimeOfDay = "dawn", sceneLocationType = "mixed")
+        assertEquals("outfit_01", result.id)
+    }
+
     // --- selectExpressionForScene (همان منطق) ---
 
     @Test

@@ -74,4 +74,25 @@ class CharacterContinuityTest {
         assertTrue(result[0].contains("athletic build"))
         assertTrue(result[0].contains("brown eyes"))
     }
+
+    // تکمیل G5 (ADR-096): scene.timeOfDay/scene.location.type اکنون واقعاً از خودِ
+    // scene موجود استخراج و به selectOutfitForScene پاس داده می‌شوند — این ثابت
+    // fixture بالا NIGHT/OUTDOOR است، پس یک Outfit با condition دقیقاً همان دو مقدار
+    // باید انتخاب شود، حتی وقتی weather صحنه با شرط weathrش هم‌خوان نیست.
+    @Test
+    fun `an outfit whose condition matches the scene's timeOfDay and locationType is selected even when weather does not match`() {
+        val characterWithNightOutdoorOutfit = character.copy(
+            outfits = character.outfits + Outfit(
+                id = "outfit_03",
+                name = "Night Watch Coat",
+                description = "dark hooded coat for night patrols",
+                isDefault = false,
+                condition = OutfitCondition(timeOfDay = "night", locationType = "outdoor")
+            )
+        )
+
+        val result = enforceCharacterContinuity(listOf(characterWithNightOutdoorOutfit), scene, sceneWeather = "sunny")
+
+        assertTrue(result[0].contains("dark hooded coat for night patrols"))
+    }
 }
