@@ -31,8 +31,6 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Translate
@@ -57,11 +55,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.operaboys.cinemashotgenerator.R
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.project.ProjectSummary
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
@@ -81,10 +82,12 @@ import kotlinx.coroutines.withContext
 //
 // محدودیت مستند (ADR-044): تصویر پس‌زمینه‌ی Full-bleed واقعی (آپلود کاربر) پیاده
 // نشد — طبق تصریح خودِ دستور کار «فعلاً Placeholder gradient کافی است»؛ آپلود
-// واقعی («Home Screen Image» در Settings) کار فاز Settings آینده است. لوگوی
-// «Aperture C» (SVG سفارشی سند طراحی) هم با یک آیکون Material موقت جایگزین شد —
-// وارد کردن SVG سفارشی به Compose (ImageVector از Path Data) کار جداگانه‌ای است
-// که این فاز جزو Scope اش نبود.
+// واقعی («Home Screen Image» در Settings) کار فاز Settings آینده است.
+//
+// رفع یافته‌ی #۸ appendix (ADR-090): نشان «Aperture C» که تا اینجا با یک آیکون
+// Material موقت جایگزین شده بود، اکنون نشان واقعی است —
+// R.drawable.ic_aperture_c_logo (Vector Drawable، تبدیل کامل ۸ Path/Gradient
+// docs/design/logo/aperture-c-mark.svg).
 
 // testTag (نه onNodeWithText) — چون عنوان AlertDialog دقیقاً همان متن عنوان
 // QuickCreateRow است ("پروژه‌ی جدید")، و هر دو هم‌زمان در درخت Composition
@@ -439,7 +442,12 @@ private fun ResumeProgressCard(
 
 private data class ResumeQuickTileSpec(
     val tag: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: ImageVector,
+    // رفع یافته‌ی #۸ appendix (ADR-090): پیش‌فرض null یعنی رنگ فعلی
+    // (MaterialTheme.colorScheme.primary، بدون تغییر برای ۳ کاشی دیگر).
+    // Color.Unspecified فقط برای کاشی Output (نشان واقعی چندرنگ Aperture C) —
+    // Icon() با هر تینت غیر-Unspecified رنگ خودِ Vector را نادیده می‌گیرد.
+    val iconTint: Color? = null,
     val label: String,
     val meta: String,
     val onClick: () -> Unit
@@ -484,7 +492,8 @@ private fun resumeQuickTiles(
     ),
     ResumeQuickTileSpec(
         tag = HOME_RESUME_TILE_OUTPUT_TAG,
-        icon = Icons.Filled.MovieFilter,
+        icon = ImageVector.vectorResource(R.drawable.ic_aperture_c_logo),
+        iconTint = Color.Unspecified,
         label = uiString("studioTab.output", language),
         meta = uiString("home.quickTile.outputMeta", language),
         onClick = { onOpenProjectTab(projectId, "OUTPUT") }
@@ -500,7 +509,7 @@ private fun ResumeQuickTile(spec: ResumeQuickTileSpec) {
         modifier = Modifier.fillMaxWidth().testTag(spec.tag)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(spec.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(spec.icon, contentDescription = null, tint = spec.iconTint ?: MaterialTheme.colorScheme.primary)
             Column(modifier = Modifier.padding(top = 8.dp)) {
                 Text(text = spec.label, style = MaterialTheme.typography.titleSmall)
                 Text(text = spec.meta, style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.fg3)
@@ -637,7 +646,17 @@ private fun HomeHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                // رفع یافته‌ی #۸ appendix (ADR-090): نشان واقعی Aperture C —
+                // یکی از سه محل مستند mockup («Used in header (root
+                // screens)...»، docs/design/README.md بخش Assets). tint =
+                // Unspecified عمداً — Icon() با هر تینت دیگر رنگ چندگانه‌ی
+                // خودِ Vector را نادیده می‌گیرد.
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_aperture_c_logo),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(18.dp)
+                )
                 Text("Cinema Studio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
             }
         }

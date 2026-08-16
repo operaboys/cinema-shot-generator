@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- رفع یافته‌ی #۸ appendix (ADR-090): نشان «Aperture C» واقعی این پروژه —
+     تبدیل مستقیم و کامل ۸ Path/Gradient docs/design/logo/aperture-c-mark.svg
+     (منبع: #csMark mockup) به Vector Drawable، نه یک نسخه‌ی ساده‌شده. viewBox
+     اصلی SVG (-128..128) با +۱۲۸ به فضای viewport اندروید (0..256) منتقل شد؛
+     rx/ry/چرخش/پرچم‌های هر Arc دست‌نخورده ماندند، فقط مختصات پایانی جابه‌جا
+     شدند. هر <gradient> با bbox واقعی همان Path (نه Canvas کامل) محاسبه شد —
+     معادل دقیق gradientUnits="objectBoundingBox" پیش‌فرض SVG (x1=0,y1=0 تا
+     x2=1,y2=1)، چون اندروید این حالت را ندارد و startX/Y-endX/Y را همیشه در
+     فضای مطلق viewport می‌خواهد. bbox هر Arc با svgpathtools (نه صرفاً
+     مختصات نقاط پایانی) محاسبه شد. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+    <path
+        android:pathData="M 222.26 171.95 A 104 104 0 0 1 181.56 217.15 L 128.52 158.00 A 30 30 0 0 0 145.21 152.57 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="128.52"
+                android:startY="152.57"
+                android:endX="222.26"
+                android:endY="217.15"
+                android:startColor="#FFB65E"
+                android:endColor="#F0821F" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 174.40 221.07 A 104 104 0 0 1 114.43 231.11 L 109.74 151.80 A 30 30 0 0 0 126.17 157.94 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="109.74"
+                android:startY="151.80"
+                android:endX="174.40"
+                android:endY="232.00"
+                android:startColor="#FF9A4A"
+                android:endColor="#E07A22" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 106.38 229.73 A 104 104 0 0 1 53.19 200.24 L 98.89 135.26 A 30 30 0 0 0 107.93 150.29 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="53.19"
+                android:startY="135.26"
+                android:endX="107.93"
+                android:endY="229.73"
+                android:startColor="#7C5CFF"
+                android:endColor="#5B3ED6" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 47.75 194.15 A 104 104 0 0 1 24.48 137.97 L 100.70 115.56 A 30 30 0 0 0 98.41 132.95 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="24.48"
+                android:startY="115.56"
+                android:endX="100.70"
+                android:endY="194.15"
+                android:startColor="#6E4EF0"
+                android:endColor="#4C31C4" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 24.02 129.82 A 104 104 0 0 1 40.78 71.36 L 114.38 101.27 A 30 30 0 0 0 101.76 113.46 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="24.00"
+                android:startY="71.36"
+                android:endX="114.38"
+                android:endY="129.82"
+                android:startColor="#8A6BFF"
+                android:endColor="#5F41DE" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 45.49 64.69 A 104 104 0 0 1 95.00 29.37 L 133.98 98.60 A 30 30 0 0 0 116.52 100.28 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="45.49"
+                android:startY="29.37"
+                android:endX="133.98"
+                android:endY="100.28"
+                android:startColor="#A98CFF"
+                android:endColor="#7C5CFF" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 102.84 27.09 A 104 104 0 0 1 163.57 30.27 L 150.98 108.72 A 30 30 0 0 0 136.27 99.16 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="102.84"
+                android:startY="24.00"
+                android:endX="163.57"
+                android:endY="108.72"
+                android:startColor="#C2ACFF"
+                android:endColor="#8E6BFF" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 171.13 33.36 A 104 104 0 0 1 216.67 73.66 L 157.99 127.21 A 30 30 0 0 0 152.42 110.58 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="152.42"
+                android:startY="33.36"
+                android:endX="216.67"
+                android:endY="127.21"
+                android:startColor="#B49AFF"
+                android:endColor="#8A6BFF" />
+        </aapt:attr>
+    </path>
+</vector>
