@@ -11,6 +11,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
+import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlinx.coroutines.CoroutineScope
@@ -79,8 +80,16 @@ class LocationAssetFormViewModel(
     /** سطح تداوم LocationAsset فقط یک مقدار دارد (STYLE) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE
 
-    val validationIssues: StateFlow<List<ValidationIssue>> = _basePrompt.map { basePrompt ->
-        listOfNotNull(validateBasePrompt(basePrompt.ifBlank { null }))
+    // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.existingNames.
+    private val existingNames = repository.loadAllLocationAssets(projectId)
+        .map { list -> list.filter { it.assetId != existingAssetId }.map { it.name } }
+
+    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_name, _basePrompt, existingNames) { name, basePrompt, names ->
+        listOfNotNull(
+            validateBasePrompt(basePrompt.ifBlank { null }),
+            name.takeIf { it.isNotBlank() }?.let { checkSimilarAssetName(it, names) }
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _saveCompleted = MutableStateFlow(false)

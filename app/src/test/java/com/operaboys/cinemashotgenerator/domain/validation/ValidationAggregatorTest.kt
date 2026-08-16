@@ -42,6 +42,7 @@ import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivati
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
@@ -203,5 +204,36 @@ class ValidationAggregatorTest {
         val report = aggregateShotValidation(shot, scene, neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
 
         assertTrue(report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY).none { it.issue.message.contains("نور خورشید در شب") })
+    }
+
+    // رفع یافته‌ی G14 «کاندید رفع نزدیک» (ADR-064 تصمیم ۹، ADR-092):
+    // validateActionSoundTimeline اکنون در Level 1 وایر است.
+    @Test
+    fun `an action sound timestamp outside the shot's duration produces a real Level 1 blocking issue`() {
+        val shot = neutralShot(durationSeconds = 4f).copy(
+            soundProfile = SoundProfile(
+                enabled = true,
+                actionSounds = listOf(ActionSound(timestampSeconds = 10f, type = "door_slam", description = "Door slams shut"))
+            )
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level1 = report.issuesAtLevel(ValidationLevel.DATA_COMPLETENESS)
+        assertTrue(level1.any { it.issue.severity == Severity.BLOCKING })
+    }
+
+    @Test
+    fun `an action sound timestamp inside the shot's duration produces no issue`() {
+        val shot = neutralShot(durationSeconds = 10f).copy(
+            soundProfile = SoundProfile(
+                enabled = true,
+                actionSounds = listOf(ActionSound(timestampSeconds = 5f, type = "door_slam", description = "Door slams shut"))
+            )
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.isEmpty())
     }
 }

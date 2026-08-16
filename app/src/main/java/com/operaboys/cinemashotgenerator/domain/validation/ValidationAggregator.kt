@@ -6,6 +6,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
+import com.operaboys.cinemashotgenerator.domain.audio.validateActionSoundTimeline
 import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShallowDepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
@@ -95,6 +96,11 @@ fun aggregateShotValidation(
     addAll(l1, validateShotBeatTimeline(shot.beats, shot.durationSeconds))
     add(l1, validateNegativePromptOverride(shot))
     add(l1, validateSceneHasShotsBeforeFinalize(scene.shotCount))
+    // رفع یافته‌ی G14 «کاندید رفع نزدیک» (ADR-064 تصمیم ۹، ADR-092): Action Sound
+    // با Timestamp خارج از durationSeconds شات قبلاً هیچ هشداری نمی‌گرفت — هم‌الگو
+    // دقیق با validateShotBeatTimeline بالا (که همین Rule زیرین، validateBeatSheetTimeline،
+    // را برای Beat Sheet صدا می‌زند).
+    addAll(l1, validateActionSoundTimeline(shot.soundProfile.actionSounds, shot.durationSeconds))
 
     // --- Level 2: سازگاری منطقی (ترکیب فیلدهای خودِ همین Shot/Scene با هم) ---
     val subjectCount = shot.characterIds.size + shot.objectIds.size + shot.locationIds.size

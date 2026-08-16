@@ -81,6 +81,10 @@ const val AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG = "aiBreakdown.generatePromptB
 
 /** رفع G14 ممیزی post-Unit16 — کارت خطای واقعی validateTargetShotCountRange (به‌جای کوتاه‌سازی خاموش). */
 const val AI_BREAKDOWN_TARGET_SHOT_COUNT_ERROR_TAG = "aiBreakdown.targetShotCountError"
+// رفع G14 «کاندید رفع نزدیک»/«قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 1/3/6.
+const val AI_BREAKDOWN_FREEFORM_STORY_ERROR_TAG = "aiBreakdown.freeformStoryError"
+const val AI_BREAKDOWN_HIGH_SHOT_COUNT_WARNING_TAG = "aiBreakdown.highShotCountWarning"
+const val AI_BREAKDOWN_CHUNKS_COMPLETE_WARNING_TAG = "aiBreakdown.chunksCompleteWarning"
 const val AI_BREAKDOWN_BACK_BUTTON_TAG = "aiBreakdown.backButton"
 const val AI_BREAKDOWN_TOGGLE_LANGUAGE_BUTTON_TAG = "aiBreakdown.toggleLanguageButton"
 const val AI_BREAKDOWN_TOGGLE_THEME_BUTTON_TAG = "aiBreakdown.toggleThemeButton"
@@ -109,12 +113,15 @@ fun AiStoryBreakdownScreen(
 
     val phase by viewModel.phase.collectAsStateWithLifecycle()
     val freeformStory by viewModel.freeformStory.collectAsStateWithLifecycle()
+    val freeformStoryError by viewModel.freeformStoryError.collectAsStateWithLifecycle()
     val targetShotCount by viewModel.targetShotCount.collectAsStateWithLifecycle()
     val targetShotCountError by viewModel.targetShotCountError.collectAsStateWithLifecycle()
+    val highShotCountWarning by viewModel.highShotCountWarning.collectAsStateWithLifecycle()
     val defaultShotDurationSeconds by viewModel.defaultShotDurationSeconds.collectAsStateWithLifecycle()
     val generatedPrompt by viewModel.generatedPrompt.collectAsStateWithLifecycle()
     val chunks by viewModel.chunks.collectAsStateWithLifecycle()
     val currentChunkInput by viewModel.currentChunkInput.collectAsStateWithLifecycle()
+    val chunksCompleteWarning by viewModel.chunksCompleteWarning.collectAsStateWithLifecycle()
     val repairDiagnosis by viewModel.repairDiagnosis.collectAsStateWithLifecycle()
     val processingError by viewModel.processingError.collectAsStateWithLifecycle()
     val breakdownResult by viewModel.breakdownResult.collectAsStateWithLifecycle()
@@ -150,9 +157,11 @@ fun AiStoryBreakdownScreen(
                     language = language,
                     freeformStory = freeformStory,
                     onFreeformStoryChange = viewModel::setFreeformStory,
+                    freeformStoryError = freeformStoryError,
                     targetShotCount = targetShotCount,
                     onTargetShotCountChange = viewModel::setTargetShotCount,
                     targetShotCountError = targetShotCountError,
+                    highShotCountWarning = highShotCountWarning,
                     defaultShotDurationSeconds = defaultShotDurationSeconds,
                     onDefaultShotDurationSecondsChange = viewModel::setDefaultShotDurationSeconds,
                     generatedPrompt = generatedPrompt,
@@ -167,7 +176,8 @@ fun AiStoryBreakdownScreen(
                     onAddChunk = viewModel::addChunk,
                     onContinue = viewModel::processResponse,
                     processingError = processingError,
-                    onDismissProcessingError = viewModel::clearProcessingError
+                    onDismissProcessingError = viewModel::clearProcessingError,
+                    chunksCompleteWarning = chunksCompleteWarning
                 )
                 BreakdownPhase.FINAL_REVIEW -> breakdownResult?.let { result ->
                     Phase3FinalReview(
@@ -299,9 +309,11 @@ private fun Phase1WriteStory(
     language: Language,
     freeformStory: String,
     onFreeformStoryChange: (String) -> Unit,
+    freeformStoryError: String?,
     targetShotCount: Int,
     onTargetShotCountChange: (Int) -> Unit,
     targetShotCountError: String?,
+    highShotCountWarning: String?,
     defaultShotDurationSeconds: Float,
     onDefaultShotDurationSecondsChange: (Float) -> Unit,
     generatedPrompt: String?,
@@ -318,6 +330,26 @@ private fun Phase1WriteStory(
             .heightIn(min = 140.dp)
             .testTag(AI_BREAKDOWN_STORY_FIELD_TAG)
     )
+
+    // رفع G14 «کاندید قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 1، هم‌الگو
+    // دقیق با کارت targetShotCountError پایین.
+    if (freeformStoryError != null) {
+        Card(modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_FREEFORM_STORY_ERROR_TAG)) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Text(
+                    text = freeformStoryError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
 
     IntStepperField(
         label = uiString("story.targetShotsLabel", language),
@@ -344,6 +376,26 @@ private fun Phase1WriteStory(
         }
     }
 
+    // رفع G14 «کاندید رفع نزدیک» (ADR-064 تصمیم ۱۲، ADR-092): Rule 3 — فقط
+    // Warning، دکمه‌ی «تولید Prompt» را مسدود نمی‌کند.
+    if (highShotCountWarning != null) {
+        Card(modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_HIGH_SHOT_COUNT_WARNING_TAG)) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Warning, contentDescription = null, tint = CinemaTheme.extendedColors.warning)
+                Text(
+                    text = highShotCountWarning,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.warning,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+
     FloatStepperField(
         label = uiString("story.secondsPerShotLabel", language),
         value = defaultShotDurationSeconds,
@@ -353,7 +405,7 @@ private fun Phase1WriteStory(
 
     Button(
         onClick = onGeneratePrompt,
-        enabled = targetShotCountError == null,
+        enabled = targetShotCountError == null && freeformStoryError == null,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG)
@@ -401,7 +453,8 @@ private fun Phase2PasteResponse(
     onAddChunk: () -> Unit,
     onContinue: () -> Unit,
     processingError: String?,
-    onDismissProcessingError: () -> Unit
+    onDismissProcessingError: () -> Unit,
+    chunksCompleteWarning: String?
 ) {
     if (chunks.isNotEmpty()) {
         Text(
@@ -428,6 +481,27 @@ private fun Phase2PasteResponse(
         }
         Button(onClick = onContinue, modifier = Modifier.weight(1f)) {
             Text(uiString("aiBreakdown.continueButton", language))
+        }
+    }
+
+    // رفع G14 «کاندید بهبود UX آینده» (ADR-064 تصمیم ۱۲، ADR-092): Rule 6 —
+    // فقط Warning، دکمه‌ی «ادامه» را مسدود نمی‌کند (طبق تصمیم مستند: پیام واضح
+    // پیش از خطای خام Parse JSON، نه یک Blocking تازه).
+    if (chunksCompleteWarning != null) {
+        Card(modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_CHUNKS_COMPLETE_WARNING_TAG)) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Warning, contentDescription = null, tint = CinemaTheme.extendedColors.warning)
+                Text(
+                    text = chunksCompleteWarning,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.warning,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 

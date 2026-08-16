@@ -1686,6 +1686,19 @@ Home Resume Layout (طبق درخواست صریح این قدم). سومین م
 تأیید بصری واقعی (رندر SVG معادل زیر ماسک دایره‌ای کامل در ۹۶dp/۴۸dp) بدون
 هیچ بریدگی بود. جزئیات کامل در `docs/adr/091-launcher-icon-real-logo.md`.
 
+### ✅ وصل شدن گروه «کاندید رفع نزدیک» G14 — چهار Rule یتیم کوچک (ADR-092)
+
+طبق جدول تصمیمات ADR-064: Audio Timeline (`validateActionSoundTimeline`)
+اکنون در `ValidationAggregator` Level 1 وایر است؛ هشدار نام مشابه
+(`checkSimilarAssetName`) در هر سه فرم Asset زنده کار می‌کند؛ و هر سه Rule
+باقی‌مانده‌ی AI Story Breakdown (طول داستان آزاد، تعداد شات بالا، تکه‌ی
+ناقص) هم‌الگو دقیق با Rule 2 موجود وصل شدند. یافته‌ی مستقل: مورد چهارم
+(`validateDataCompleteness`) عمداً وصل **نشد** — با خواندن کامل کد مشخص شد
+این تابع از سال‌ها پیش (Migration ۴، ADR-010) دقیقاً معادل دو Rule
+از‌قبل‌وایرشده‌ی دیگر است؛ وصل کردنش هر نقض واقعی را دوبار در صفحه‌ی
+Validation نشان می‌داد. جزئیات کامل در
+`docs/adr/092-g14-close-candidates-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

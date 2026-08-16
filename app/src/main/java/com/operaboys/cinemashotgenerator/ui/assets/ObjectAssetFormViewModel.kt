@@ -10,6 +10,7 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
+import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -77,8 +79,16 @@ class ObjectAssetFormViewModel(
         continuityLockLevel = continuityLockLevel
     )
 
-    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_size, _materialAndColor, _basePrompt) { _, _, _ ->
-        validateObjectAsset(buildPreviewAsset()) + listOfNotNull(validateBasePrompt(_basePrompt.value.ifBlank { null }))
+    // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.existingNames.
+    private val existingNames = repository.loadAllObjectAssets(projectId)
+        .map { list -> list.filter { it.assetId != existingAssetId }.map { it.name } }
+
+    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_name, _size, _materialAndColor, _basePrompt, existingNames) { name, _, _, _, names ->
+        validateObjectAsset(buildPreviewAsset()) + listOfNotNull(
+            validateBasePrompt(_basePrompt.value.ifBlank { null }),
+            name.takeIf { it.isNotBlank() }?.let { checkSimilarAssetName(it, names) }
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _saveCompleted = MutableStateFlow(false)

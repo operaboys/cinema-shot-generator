@@ -16,6 +16,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
@@ -104,11 +106,19 @@ class CharacterAssetFormViewModel(
     private val _outfitDescription = MutableStateFlow("")
     val outfitDescription: StateFlow<String> = _outfitDescription.asStateFlow()
 
+    // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): existingNames از همان
+    // Repository.loadAllCharacterAssets (Flow زنده، هم‌الگو با AssetLibraryViewModel)
+    // می‌آید؛ خودِ Asset در حال ویرایش (existingAssetId) از فهرست کنار گذاشته
+    // می‌شود تا هشدار کاذب «مشابه خودش» تولید نشود.
+    private val existingNames = repository.loadAllCharacterAssets(projectId)
+        .map { list -> list.filter { it.assetId != existingAssetId }.map { it.name } }
+
     /** Rule 11 (Warning) روی basePrompt — Rule 5 (Outfit پیش‌فرض) همیشه ارضا می‌شود چون فرم همیشه یک Outfit با isDefault=true می‌سازد؛ همچنان برای اثبات صریح فراخوانی می‌شود. */
-    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_outfitName, _outfitDescription, _basePrompt) { outfitName, outfitDescription, basePrompt ->
+    val validationIssues: StateFlow<List<ValidationIssue>> = combine(_name, _outfitName, _outfitDescription, _basePrompt, existingNames) { name, outfitName, outfitDescription, basePrompt, names ->
         listOfNotNull(
             validateDefaultOutfitExists(listOf(Outfit(id = "preview", name = outfitName, description = outfitDescription, isDefault = true))),
-            validateBasePrompt(basePrompt.ifBlank { null })
+            validateBasePrompt(basePrompt.ifBlank { null }),
+            name.takeIf { it.isNotBlank() }?.let { checkSimilarAssetName(it, names) }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

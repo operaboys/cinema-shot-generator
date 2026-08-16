@@ -18,6 +18,9 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.attemptAutoFix
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.buildStoryBreakdownPrompt
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.processAiResponse
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.smartCombineChunks
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateChunksComplete
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateFreeformStoryLength
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateHighShotCount
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateTargetShotCountRange
 import com.operaboys.cinemashotgenerator.ui.story.defaultStoryContext
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +61,12 @@ class AiStoryBreakdownViewModel(
     private val _freeformStory = MutableStateFlow("")
     val freeformStory: StateFlow<String> = _freeformStory.asStateFlow()
 
+    // رفع G14 «کاندید قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 1 — هم‌الگو
+    // دقیق با targetShotCountError پایین (خطای واقعی + Blocking دکمه‌ی «تولید
+    // Prompt»).
+    private val _freeformStoryError = MutableStateFlow<String?>(null)
+    val freeformStoryError: StateFlow<String?> = _freeformStoryError.asStateFlow()
+
     private val _targetShotCount = MutableStateFlow(10)
     val targetShotCount: StateFlow<Int> = _targetShotCount.asStateFlow()
 
@@ -69,6 +78,11 @@ class AiStoryBreakdownViewModel(
     // داده می‌شود؛ دکمه‌ی «تولید Prompt» تا وقتی خطا برطرف نشود غیرفعال است.
     private val _targetShotCountError = MutableStateFlow<String?>(null)
     val targetShotCountError: StateFlow<String?> = _targetShotCountError.asStateFlow()
+
+    // رفع G14 «کاندید قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 3 — روی همان
+    // فیلد targetShotCount، اما فقط Warning (دکمه را مسدود نمی‌کند).
+    private val _highShotCountWarning = MutableStateFlow<String?>(null)
+    val highShotCountWarning: StateFlow<String?> = _highShotCountWarning.asStateFlow()
 
     private val _defaultShotDurationSeconds = MutableStateFlow(4f)
     val defaultShotDurationSeconds: StateFlow<Float> = _defaultShotDurationSeconds.asStateFlow()
@@ -82,6 +96,12 @@ class AiStoryBreakdownViewModel(
 
     private val _currentChunkInput = MutableStateFlow("")
     val currentChunkInput: StateFlow<String> = _currentChunkInput.asStateFlow()
+
+    // رفع G14 «کاندید بهبود UX آینده» (ADR-064 تصمیم ۱۲، ADR-092): Rule 6 —
+    // هشدار پیش از اینکه کاربر یک خطای Parse JSON نامفهوم ببیند (وقتی آخرین
+    // تکه هنوز با [CONTINUE] تمام شده و فراموش کرده تکه‌ی بعدی را اضافه کند).
+    private val _chunksCompleteWarning = MutableStateFlow<String?>(null)
+    val chunksCompleteWarning: StateFlow<String?> = _chunksCompleteWarning.asStateFlow()
 
     private val _repairDiagnosis = MutableStateFlow<JsonDiagnosis?>(null)
     val repairDiagnosis: StateFlow<JsonDiagnosis?> = _repairDiagnosis.asStateFlow()
@@ -99,8 +119,10 @@ class AiStoryBreakdownViewModel(
         ioScope.launch {
             storyRepository.loadBreakdownSession(projectId).getOrNull()?.let { session ->
                 _freeformStory.value = session.freeformStory
+                _freeformStoryError.value = validateFreeformStoryLength(session.freeformStory)?.message
                 _targetShotCount.value = session.targetShotCount
                 _targetShotCountError.value = validateTargetShotCountRange(session.targetShotCount)?.message
+                _highShotCountWarning.value = validateHighShotCount(session.targetShotCount)?.message
                 _defaultShotDurationSeconds.value = session.defaultShotDurationSeconds
             }
         }
@@ -112,12 +134,14 @@ class AiStoryBreakdownViewModel(
 
     fun setFreeformStory(text: String) {
         _freeformStory.value = text
+        _freeformStoryError.value = validateFreeformStoryLength(text)?.message
         saveSession()
     }
 
     fun setTargetShotCount(count: Int) {
         _targetShotCount.value = count
         _targetShotCountError.value = validateTargetShotCountRange(count)?.message
+        _highShotCountWarning.value = validateHighShotCount(count)?.message
         saveSession()
     }
 
@@ -143,7 +167,7 @@ class AiStoryBreakdownViewModel(
      * استفاده می‌شود (defaultStoryContext مشترک).
      */
     fun generatePrompt() {
-        if (_targetShotCountError.value != null) return
+        if (_targetShotCountError.value != null || _freeformStoryError.value != null) return
         ioScope.launch {
             val storyContext = storyRepository.loadStoryContext(projectId).getOrNull() ?: defaultStoryContext(clock)
             val request = StoryBreakdownRequest(
@@ -165,6 +189,7 @@ class AiStoryBreakdownViewModel(
         if (_currentChunkInput.value.isBlank()) return
         _chunks.value = _chunks.value + _currentChunkInput.value
         _currentChunkInput.value = ""
+        _chunksCompleteWarning.value = validateChunksComplete(_chunks.value)?.message
     }
 
     /**
@@ -175,6 +200,7 @@ class AiStoryBreakdownViewModel(
      */
     fun processResponse() {
         val allChunks = _chunks.value + listOfNotNull(_currentChunkInput.value.takeIf { it.isNotBlank() })
+        _chunksCompleteWarning.value = validateChunksComplete(allChunks)?.message
         when (val result = processAiResponse(allChunks, _targetShotCount.value)) {
             is ProcessAiResponseResult.Success -> {
                 _breakdownResult.value = result.result

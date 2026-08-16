@@ -19,8 +19,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
+import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
@@ -60,6 +63,7 @@ class AssetFormFlowTest {
     private lateinit var workflowViewModel: WorkflowViewModel
     private lateinit var database: AppDatabase
     private lateinit var projectListViewModel: ProjectListViewModel
+    private lateinit var assetRepository: AssetRepository
 
     @Before
     fun setUp() {
@@ -84,7 +88,7 @@ class AssetFormFlowTest {
         // یک ردیف Project واقعی در projectSummaries لازم دارد.
         runBlocking { projectRepository.createProject("Asset Form Test").getOrThrow() }
 
-        val assetRepository = AssetRepository(database.assetDao())
+        assetRepository = AssetRepository(database.assetDao())
 
         composeRule.setContent {
             CinemaShotGeneratorTheme(darkTheme = true, language = Language.FA) {
@@ -304,5 +308,36 @@ class AssetFormFlowTest {
         composeRule.onNodeWithTag(ASSET_FILTER_OBJECTS_TAG).performClick()
         composeRule.waitUntilExactlyOneExists(hasText("Golden Compass"), timeoutMillis = 5_000)
         composeRule.onNodeWithText("Brass Compass").assertDoesNotExist()
+    }
+
+    // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): checkSimilarAssetName
+    // اکنون در هر سه فرم Asset زنده وایر است. یک تست نماینده (Character) کافی است
+    // — منطق هر سه فرم عیناً یکسان است (ترکیب existingNames از Repository + نام
+    // در‌حال‌تایپ)، فقط منبع Repository فرق دارد.
+    @Test
+    fun `the character form shows a live Warning when the typed name is similar to an existing character`() {
+        runBlocking {
+            assetRepository.saveCharacterAsset(
+                "proj_asset_form_test",
+                CharacterAsset(
+                    assetId = "char_existing",
+                    characterTier = CharacterTier.MAIN,
+                    name = "Captain Amelia",
+                    physicalAppearance = PhysicalAppearance(ageRange = "30-35", gender = Gender.FEMALE),
+                    outfits = emptyList()
+                )
+            )
+        }
+
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_LIBRARY_FAB_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("characterForm.title", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(CHARACTER_FORM_NAME_FIELD_TAG).performTextInput("Captain Amelia")
+
+        composeRule.waitUntilExactlyOneExists(
+            hasText("نام 'Captain Amelia' با Asset موجود 'Captain Amelia' مشابه است"),
+            timeoutMillis = 5_000
+        )
     }
 }
