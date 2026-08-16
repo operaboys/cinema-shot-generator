@@ -202,8 +202,9 @@ class CharacterAssetFormViewModel(
      * رفتار مرزی «حذف Outfit پیش‌فرض»: با grep در پروژه هیچ الگوی مشابه موجودی
      * (حذف از یک لیست با دقیقاً یک عضو الزامی/پیش‌فرض) پیدا نشد — این اولین مورد
      * است. تصمیم: حذف تنها Outfit باقی‌مانده مسدود می‌شود (no-op)، نه فقط با یک
-     * ValidationIssue بلوکه‌شده — چون selectOutfitForScene/selectOutfitForShot
-     * دقیقاً `outfits.first { it.isDefault }` را روی یک لیست خالی صدا می‌زنند
+     * ValidationIssue بلوکه‌شده — چون selectOutfitForScene (domain/asset/
+     * AssetSelection.kt، مصرف‌کننده‌ی واقعی: enforceCharacterContinuity)
+     * دقیقاً `outfits.first { it.isDefault }` را روی یک لیست خالی صدا می‌زند
      * (NoSuchElementException واقعی در زمان اجرا، نه فقط یک نقض Rule قابل‌نادیده-
      * گرفتن) — تضمین ساختاری در سطح ViewModel امن‌تر از تکیه بر canSave/Validation
      * است (هم‌راستا با اصل «تضمین ساختاری، نه Runtime» دیده‌شده در ADR-006/ADR-093).

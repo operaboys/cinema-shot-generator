@@ -1736,6 +1736,16 @@ Validation نشان می‌داد. جزئیات کامل در
 یافت اما همچنان صفر فراخوان‌کننده‌ی واقعی دارد (کد مرده‌ی احتمالی، تأییدشده
 با grep). جزئیات کامل در `docs/adr/096-g5-multi-field-outfit-condition-matching.md`.
 
+### ✅ حذف کد یتیم selectOutfitForShot (ADR-097)
+
+`domain/shot/ShotOutfitSelection.kt` (واحد ۰۵) از ابتدای پیاده‌سازی (ADR-006
+§۵) هرگز به هیچ مصرف‌کننده‌ی واقعی وصل نبود — مسیر واقعی انتخاب خودکار Outfit
+همیشه `enforceCharacterContinuity` (واحد ۱۱) بوده. با چند grep مستقل تأیید
+شد صفر فراخوان‌کننده‌ی واقعی دارد؛ تصمیم صریح کاربر پروژه: حذف. فایل + تست
+اختصاصی‌اش کامل حذف شدند؛ کامنت ارجاع‌دهنده در
+`CharacterAssetFormViewModel.kt` اصلاح شد. جزئیات کامل در
+`docs/adr/097-remove-dead-selectoutfitforshot.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
