@@ -1746,6 +1746,21 @@ Validation نشان می‌داد. جزئیات کامل در
 `CharacterAssetFormViewModel.kt` اصلاح شد. جزئیات کامل در
 `docs/adr/097-remove-dead-selectoutfitforshot.md`.
 
+### ✅ G2 قدم ۱ از ۳ — لایه‌ی ذخیره‌سازی امن کلید API (ADR-098)
+
+اولین زیرقدم از Option B (ADR-035) — فقط زیرساخت ذخیره‌سازی، بدون هیچ اتصال
+HTTP یا UI. `SecureKeyRepository.kt` (چندسرویسی — یک کلید مستقل به‌ازای هر
+`profileId`) با `androidx.security.crypto` (`EncryptedSharedPreferences` روی
+`MasterKey`/Android Keystore واقعی) ساخته شد. دو یافته‌ی مهم حین این قدم: (۱)
+این کتابخانه از نسخه‌ی `1.1.0-beta01` به بعد Deprecated است (گوگل جایگزین
+مستقیم Keystore را توصیه می‌کند) — با این حال طبق تصمیم صریح معماری همچنان
+استفاده شد؛ (۲) Robolectric (نسخه‌ی نصب‌شده‌ی پروژه) از `AndroidKeyStore`
+واقعی پشتیبانی نمی‌کند (محدودیت شناخته‌شده‌ی خودِ Robolectric، تأییدشده
+تجربی با شکست ۶ از ۶ تست اول) — برای همین یک `SharedPreferences` تزریق‌پذیر
+(هم‌الگو با `idProvider`/`clock` در `ProjectRepository.kt`) اضافه شد تا
+منطق CRUD واقعاً قابل‌تست بماند؛ تأیید رمزنگاری واقعی روی دستگاه واقعی هنوز
+یک محدودیت مستند است. جزئیات کامل در `docs/adr/098-g2-step1-secure-key-storage.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -1755,6 +1770,7 @@ Validation نشان می‌داد. جزئیات کامل در
 - **Preference سبک UI (زبان/تم/Layout A-B):** DataStore Preferences — جدا از Room (که فقط برای Entity های دامنه است)
 - **ذخیره‌سازی:** Room 2.8.4 + KSP (روی SQLite) + kotlinx.serialization (برای فیلدهای `*DataJson`) — پشتیبانی از چند پروژه‌ی همزمان؛ کاملاً پیاده‌سازی و به دامنه وصل شده (واحد ۱۵ تکمیل‌شده)
 - **اتصال AI (اختیاری):** Ktor Client — فقط وقتی کاربر کلید API شخصی وارد کند
+- **ذخیره‌سازی امن کلید API:** `androidx.security.crypto` 1.1.0 (`EncryptedSharedPreferences` روی Android Keystore) — چندسرویسی (`SecureKeyRepository`، G2 قدم ۱ از ۳، ADR-098)؛ Deprecated طبق گوگل از نسخه‌ی 1.1.0-beta01 به بعد، اما همچنان استفاده می‌شود (تصمیم صریح معماری)
 
 ## ساختار
 
