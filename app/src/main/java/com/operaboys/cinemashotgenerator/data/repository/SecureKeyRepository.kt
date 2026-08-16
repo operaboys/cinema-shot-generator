@@ -16,7 +16,9 @@ import kotlinx.coroutines.withContext
 // Android Keystore — سخت‌افزار امن گوشی، نه یک کلید نرم‌افزاری دستی) استفاده شده —
 // تصمیم معماری صریح، هم‌راستا با فلسفه‌ی On-Device/بدون سرور پروژه. جزئیات کامل
 // (شامل دو یافته‌ی مهم: وضعیت Deprecated این کتابخانه، و محدودیت واقعی Robolectric
-// با AndroidKeyStore) در ADR-098.
+// با AndroidKeyStore) در ADR-098. تصمیم آگاهانه‌ی «فعلاً مهاجرت نکن» به جایگزین
+// رسمی (androidx.datastore:datastore-tink، هنوز Alpha) — ADR-099 و R6 در
+// docs/governance/risk-register.md.
 //
 // چندسرویسی: هر کلید با یک profileId مستقل ذخیره می‌شود (هم‌قرارداد با
 // AiConnectorProfile.profileId، domain/storybreakdown/AiConnector.kt) — یک فایل

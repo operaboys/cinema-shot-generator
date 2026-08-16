@@ -1761,6 +1761,18 @@ HTTP یا UI. `SecureKeyRepository.kt` (چندسرویسی — یک کلید م�
 منطق CRUD واقعاً قابل‌تست بماند؛ تأیید رمزنگاری واقعی روی دستگاه واقعی هنوز
 یک محدودیت مستند است. جزئیات کامل در `docs/adr/098-g2-step1-secure-key-storage.md`.
 
+### ✅ تصمیم آگاهانه — عدم مهاجرت زودهنگام به datastore-tink (ADR-099)
+
+بررسی مستقل بیشتر نشان داد جایگزین رسمی گوگل برای `security.crypto`
+Deprecated (`androidx.datastore:datastore-tink`) هنوز در اولین انتشار
+**Alpha** است (`1.3.0-alpha07`، ۱۱ آوریل ۲۰۲۶) — بدون تضمین پایداری API.
+تصمیم صریح: فعلاً روی `security.crypto` (پایدار، کارکردی) باقی می‌مانیم؛
+ریسک واقعی یک مهاجرت زودهنگام به یک کتابخانه‌ی Alpha بزرگ‌تر از هزینه‌ی
+نگه‌داشتن یک هشدار Deprecation بی‌ضرر است، برای این مرحله از یک MVP شخصی.
+شرط بازبینی (وقتی `datastore-tink` به Stable/RC برسد) به‌عنوان **R6** در
+`docs/governance/risk-register.md` ثبت شد — جزئیات کامل در
+`docs/adr/099-defer-datastore-tink-migration.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
