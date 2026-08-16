@@ -1,7 +1,5 @@
 package com.operaboys.cinemashotgenerator.domain.outputdelivery
 
-import com.operaboys.cinemashotgenerator.domain.validation.Severity
-import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import java.util.UUID
 
 // واحد ۱۴ — Output Delivery System (بخش ب: Output Composer)
@@ -12,6 +10,13 @@ import java.util.UUID
 // بیرون تزریق می‌شود، چه خام از render() این فایل، چه بعداً Clean‌شده از واحد ۱۳؛
 // composeOutput خودش هرگز render() را صدا نمی‌زند — دقیقاً طبق کد مفهومی بلوپرینت که
 // renderedOutputs را پارامتر گرفته، نه خودش تولید کرده.
+//
+// رفع یافته‌ی G14 «منسوخ، کاندید حذف» (ADR-064 دسته‌ی ج، ADR-093): تابع
+// validateBilingualCompleteness حذف شد — صفر فراخوان‌کننده‌ی واقعی داشت (فقط تست
+// اختصاصی خودش). بقیه‌ی این فایل (OutputPackage/BilingualPrompts/ExportFile/
+// composeOutput) دست‌نخورده ماند — هنوز توسط OutputDeliveryViewModel.kt،
+// OutputDeliveryScreen.kt، ExportFileWriter.kt، و BackupsViewModel.kt (ADR-089)
+// مستقیماً استفاده می‌شود.
 
 data class OutputPackage(
     val outputId: String,
@@ -49,18 +54,6 @@ fun composeOutput(
     }
 
     return OutputPackage(idProvider(), shotId, promptBlueprintId, bilingualPrompts, renderedOutputs, exportFiles)
-}
-
-/**
- * Rule «یکی از نسخه‌های زبانی موجود نیست». BilingualPrompts دو فیلد غیر-Null String
- * دارد (نه Nullable)؛ خالی/Blank بودن معادل «موجود نیست» است.
- */
-fun validateBilingualCompleteness(bilingualPrompts: BilingualPrompts): ValidationIssue? {
-    if (bilingualPrompts.enVersion.isNotBlank() && bilingualPrompts.faVersion.isNotBlank()) return null
-    return ValidationIssue(
-        severity = Severity.WARNING,
-        message = "یکی از نسخه‌های زبانی (EN/FA) موجود نیست"
-    )
 }
 
 private fun defaultOutputPackageId(): String =

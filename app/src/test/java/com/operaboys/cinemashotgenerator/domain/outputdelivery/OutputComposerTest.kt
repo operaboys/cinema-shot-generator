@@ -1,8 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.outputdelivery
 
-import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -45,18 +43,5 @@ class OutputComposerTest {
         assertTrue(result.exportFiles.any { it.filename == "shot_001_prompt_en.txt" && it.content == "a cinematic shot" })
         assertTrue(result.exportFiles.any { it.filename == "shot_001_prompt_fa.txt" && it.content == "یک نمای سینمایی" })
         assertTrue(result.exportFiles.any { it.filename == "shot_001_veo_3_1.txt" && it.content == "a cinematic shot" })
-    }
-
-    // --- validateBilingualCompleteness ---
-
-    @Test
-    fun `validateBilingualCompleteness is null when both versions are present`() {
-        assertNull(validateBilingualCompleteness(bilingualPrompts))
-    }
-
-    @Test
-    fun `validateBilingualCompleteness warns when one version is blank`() {
-        val issue = validateBilingualCompleteness(bilingualPrompts.copy(faVersion = ""))
-        assertEquals(Severity.WARNING, issue!!.severity)
     }
 }

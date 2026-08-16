@@ -1,4 +1,4 @@
-# ADR-093: حذف کد مرده‌ی G14 — validateAssetIdUniqueness
+# ADR-093: حذف کد مرده‌ی G14 — validateAssetIdUniqueness و validateBilingualCompleteness
 
 ## زمینه
 
@@ -21,29 +21,34 @@ UUID خودکار (`generateAssetFormId`) ساخته می‌شود، پس یکت
 - کامنت سربرگ فایل به‌روزرسانی شد تا شمارش Rule‌ها را منعکس کند و دلیل
   حذف را ثبت کند.
 
-## یافته‌ی جداشده — OutputComposer.kt حذف نشد
+## یافته‌ی جداشده — OutputComposer.kt کامل حذف نشد؛ فقط بخش مرده‌اش
 
-قدم اجرایی همچنین حذف کل فایل `OutputComposer.kt` (شامل
-`validateBilingualCompleteness`) را درخواست کرده بود، با این فرض که این
-فایل یک طرح قدیمی واحد ۱۴ است که هرگز جایگزین صفحه‌ی واقعی Output Delivery
-نشده. بررسی کامل فایل + grep سراسری `composeOutput`/`OutputPackage`/
-`BilingualPrompts`/`ExportFile` این فرض را رد کرد: این چهار Symbol
-هنوز مستقیماً توسط `OutputDeliveryViewModel.kt`، `OutputDeliveryScreen.kt`،
-`ExportFileWriter.kt`، و `BackupsViewModel.kt` (ADR-089) استفاده می‌شوند.
-تنها بخش واقعاً مرده‌ی این فایل، تابع `validateBilingualCompleteness`
-(۶ خط) است — که صفر فراخوان‌کننده دارد (فقط دو تست اختصاصی خودش در
-`OutputComposerTest.kt`).
+قدم اجرایی اولیه همچنین حذف کل فایل `OutputComposer.kt` را درخواست کرده
+بود، با این فرض که این فایل یک طرح قدیمی واحد ۱۴ است که هرگز جایگزین
+صفحه‌ی واقعی Output Delivery نشده. بررسی کامل فایل + grep سراسری
+`composeOutput`/`OutputPackage`/`BilingualPrompts`/`ExportFile` این فرض
+را رد کرد: این چهار Symbol هنوز مستقیماً توسط `OutputDeliveryViewModel.kt`،
+`OutputDeliveryScreen.kt`، `ExportFileWriter.kt`، و `BackupsViewModel.kt`
+(ADR-089) استفاده می‌شوند. تنها بخش واقعاً مرده‌ی این فایل، تابع
+`validateBilingualCompleteness` (۶ خط) بود — صفر فراخوان‌کننده (فقط دو
+تست اختصاصی خودش در `OutputComposerTest.kt`).
 
 طبق دستور صریح قدم اجرایی («اگر جای دیگری این دو مورد را استفاده می‌کند،
-حذف نکن — در گزارش مشخص کن و منتظر بمان»)، این بخش حذف **نشد** و منتظر
-تأیید کاربر برای یک نسخه‌ی محدودتر (فقط حذف `validateBilingualCompleteness`
-+ دو تستش) ماند.
+حذف نکن — در گزارش مشخص کن و منتظر بمان»)، ابتدا این بخش حذف **نشد** و
+گزارش شد. با تأیید صریح کاربر در قدم بعدی، فقط همین تابع مرده + دو تست
+اختصاصی‌اش (`OutputComposerTest.kt`) حذف شدند؛ بقیه‌ی فایل
+(`OutputPackage`/`BilingualPrompts`/`ExportFile`/`composeOutput` و گروه
+تست زنده‌ی `composeOutput`) دست‌نخورده ماند. سه ارجاع کامنتی موجود در
+`OutputDeliveryScreen.kt:102`، `OutputDeliveryViewModelTest.kt:270`، و
+`OutputDeliveryFlowTest.kt:385` همگی به `composeOutput`/فایل (نه به
+`validateBilingualCompleteness`) اشاره دارند و همچنان درست‌اند — چون خودِ
+فایل حذف نشد، ویرایشی لازم نبود.
 
 ## راستی‌آزمایی
 
 | بررسی | نتیجه |
 |---|---|
-| `gradle :app:compileDebugKotlin :app:compileDebugUnitTestKotlin` | موفق |
-| `gradle :app:testDebugUnitTest` (`domain.asset.*`) | موفق |
-| `gradle :app:testDebugUnitTest` (کل Suite) | ۱ شکست نامرتبط (`OutputDeliveryFlowTest`، flaky شناخته‌شده‌ی محیط Sandbox؛ در اجرای مجزا موفق) |
+| `gradle :app:compileDebugKotlin :app:compileDebugUnitTestKotlin` | موفق (هر دو مرحله) |
+| `gradle :app:testDebugUnitTest` (`domain.asset.*`، `domain.outputdelivery.*`، `ui.outputdelivery.*`) | موفق |
+| `gradle :app:testDebugUnitTest` (کل Suite) | شکست‌های نامرتبط (`OutputDeliveryFlowTest`، `AssetFormFlowTest`)، flaky شناخته‌شده‌ی محیط Sandbox؛ هر دو در اجرای مجزا موفق |
 | `gradle :app:assembleDebug` | موفق |
