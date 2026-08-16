@@ -198,8 +198,11 @@ Quick-access chips on Output Delivery surface Veo 3.1 / Kling 3.0 / Runway Gen-4
 3. Text-contrast tiers (fg/fg2/fg3/fg4) were tuned to meet WCAG AA (≥4.5:1) against the glass-card surfaces specifically (not the raw page background) — reuse the exact hex values above rather than re-deriving a gray scale.
 
 ## Assets
-- App logo: "Aperture C" mark — an 8-blade aperture/pinwheel glyph forming a stylized "C", violet-to-orange gradient blades (see `Cinema Studio.html` inline SVG `#csMark` symbol for exact path data/gradients). Used in header (root screens), drawer header, and Settings "About" card.
+- App logo: "Aperture C" mark — an 8-blade aperture/pinwheel glyph forming a stylized "C", violet-to-orange gradient blades. Standalone files in `logo/`: `aperture-c-mark.svg` (vector, transparent background, -128..128 viewBox — recreate as an Android vector drawable / Compose `Path`) plus flat PNG exports at 512/192/96/48/24px. Used in header (root screens), drawer header, and Settings "About" card — always at native resolution, never stretched.
+- Fonts: **Inter** and **Vazirmatn** are loaded from Google Fonts (weights 400/500/600/700) — no local font files are bundled; use the equivalent Google Fonts / Android downloadable-fonts entries, or bundle the .ttf files yourself from fonts.google.com. **Material Symbols Rounded** (opsz 24, wght 400, FILL 0, GRAD 0) supplies every icon glyph in the prototype (see icon names inline in `Cinema Studio.html`, e.g. `menu`, `lock`, `check_circle`) — use the Material Symbols Rounded font/vector set on Android, not a different icon pack.
 - All photo content (Home background, project thumbnails, scene/shot/asset thumbnails) are **placeholder drop-slots** in the prototype — no real images are final; treat every image area as needing real production photography/renders.
 
 ## Files
 - `Cinema Studio.html` — the full interactive prototype (all 12 screens, both languages, both themes, both layout A/B variants), open directly in a browser to click through.
+- `logo/` — standalone Aperture C mark: `aperture-c-mark.svg` + PNG exports (512/192/96/48/24px).
+- `screenshots/` — static PNG capture of each of the 12 screens for quick reference without opening the HTML.
