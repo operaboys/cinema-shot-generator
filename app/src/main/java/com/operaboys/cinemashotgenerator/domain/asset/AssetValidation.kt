@@ -4,9 +4,15 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlin.math.min
 
-// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule 1، ۲، ۳، ۵، ۶، ۶ب، ۷، و از Migration بخش
+// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule ۲، ۳، ۵، ۶، ۶ب، ۷، و از Migration بخش
 // دوم: ۱۰، ۱۱، ۱۲)
 // منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md (نسخه ۵)
+//
+// رفع یافته‌ی G14 «منسوخ، کاندید حذف» (ADR-064 دسته‌ی ج، ADR-093): Rule ۱
+// (validateAssetIdUniqueness) حذف شد — assetId همیشه با UUID خودکار
+// (generateAssetFormId) ساخته می‌شود، کاربر هرگز مستقیماً وارد نمی‌کند؛ یکتایی
+// عملاً همیشه توسط همان تولید UUID تضمین است، پس این Rule هرگز شرطش برقرار
+// نمی‌شد (صفر فراخوان‌کننده، تأییدشده با grep).
 //
 // MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
 // یک sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت (ثبت‌شده در
@@ -34,14 +40,6 @@ fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): 
             ImageValidationResult(false, "فایل خراب یا خالی است")
         else -> ImageValidationResult(true)
     }
-}
-
-/** Rule 1 (Blocking): یکتایی asset_id. */
-fun validateAssetIdUniqueness(assetId: String, existingIds: List<String>): ValidationIssue? {
-    if (assetId in existingIds) {
-        return ValidationIssue(Severity.BLOCKING, message = "شناسه‌ی '$assetId' قبلاً برای یک Asset دیگر استفاده شده است")
-    }
-    return null
 }
 
 /**

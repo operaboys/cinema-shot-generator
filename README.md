@@ -1699,6 +1699,18 @@ Home Resume Layout (طبق درخواست صریح این قدم). سومین م
 Validation نشان می‌داد. جزئیات کامل در
 `docs/adr/092-g14-close-candidates-wiring.md`.
 
+### ✅ حذف کد مرده‌ی G14 — validateAssetIdUniqueness (ADR-093)
+
+طبق دسته‌ی «ج: منسوخ، کاندید حذف» ADR-064: `validateAssetIdUniqueness`
+(واحد ۰۶) صفر فراخوان‌کننده داشت — `assetId` همیشه با UUID خودکار ساخته
+می‌شود، کاربر هرگز مستقیماً وارد نمی‌کند، پس یکتایی از قبل تضمین بود. این
+تابع + دو تست اختصاصی‌اش کامل حذف شدند. مورد دوم همین قدم (حذف کل
+`OutputComposer.kt`) عمداً اجرا **نشد** — بررسی نشان داد بخش عمده‌ی این
+فایل (`composeOutput`، `OutputPackage`، `ExportFile`) هنوز توسط صفحه‌ی
+واقعی Output Delivery و Export All بک‌آپ‌ها استفاده می‌شود؛ فقط
+`validateBilingualCompleteness` واقعاً مرده است. جزئیات کامل در
+`docs/adr/093-g14-dead-code-removal-asset-id-uniqueness.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

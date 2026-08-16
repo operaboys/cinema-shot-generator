@@ -37,20 +37,6 @@ class AssetValidationTest {
         assertFalse(result.valid)
     }
 
-    // --- Rule 1: یکتایی asset_id ---
-
-    @Test
-    fun `rule1 duplicate asset id is blocking`() {
-        val result = validateAssetIdUniqueness("char_001", existingIds = listOf("char_001", "loc_001"))
-        assertEquals(Severity.BLOCKING, result!!.severity)
-    }
-
-    @Test
-    fun `rule1 unique asset id is valid`() {
-        val result = validateAssetIdUniqueness("char_002", existingIds = listOf("char_001", "loc_001"))
-        assertNull(result)
-    }
-
     // --- Rule 3: Asset در حال استفاده قابل حذف نیست ---
 
     @Test
