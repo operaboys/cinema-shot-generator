@@ -2,6 +2,28 @@ package com.operaboys.cinemashotgenerator.domain.storybreakdown
 
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import java.io.IOException
+import java.net.SocketTimeoutException
 
 // واحد ۰۱ب — AI Story Breakdown (بخش ب، مسیر ۲: AI Connector Profile)
 // منبع حقیقت: docs/blueprints/01b-ai-story-breakdown.md (نسخه ۲)
@@ -9,12 +31,11 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 // آخرین قدم این واحد — ادامه‌ی PromptBuilder.kt/ChunkCombiner.kt (قدم اول)،
 // JsonDoctor.kt (قدم دوم)، StoryToDomainMapper.kt (قدم سوم).
 //
-// تصمیم مستند (docs/adr/035-unit01b-story-breakdown-step4-ai-connector.md، Option
-// A): پیاده‌سازی واقعی HTTP Call با Ktor Client عمداً به یک قدم کاملاً جداگانه‌ی آینده
-// موکول شد — دقیقاً طبق اجازه‌ی صریح خودِ بلوپرینت («می‌تواند به یک زیرقدم بعدی موکول
-// شود اگر حجم واقعی بزرگ‌تر از انتظار بود»). این فایل فقط قرارداد/ساختار مسیر ۲ را
-// پیاده می‌کند؛ sendToAiConnector عمداً TODO() است (یک body معتبر Kotlin که
-// NotImplementedError پرتاب می‌کند، نه خطای کامپایل) — آزمایش‌شده در AiConnectorTest.kt.
+// G2 قدم ۲ از ۳ (ADR-100): اتصال HTTP واقعی — تصمیم Option A قبلی (ADR-035:
+// sendToAiConnector عمداً TODO()) اکنون با Option B جایگزین شد. قدم ۱ (ADR-098،
+// SecureKeyRepository.kt) لایه‌ی ذخیره‌سازی امن کلید را مستقل ساخت — این فایل به
+// آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI/قدم ۳
+// است). قدم ۳ (UI انتخابگر مسیر ۱/۲) هنوز نیامده.
 
 /** پروفایل یک سرویس AI متنی — کاملاً مستقل از پیاده‌سازی، هم‌خانواده با ModelProfile واحد ۱۴. */
 data class AiConnectorProfile(
@@ -27,14 +48,41 @@ data class AiConnectorProfile(
 )
 
 /**
- * پروفایل‌های آماده برای معروف‌ترین سرویس‌ها — عمداً خالی در این قدم. بلوپرینت خودش
- * این فهرست را «نمونه‌ی مفهومی» گذاشته بود («جزئیات دقیق request/response هر سرویس
- * در زمان پیاده‌سازی واقعی از مستندات رسمی گرفته شود، نه حدس»). افزودن پروفایل‌های
- * واقعی (Claude API، OpenAI API، ...) نیازمند بررسی مستندات رسمی هرکدام است — این کار
- * دامنه‌محور نیست (تحقیق API خارجی)، پس به قدم جداگانه‌ی آینده موکول شد (احتمالاً
- * هم‌زمان با پیاده‌سازی واقعی HTTP، طبق تصمیم Option A بالا).
+ * اولین پروفایل واقعی — Claude API (Anthropic Messages API)، تأییدشده مستقیم از
+ * platform.claude.com/docs/en/build-with-claude/working-with-messages (نه حدس):
+ * Endpoint: POST https://api.anthropic.com/v1/messages
+ * Header های الزامی: x-api-key (کلید خام، بدون Bearer)، anthropic-version: 2023-06-01
+ * بدنه: {"model": ..., "max_tokens": N, "messages": [{"role": "user", "content": "..."}]}
+ * پاسخ: content[0].text — دقیقاً همان مسیری که خودِ کد مفهومی بلوپرینت ۰۱ب به‌عنوان
+ * مثال آورده بود؛ تصادفی نیست، طراحی اولیه‌ی بلوپرینت برای Claude API درست بوده.
+ *
+ * مدل/max_tokens: claude-sonnet-5 (تعادل توان/هزینه برای یک Story Breakdown — نه
+ * مدل گران‌ترین/سریع‌ترین، بلوپرینت خودش نظری برای انتخاب مدل نداده) با
+ * max_tokens=4096 (کافی برای خروجی JSON چندشاته‌ی بخش الف؛ اگر AI پاسخ را در
+ * چند بخش با [CONTINUE] بفرستد، ChunkCombiner.kt موجود پروژه از قبل این را
+ * پوشش می‌دهد — طبق تصمیم ۰۱ب همان قدم).
  */
-val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = emptyList()
+val CLAUDE_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
+    profileId = "claude_api",
+    displayName = "Claude API",
+    endpointUrl = "https://api.anthropic.com/v1/messages",
+    requestBodyTemplate = """{"model":"claude-sonnet-5","max_tokens":4096,"messages":[{"role":"user","content":"{{PROMPT}}"}]}""",
+    requestHeaders = mapOf(
+        "x-api-key" to "{{API_KEY}}",
+        "anthropic-version" to "2023-06-01"
+    ),
+    responseJsonPath = "content[0].text"
+)
+
+/**
+ * پروفایل‌های آماده — طبق تصمیم قدم قبلی (ADR-035) عمداً خالی مانده بود چون افزودن
+ * پروفایل واقعی نیازمند بررسی مستندات رسمی هر سرویس بود (تحقیق API خارجی، نه کار
+ * دامنه‌محور). این قدم اولین و تنها پروفایل واقعی (Claude API) را اضافه می‌کند —
+ * OpenAI/Gemini/DeepSeek/Qwen هرکدام نیازمند بررسی مستقل مستندات رسمی خودشان
+ * هستند، خارج از Scope همین قدم (طبق دستور صریح: «اولین AiConnectorProfile واقعی،
+ * الگوی سرویس‌های بعدی»، نه فهرست کامل).
+ */
+val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE)
 
 /**
  * کاربر پیشرفته می‌تواند یک پروفایل کاملاً دستی برای سرویس ناشناخته/محلی بسازد.
@@ -58,14 +106,126 @@ fun createCustomAiConnectorProfile(
     responseJsonPath = responseJsonPath
 )
 
+private val jsonCodec = Json { ignoreUnknownKeys = true }
+
 /**
- * ارسال درخواست واقعی به یک AI Connector — طبق تصمیم Option A (ADR-035)، پیاده‌سازی
- * واقعی HTTP Call با Ktor Client عمداً به یک قدم کاملاً جداگانه‌ی آینده موکول شد. این
- * امضا فقط قرارداد ورودی/خروجی بلوپرینت را تثبیت می‌کند.
+ * جایگزینی Placeholder — طبق کد مفهومی بلوپرینت، هم در requestBodyTemplate
+ * ({{PROMPT}}/{{API_KEY}}) و هم در requestHeaders (نمونه‌ی صریح خودِ بلوپرینت:
+ * `"Authorization" -> "Bearer {{API_KEY}}"`) رخ می‌دهد — نه فقط بدنه. مقدار prompt
+ * با jsonCodec.encodeToString درست Escape می‌شود (نقل‌قول/بک‌اسلش/خط‌جدید) و فقط
+ * محتوای داخل گیومه‌ی تولیدشده استفاده می‌شود — چون خودِ گیومه‌های اطراف
+ * {{PROMPT}} از قبل در requestBodyTemplate هستند (طبق نمونه‌ی Claude پروفایل
+ * بالا: `"content":"{{PROMPT}}"`)؛ apiKey هم برای احتیاط همین‌طور Escape می‌شود
+ * (بدون فرض این‌که کلیدهای واقعی هرگز کاراکتر خاص ندارند).
  */
-@Suppress("UNUSED_PARAMETER")
-suspend fun sendToAiConnector(profile: AiConnectorProfile, apiKey: String, prompt: String): Result<String> {
-    TODO("پیاده‌سازی واقعی HTTP Call با Ktor Client — قدم جداگانه‌ی آینده (docs/adr/035-unit01b-story-breakdown-step4-ai-connector.md)")
+private fun fillPlaceholders(template: String, prompt: String, apiKey: String): String {
+    val escapedPrompt = jsonStringEscape(prompt)
+    val escapedApiKey = jsonStringEscape(apiKey)
+    return template.replace("{{PROMPT}}", escapedPrompt).replace("{{API_KEY}}", escapedApiKey)
+}
+
+private fun jsonStringEscape(value: String): String {
+    val encoded = jsonCodec.encodeToString(value)
+    return encoded.substring(1, encoded.length - 1)
+}
+
+/**
+ * استخراج یک مقدار از JSON با یک مسیر ساده مثل "content[0].text" یا
+ * "choices[0].message.content" (هر دو نمونه‌ی صریح خودِ بلوپرینت برای
+ * responseJsonPath) — یک Parser عمومی نوشته شد (نه فقط پشتیبانی از فرمت Claude)،
+ * چون این فایل قرار است «الگوی سرویس‌های بعدی» باشد (طبق دستور صریح این قدم) و
+ * responseJsonPath خودش یک فیلد Data-driven روی هر پروفایل است — قفل‌کردنش به
+ * یک فرمت خاص، هدف چندسرویسی‌بودن خودِ AiConnectorProfile را نقض می‌کرد.
+ */
+private fun extractByJsonPath(root: JsonElement, path: String): String? {
+    val tokens = Regex("[^.\\[\\]]+|\\[\\d+\\]").findAll(path).map { it.value }.toList()
+    var current: JsonElement? = root
+    for (token in tokens) {
+        current = current ?: return null
+        current = if (token.startsWith("[")) {
+            val index = token.removeSurrounding("[", "]").toIntOrNull() ?: return null
+            (current as? JsonArray)?.getOrNull(index)
+        } else {
+            (current as? JsonObject)?.get(token)
+        }
+    }
+    return (current as? JsonPrimitive)?.content
+}
+
+/** پیام خطای معنادار از یک پاسخ HTTP ناموفق — طبق فرمت شناخته‌شده‌ی خطای Anthropic ({"error":{"message":...}}) در صورت وجود، وگرنه بدنه‌ی خام. */
+private fun describeHttpError(statusCode: Int, body: String): String {
+    val parsedMessage = runCatching {
+        val root = jsonCodec.parseToJsonElement(body)
+        ((root as? JsonObject)?.get("error") as? JsonObject)?.get("message")?.let { (it as? JsonPrimitive)?.content }
+    }.getOrNull()
+    return when {
+        !parsedMessage.isNullOrBlank() -> "سرویس AI با کد وضعیت $statusCode خطا داد: $parsedMessage"
+        body.isNotBlank() -> "سرویس AI با کد وضعیت $statusCode خطا داد: $body"
+        else -> "سرویس AI با کد وضعیت $statusCode خطا داد، بدون پیام خطای اضافی"
+    }
+}
+
+/**
+ * ارسال درخواست واقعی به یک AI Connector — با Ktor Client (OkHttp Engine، طبق
+ * Stack مصوب پروژه). `engine` تزریق‌پذیر است (هم‌الگو با idProvider/clock در
+ * ProjectRepository.kt، sharedPreferencesFactory در SecureKeyRepository.kt) —
+ * پیش‌فرض واقعی OkHttp؛ تست‌ها MockEngine (io.ktor:ktor-client-mock) تزریق
+ * می‌کنند تا بدون تماس واقعی اینترنت اجرا شوند.
+ *
+ * Timeout: ۱۵ ثانیه اتصال (شبکه‌ی موبایل، نه فرض همیشه‌سریع)، ۶۰ ثانیه کل درخواست
+ * (تولید پاسخ‌های بلند توسط LLM می‌تواند ده‌ها ثانیه طول بکشد، جدا از تأخیر شبکه).
+ *
+ * Client per-call ساخته و بسته می‌شود (نه یک نمونه‌ی سراسری Reuse‌شونده) — این
+ * فایل کاملاً Stateless است (توابع top-level، بدون کلاس/چرخه‌حیات)، هم‌الگو با
+ * بقیه‌ی این فایل؛ هزینه‌ی از‌دست‌رفته‌ی Connection Pooling ناچیز است چون این
+ * درخواست‌ها با اقدام مستقیم کاربر رخ می‌دهند (نه با فرکانس بالا).
+ */
+suspend fun sendToAiConnector(
+    profile: AiConnectorProfile,
+    apiKey: String,
+    prompt: String,
+    engine: HttpClientEngine = OkHttp.create()
+): Result<String> {
+    val client = HttpClient(engine) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 60_000
+            socketTimeoutMillis = 60_000
+        }
+    }
+    return try {
+        val requestBody = fillPlaceholders(profile.requestBodyTemplate, prompt, apiKey)
+        val response = client.post(profile.endpointUrl) {
+            profile.requestHeaders.forEach { (name, value) -> header(name, fillPlaceholders(value, prompt, apiKey)) }
+            contentType(ContentType.Application.Json)
+            setBody(requestBody)
+        }
+        val responseText = response.bodyAsText()
+        if (!response.status.isSuccess()) {
+            Result.failure(IOException(describeHttpError(response.status.value, responseText)))
+        } else {
+            val extracted = runCatching { extractByJsonPath(jsonCodec.parseToJsonElement(responseText), profile.responseJsonPath) }.getOrNull()
+            if (extracted != null) {
+                Result.success(extracted)
+            } else {
+                Result.failure(IOException("پاسخ سرویس AI با مسیر '${profile.responseJsonPath}' قابل‌استخراج نبود: $responseText"))
+            }
+        }
+    } catch (e: HttpRequestTimeoutException) {
+        Result.failure(IOException("درخواست به سرویس AI در زمان مقرر (۶۰ ثانیه) پاسخ نداد", e))
+    } catch (e: ConnectTimeoutException) {
+        Result.failure(IOException("اتصال به سرویس AI برقرار نشد (Timeout اتصال)", e))
+    } catch (e: SocketTimeoutException) {
+        Result.failure(IOException("ارتباط با سرویس AI در حین انتقال داده قطع شد (Timeout شبکه)", e))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: IOException) {
+        Result.failure(IOException("خطای شبکه در ارتباط با سرویس AI: ${e.message}", e))
+    } catch (e: Exception) {
+        Result.failure(IOException("خطای غیرمنتظره در ارتباط با سرویس AI: ${e.message}", e))
+    } finally {
+        client.close()
+    }
 }
 
 /** Rule 4 (Blocking): مسیر ۲ (AI Connector) انتخاب شده ولی apiKey خالی است. */
@@ -81,10 +241,9 @@ fun validateApiKeyProvided(apiKey: String): ValidationIssue? {
 
 /**
  * Rule 5 (Blocking): خطای مسیر ۲ باید متن واقعی خطای سرویس را (خلاصه) نشان دهد، نه
- * فقط «خطا رخ داد». طبق تصمیم Option A (ADR-035)، چون sendToAiConnector هنوز HTTP
- * واقعی ندارد، این تابع فقط ساختار Result.failure را بررسی می‌کند — قرارداد مسیر
- * جداگانه‌ی آینده وقتی HTTP واقعی اضافه شود همین است: پیام Exception باید غیرخالی و
- * معنادار باشد.
+ * فقط «خطا رخ داد». اکنون که sendToAiConnector واقعی است (G2 قدم ۲)، این تابع دقیقاً
+ * همان قرارداد قدیمی (Option A) را می‌خواند — منبع Exception واقعی HTTP شد، اما
+ * قرارداد Rule خودش عوض نشد.
  */
 fun validateAiConnectorErrorMessage(result: Result<String>): ValidationIssue? {
     val exception = result.exceptionOrNull() ?: return null

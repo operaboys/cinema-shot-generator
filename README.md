@@ -1773,6 +1773,22 @@ Deprecated (`androidx.datastore:datastore-tink`) هنوز در اولین انت
 `docs/governance/risk-register.md` ثبت شد — جزئیات کامل در
 `docs/adr/099-defer-datastore-tink-migration.md`.
 
+### ✅ G2 قدم ۲ از ۳ — اتصال HTTP واقعی به Claude API (ADR-100)
+
+`sendToAiConnector` (`AiConnector.kt`، تا این قدم عمداً `TODO()` طبق ADR-035
+Option A) اکنون یک درخواست HTTP واقعی می‌فرستد — Ktor Client با OkHttp
+Engine (`engine` تزریق‌پذیر، پیش‌فرض واقعی برای Production، `MockEngine`
+برای تست‌ها؛ هم‌الگو با تزریق‌پذیری `SecureKeyRepository.kt`). اولین
+`AiConnectorProfile` واقعی اضافه شد: **Claude API** (Endpoint/Header/بدنه/
+مسیر پاسخ تأییدشده مستقیم از مستندات رسمی Anthropic، نه حدس). به‌جای یک
+`data class` تایپ‌شده‌ی مخصوص یک سرویس، یک Parser عمومی مسیر نقطه‌ای
+(`content[0].text`/`choices[0].message.content`) نوشته شد — چندسرویسی‌بودن
+واقعی `responseJsonPath` را حفظ می‌کند. Timeout: ۱۵ ثانیه اتصال، ۶۰ ثانیه کل
+درخواست (شبکه‌ی موبایل + زمان تولید پاسخ LLM). این قدم مستقل از G2 قدم ۱
+(ADR-098) است — کلید همچنان پارامتر ورودی است؛ خواندنش از
+`SecureKeyRepository` و UI انتخابگر مسیر، قدم ۳ (بعدی) است. جزئیات کامل در
+`docs/adr/100-g2-step2-real-http-claude-api.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
@@ -1849,11 +1865,13 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
 
 ## محدودیت‌های شناخته‌شده
 
-- **ارسال خودکار پرامپت به AI بیرونی (`sendToAiConnector`) هنوز `TODO()` است**
-  (تصمیم مستند قبلی معمار، ADR-035): کاربر باید متن Prompt تولیدشده در فاز ۱
-  صفحه‌ی AI Story Breakdown را دستی کپی و به یک ابزار AI بیرونی (مثل
-  ChatGPT/Claude) بدهد، سپس پاسخ را دستی در فاز ۲ بچسباند. پیاده‌سازی واقعی
-  HTTP (Ktor) به یک قدم بعدی موکول شده.
+- ~~ارسال خودکار پرامپت به AI بیرونی (`sendToAiConnector`) هنوز `TODO()`
+  است~~ — **بخشاً رفع شد** (G2 قدم ۲، ADR-100): `sendToAiConnector` اکنون
+  یک درخواست HTTP واقعی به Claude API می‌فرستد. اما این هنوز به هیچ UI/
+  ViewModel وصل **نیست** — کاربر همچنان فقط می‌تواند متن Prompt تولیدشده در
+  فاز ۱ صفحه‌ی AI Story Breakdown را دستی کپی/پیست کند؛ خواندن کلید از
+  `SecureKeyRepository` (ADR-098) و UI انتخابگر مسیر ۱/۲، G2 قدم ۳ (بعدی)
+  است.
 - **مقصد Navigation بعد از تأیید فاز ۳ صفحه‌ی AI Story Breakdown همیشه Tab
   «داستان» Studio است، نه Tab «صحنه‌ها»**: چون هنوز هیچ صفحه‌ی فهرست Scene/Shot
   مستقلی ساخته نشده و `selectedTab` در `StudioShell` یک State محلی است، نه
