@@ -20,6 +20,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG
@@ -214,6 +215,35 @@ class ApiKeysFlowTest {
         composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsEnabled()
 
         composeRule.onNodeWithTag(aiBreakdownProfileChipTag(OPENAI_API_PROFILE.profileId)).performScrollTo().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {
+                runCatching { assertIsNotEnabled() }.isSuccess
+            }
+        }
+        composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    // G2/ADR-103 — سومین پروفایل واقعی (Gemini). هدف این دو تست دقیقاً اثبات
+    // این ادعای ADR-102 است: پروفایل سوم بدون هیچ تغییر کد UI باید کار کند.
+
+    @Test
+    fun `Settings automatically shows a key row for the third real profile (Gemini) with no code change needed`() {
+        renderSettings()
+
+        composeRule.onNodeWithTag(apiKeyStatusTag(GEMINI_API_PROFILE.profileId)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `selecting Gemini in the profile chip row keeps the send button gated on Gemini's own key, just like Claude and OpenAI`() {
+        runBlocking { secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key") }
+        renderAiStoryBreakdown()
+
+        composeRule.onNodeWithTag(AI_BREAKDOWN_STORY_FIELD_TAG).performScrollTo().performTextInput("A".repeat(60))
+        composeRule.onNodeWithTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
+
+        composeRule.onNodeWithTag(aiBreakdownProfileChipTag(GEMINI_API_PROFILE.profileId)).performScrollTo().performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {

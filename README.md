@@ -1838,6 +1838,25 @@ Claude ارسال کند → مستقیماً Scene/Shot/Asset دریافت کن
 محیط و نحوه‌ی رفع آن با WebSearch) در
 `docs/adr/102-g2-second-profile-openai-and-profile-selector.md`.
 
+### ✅ G2 — سومین پروفایل واقعی (Gemini) + رفع یک یافته‌ی واقعی در Parser عمومی (ADR-103)
+
+`GEMINI_API_PROFILE` (Google Gemini `generateContent`، تأییدشده مستقل از
+فرمت رسمی) به `BUILTIN_AI_CONNECTOR_PROFILES` اضافه شد — سومین الگوی متفاوت
+این پروژه: Header `x-goog-api-key` (خام، نه `x-api-key` Claude و نه
+`Authorization: Bearer` OpenAI)، نام مدل مستقیماً در `endpointUrl` (نه در
+بدنه، برخلاف دو پروفایل قبلی)، بدنه‌ی `{"contents":[{"parts":[{"text":"..."}]}]}`
+(نه `messages`)، و مسیر پاسخ `candidates[0].content.parts[0].text`. یافته‌ی
+واقعی حین بررسی مستقل مستندات رسمی: مدل‌های Thinking نسل ۲.۵/۳ Gemini
+می‌توانند یک `thoughtSignature` را بدون `text` به یک آیتم `parts` ضمیمه کنند
+درحالی‌که متن واقعی در آیتم بعدی همان آرایه است — `extractByJsonPath` (Parser
+عمومی موجود) رفع شد تا وقتی یک اندیس آرایه کل باقی‌مانده‌ی مسیر را حل نمی‌کند،
+اندیس‌های بعدی همان آرایه را هم امتحان کند (بدون هیچ تغییر رفتاری برای
+Claude/OpenAI که همیشه دقیقاً یک آیتم دارند). `SettingsScreen.kt`/
+`ApiKeysViewModel.kt`/`AiStoryBreakdownViewModel.kt`/`AiStoryBreakdownScreen.kt`
+**صفر خط تغییر داشتند** — تأیید عملی صحت طراحی پویای ADR-102 با یک پروفایل
+سوم واقعی، نه فقط ادعا. جزئیات کامل در
+`docs/adr/103-g2-third-profile-gemini-and-parser-robustness.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

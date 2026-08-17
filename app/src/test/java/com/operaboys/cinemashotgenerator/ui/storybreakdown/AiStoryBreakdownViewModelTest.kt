@@ -8,6 +8,7 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -361,6 +362,38 @@ class AiStoryBreakdownViewModelTest {
         }
         val vm = buildAutoSendViewModel("proj_auto_send_openai_success_test", secureKeyRepository, engine)
         vm.selectProfile(OPENAI_API_PROFILE.profileId).join()
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertEquals(BreakdownPhase.FINAL_REVIEW, vm.phase.value)
+        assertNotNull(vm.breakdownResult.value)
+        assertEquals("Nora", vm.breakdownResult.value!!.characters.first().name)
+        assertNull(vm.autoSendError.value)
+    }
+
+    @Test
+    fun `a successful automatic send with the Gemini profile selected also reaches FINAL_REVIEW, proving the selector genuinely works for a third profile with zero UI or ViewModel code changes`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_gemini_success_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val innerBreakdownJson = """{"characters":[{"name":"Nora","description":"A cartographer","role":"main","gender":"female"}],"locations":[{"name":"Harbor","description":"A foggy harbor"}],"objects":[],"shots":[]}"""
+        val escapedInner = innerBreakdownJson.replace("\"", "\\\"")
+        val engine = MockEngine {
+            // فرمت واقعی Gemini (candidates[0].content.parts[0].text) — سومین
+            // شکل متفاوت، نه content[0].text (Claude) و نه choices[0].message.content
+            // (OpenAI) — تا اثبات شود انتخابگر و Parser عمومی واقعاً برای سومین
+            // پروفایل هم کار می‌کنند.
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"$escapedInner"}],"role":"model"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildAutoSendViewModel("proj_auto_send_gemini_success_test", secureKeyRepository, engine)
+        vm.selectProfile(GEMINI_API_PROFILE.profileId).join()
         vm.setTargetShotCount(5)
         vm.setFreeformStory("A".repeat(60))
         vm.generatePrompt()

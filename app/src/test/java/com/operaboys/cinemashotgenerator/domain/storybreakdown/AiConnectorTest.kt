@@ -16,11 +16,11 @@ import org.junit.Test
 
 class AiConnectorTest {
 
-    // --- BUILTIN_AI_CONNECTOR_PROFILES (G2 قدم ۲/ADR-100: اولین پروفایل واقعی؛ G2/ADR-102: دومین پروفایل واقعی) ---
+    // --- BUILTIN_AI_CONNECTOR_PROFILES (ADR-100: اولین پروفایل؛ ADR-102: دومین؛ ADR-103: سومین) ---
 
     @Test
-    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude and OpenAI, matching each service's official API format`() {
-        assertEquals(listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE), BUILTIN_AI_CONNECTOR_PROFILES)
+    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude, OpenAI, and Gemini, matching each service's official API format`() {
+        assertEquals(listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE), BUILTIN_AI_CONNECTOR_PROFILES)
         assertEquals("https://api.anthropic.com/v1/messages", CLAUDE_API_PROFILE.endpointUrl)
         assertEquals("content[0].text", CLAUDE_API_PROFILE.responseJsonPath)
         assertEquals("2023-06-01", CLAUDE_API_PROFILE.requestHeaders["anthropic-version"])
@@ -255,6 +255,102 @@ class AiConnectorTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()!!.message!!.contains("Incorrect API key provided"))
+    }
+
+    // --- GEMINI_API_PROFILE واقعی (G2/ADR-103: سومین پروفایل واقعی، سومین
+    // الگوی متفاوت احراز هویت/بدنه) — روی خودِ GEMINI_API_PROFILE تولیدی تست
+    // می‌شود (نه یک Fixture مشابه).
+
+    @Test
+    fun `a successful Gemini response extracts the correct text via candidates index 0 content parts index 0 text`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"Hello from Gemini"}],"role":"model"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(GEMINI_API_PROFILE, apiKey = "gemini-test-key", prompt = "hi", engine = engine)
+
+        assertTrue(result.isSuccess)
+        assertEquals("Hello from Gemini", result.getOrNull())
+    }
+
+    @Test
+    fun `the real request to Gemini carries an x-goog-api-key header, not x-api-key or Authorization, with the real prompt and key`() = runBlocking {
+        var capturedBody: String? = null
+        var capturedGoogHeader: String? = null
+        var capturedApiKeyHeader: String? = null
+        var capturedAuthHeader: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+            capturedGoogHeader = request.headers["x-goog-api-key"]
+            capturedApiKeyHeader = request.headers["x-api-key"]
+            capturedAuthHeader = request.headers["Authorization"]
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        sendToAiConnector(GEMINI_API_PROFILE, apiKey = "gemini-secret-key", prompt = "write a story", engine = engine)
+
+        assertTrue(capturedBody!!.contains("write a story"))
+        assertEquals(
+            "سومین روش متفاوت احراز هویت این پروژه: x-goog-api-key خام — نه x-api-key (Claude) و نه Authorization: Bearer (OpenAI)",
+            "gemini-secret-key",
+            capturedGoogHeader
+        )
+        assertNull("Gemini نباید هدر x-api-key بگیرد — آن مخصوص Claude است", capturedApiKeyHeader)
+        assertNull("Gemini نباید هدر Authorization بگیرد — آن مخصوص OpenAI است", capturedAuthHeader)
+    }
+
+    @Test
+    fun `a 400 Gemini-shaped error body produces a Result failure with the real error message`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}""",
+                status = HttpStatusCode.BadRequest,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(GEMINI_API_PROFILE, apiKey = "wrong-key", prompt = "hi", engine = engine)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()!!.message!!.contains("API key not valid"))
+    }
+
+    /**
+     * یافته‌ی واقعی این قدم (تأییدشده با WebSearch از مستندات رسمی Gemini —
+     * از‌جمله صفحه‌ی رسمی «Thought Signatures» و منابع دیگر، چون WebFetch
+     * مستقیم به ai.google.dev از این محیط Sandbox مسدود بود): یک آیتم آرایه‌ی
+     * parts می‌تواند فقط thoughtSignature داشته باشد (بدون فیلد text)، درحالی‌که
+     * آیتم بعدی همان آرایه واقعاً متن اصلی را دارد. رفتار واقعی (نه فرضی) این
+     * تست: extractByJsonPath (رفع‌شده در همین قدم) روی چنین ورودی‌ای اندیس‌های
+     * بعدی همان آرایه‌ی parts را هم امتحان می‌کند تا اولین آیتمی که واقعاً
+     * فیلد text دارد را پیدا کند — پیش از این رفع، parts[0] فاقد text باعث
+     * Result.failure می‌شد (حتی وقتی متن واقعی در parts[1] موجود بود).
+     */
+    @Test
+    fun `a Gemini response where parts index 0 has only a thoughtSignature and the real text is in parts index 1 still extracts successfully`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"thoughtSignature":"opaque-signature-abc"},{"text":"Hello from Gemini after thinking"}],"role":"model"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(GEMINI_API_PROFILE, apiKey = "gemini-test-key", prompt = "hi", engine = engine)
+
+        assertTrue(
+            "extractByJsonPath باید اندیس بعدی parts را هم امتحان کند، نه فقط parts[0] که فقط thoughtSignature دارد",
+            result.isSuccess
+        )
+        assertEquals("Hello from Gemini after thinking", result.getOrNull())
     }
 
     // یافته‌ی راستی‌آزمایی این قدم: requestTimeoutMillis واقعی (۶۰ ثانیه) داخل خودِ

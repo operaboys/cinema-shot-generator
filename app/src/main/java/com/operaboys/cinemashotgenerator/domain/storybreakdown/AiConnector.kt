@@ -36,8 +36,11 @@ import java.net.SocketTimeoutException
 // SecureKeyRepository.kt) لایه‌ی ذخیره‌سازی امن کلید را مستقل ساخت — این فایل به
 // آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI بود).
 // G2 قدم ۳ (ADR-101) UI انتخابگر مسیر ۱/۲ را وصل کرد (اولش هاردکد به Claude).
-// این قدم (ADR-102) دومین پروفایل واقعی (OpenAI) را اضافه می‌کند و همان هاردکد
-// UI را به انتخابگر واقعی چندپروفایلی تبدیل می‌کند — بازبینی موعود خودِ ADR-101.
+// ADR-102 دومین پروفایل واقعی (OpenAI) را اضافه کرد و همان هاردکد UI را به
+// انتخابگر واقعی چندپروفایلی تبدیل کرد. این قدم (ADR-103) سومین پروفایل واقعی
+// (Gemini، سومین الگوی متفاوت احراز هویت/بدنه) را اضافه می‌کند — بدون هیچ
+// تغییری در UI/ViewModel (تأیید عملی صحت طراحی پویای ADR-102)؛ همچنین یک
+// یافته‌ی واقعی extractByJsonPath (حالت thoughtSignature-فقط Gemini) رفع شد.
 
 /** پروفایل یک سرویس AI متنی — کاملاً مستقل از پیاده‌سازی، هم‌خانواده با ModelProfile واحد ۱۴. */
 data class AiConnectorProfile(
@@ -108,12 +111,52 @@ val OPENAI_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
 )
 
 /**
- * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد و صریحاً
- * مستند کرد OpenAI/Gemini/DeepSeek/Qwen خارج از Scope آن قدم‌اند. این قدم دومین
- * پروفایل واقعی (OpenAI) را اضافه می‌کند — طبق همان الگو (بررسی مستقل مستندات
- * رسمی، نه حدس). Gemini/DeepSeek/Qwen همچنان خارج از Scope این قدم‌اند.
+ * سومین پروفایل واقعی — Gemini API (`generateContent`)، تأییدشده مستقیم از
+ * مستندات رسمی Google (ai.google.dev/api — WebSearch، چون WebFetch مستقیم به
+ * ai.google.dev هم مثل platform.openai.com از این محیط Sandbox مسدود است):
+ * Endpoint: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
+ * — سومین الگوی متفاوت در این پروژه: برخلاف Claude/OpenAI، نام مدل در خودِ
+ * endpointUrl است، نه در بدنه‌ی JSON؛ پس این پروفایل نیازی به Placeholder مدل
+ * در بدنه ندارد (مدل از قبل در URL هاردکد است).
+ * Header الزامی: x-goog-api-key (کلید خام) — سومین روش متفاوت احراز هویت
+ * (نه x-api-key مثل Claude، نه Authorization: Bearer مثل OpenAI).
+ * بدنه: {"contents":[{"parts":[{"text":"..."}]}]} — کلید بیرونی «contents»
+ * (نه «messages» مثل OpenAI)، هر آیتم «parts» است (نه یک content string ساده
+ * مثل Claude/OpenAI).
+ * پاسخ: candidates[0].content.parts[0].text.
+ *
+ * مدل: gemini-2.5-flash — طبق مستندات رسمی («مدل پیش‌فرض» صریح، پایدار،
+ * غیر-Legacy) و طبق پیشنهاد معمار؛ بررسی مستقل (WebSearch) هر دو را تأیید
+ * کرد، بدون نیاز به جایگزینی.
+ *
+ * یافته‌ی مهم (تأییدشده با WebSearch، نه فرض کورکورانه‌ی این پرامپت): مدل‌های
+ * «Thinking» نسل ۲.۵/۳ Gemini می‌توانند یک `thoughtSignature` را به یک Part
+ * ضمیمه کنند — طبق چند منبع (از‌جمله صفحه‌ی رسمی
+ * ai.google.dev/gemini-api/docs/generate-content/thought-signatures) این
+ * عمدتاً در پاسخ‌های Streaming (آخرین Chunk) یا سناریوهای Function Calling
+ * چندمرحله‌ای رخ می‌دهد — نه لزوماً یک generateContent ساده و تک‌شات مثل این
+ * پروفایل؛ اما چون تأیید کامل ۱۰۰٪ («هرگز رخ نمی‌دهد») از این محیط ممکن نبود
+ * (WebFetch مسدود)، و هزینه‌ی رفع این حالت در extractByJsonPath (پایین‌تر)
+ * ناچیز و بدون تغییر رفتار پروفایل‌های دیگر بود، این حالت واقعاً رفع شد (نه
+ * فقط مستند) — جزئیات کامل در docs/adr/103-g2-third-profile-gemini-and-parser-robustness.md.
  */
-val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE)
+val GEMINI_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
+    profileId = "gemini_api",
+    displayName = "Gemini API",
+    endpointUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    requestBodyTemplate = """{"contents":[{"parts":[{"text":"{{PROMPT}}"}]}]}""",
+    requestHeaders = mapOf("x-goog-api-key" to "{{API_KEY}}"),
+    responseJsonPath = "candidates[0].content.parts[0].text"
+)
+
+/**
+ * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد و صریحاً
+ * مستند کرد OpenAI/Gemini/DeepSeek/Qwen خارج از Scope آن قدم‌اند. ADR-102 دومین
+ * پروفایل واقعی (OpenAI) را اضافه کرد. این قدم سومین پروفایل واقعی (Gemini) را
+ * اضافه می‌کند — طبق همان الگو (بررسی مستقل مستندات رسمی، نه حدس). DeepSeek/Qwen
+ * همچنان خارج از Scope این قدم‌اند.
+ */
+val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE)
 
 /**
  * کاربر پیشرفته می‌تواند یک پروفایل کاملاً دستی برای سرویس ناشناخته/محلی بسازد.
@@ -167,20 +210,33 @@ private fun jsonStringEscape(value: String): String {
  * چون این فایل قرار است «الگوی سرویس‌های بعدی» باشد (طبق دستور صریح این قدم) و
  * responseJsonPath خودش یک فیلد Data-driven روی هر پروفایل است — قفل‌کردنش به
  * یک فرمت خاص، هدف چندسرویسی‌بودن خودِ AiConnectorProfile را نقض می‌کرد.
+ *
+ * G2/ADR-103 (سومین پروفایل، Gemini): رفع یک یافته‌ی واقعی (تأییدشده با
+ * WebSearch از مستندات رسمی Gemini) — یک آیتم آرایه (مثلاً parts[0]) می‌تواند
+ * فقط `thoughtSignature` داشته باشد، بدون فیلد نهایی مسیر (`text`)، درحالی‌که
+ * آیتم بعدی همان آرایه واقعاً آن فیلد را دارد. اگر یک اندیس مشخص کل باقی‌مانده‌ی
+ * مسیر را حل نکند، اندیس‌های بعدیِ همان آرایه هم امتحان می‌شوند تا اولین آیتمی
+ * که واقعاً حل می‌شود پیدا شود — برای Claude/OpenAI (که همیشه فقط یک آیتم دارند)
+ * این هیچ تغییر رفتاری ایجاد نمی‌کند (fallback هرگز لمس نمی‌شود).
  */
 private fun extractByJsonPath(root: JsonElement, path: String): String? {
     val tokens = Regex("[^.\\[\\]]+|\\[\\d+\\]").findAll(path).map { it.value }.toList()
-    var current: JsonElement? = root
-    for (token in tokens) {
-        current = current ?: return null
-        current = if (token.startsWith("[")) {
-            val index = token.removeSurrounding("[", "]").toIntOrNull() ?: return null
-            (current as? JsonArray)?.getOrNull(index)
-        } else {
-            (current as? JsonObject)?.get(token)
+    return resolveJsonPathTokens(root, tokens, 0)
+}
+
+private fun resolveJsonPathTokens(current: JsonElement?, tokens: List<String>, tokenIndex: Int): String? {
+    if (current == null) return null
+    if (tokenIndex == tokens.size) return (current as? JsonPrimitive)?.content
+    val token = tokens[tokenIndex]
+    return if (token.startsWith("[")) {
+        val startIndex = token.removeSurrounding("[", "]").toIntOrNull() ?: return null
+        val array = current as? JsonArray ?: return null
+        (startIndex until array.size).firstNotNullOfOrNull { index ->
+            resolveJsonPathTokens(array.getOrNull(index), tokens, tokenIndex + 1)
         }
+    } else {
+        resolveJsonPathTokens((current as? JsonObject)?.get(token), tokens, tokenIndex + 1)
     }
-    return (current as? JsonPrimitive)?.content
 }
 
 /** پیام خطای معنادار از یک پاسخ HTTP ناموفق — طبق فرمت شناخته‌شده‌ی خطای Anthropic ({"error":{"message":...}}) در صورت وجود، وگرنه بدنه‌ی خام. */
