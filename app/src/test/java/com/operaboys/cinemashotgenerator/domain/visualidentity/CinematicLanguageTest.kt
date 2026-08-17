@@ -19,6 +19,8 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.shot.Beat
+import com.operaboys.cinemashotgenerator.domain.shot.BeatEventType
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
@@ -222,5 +224,82 @@ class CinematicLanguageTest {
         val shot = testShot(cinematicModeOverride = CinematicMode.FAST_CUT)
 
         assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    // --- beatIntensity / averageBeatIntensity (تکمیل Rule یتیم — قدم ۲الف از ۴ زیرقدم قدم ۲، ADR-107) ---
+
+    private fun beatOf(eventType: BeatEventType, timestampSeconds: Float = 0f): Beat =
+        Beat(timestampSeconds = timestampSeconds, eventType = eventType, description = "beat")
+
+    @Test
+    fun `beatIntensity maps SUBJECT_ACTION to the highest intensity`() {
+        assertEquals(8f, beatIntensity(BeatEventType.SUBJECT_ACTION))
+    }
+
+    @Test
+    fun `beatIntensity maps CAMERA_MOVE below SUBJECT_ACTION but above the environmental tier`() {
+        assertEquals(6f, beatIntensity(BeatEventType.CAMERA_MOVE))
+    }
+
+    @Test
+    fun `beatIntensity maps ENVIRONMENTAL to a moderate-low intensity`() {
+        assertEquals(4f, beatIntensity(BeatEventType.ENVIRONMENTAL))
+    }
+
+    @Test
+    fun `beatIntensity maps LIGHTING_CHANGE to the lowest intensity`() {
+        assertEquals(2f, beatIntensity(BeatEventType.LIGHTING_CHANGE))
+    }
+
+    @Test
+    fun `beatIntensity ranking is strictly SUBJECT_ACTION greater than CAMERA_MOVE greater than ENVIRONMENTAL greater than LIGHTING_CHANGE`() {
+        assertTrue(beatIntensity(BeatEventType.SUBJECT_ACTION) > beatIntensity(BeatEventType.CAMERA_MOVE))
+        assertTrue(beatIntensity(BeatEventType.CAMERA_MOVE) > beatIntensity(BeatEventType.ENVIRONMENTAL))
+        assertTrue(beatIntensity(BeatEventType.ENVIRONMENTAL) > beatIntensity(BeatEventType.LIGHTING_CHANGE))
+    }
+
+    @Test
+    fun `averageBeatIntensity computes the correct mean across multiple beats of different types`() {
+        val beats = listOf(
+            beatOf(BeatEventType.SUBJECT_ACTION), // 8
+            beatOf(BeatEventType.CAMERA_MOVE),    // 6
+            beatOf(BeatEventType.ENVIRONMENTAL),  // 4
+            beatOf(BeatEventType.LIGHTING_CHANGE) // 2
+        )
+        assertEquals(5f, averageBeatIntensity(beats))
+    }
+
+    @Test
+    fun `averageBeatIntensity returns the single beat's own intensity for a single-item list`() {
+        assertEquals(8f, averageBeatIntensity(listOf(beatOf(BeatEventType.SUBJECT_ACTION))))
+    }
+
+    @Test
+    fun `averageBeatIntensity returns the neutral midpoint for an empty beat list`() {
+        assertEquals(5f, averageBeatIntensity(emptyList()))
+    }
+
+    // این سه تست عمداً determineHybridPacing را فراخوانی نمی‌کنند (طبق دستور صریح
+    // این زیرقدم: «به‌هیچ‌عنوان determineHybridPacing را فراخوانی/وصل نکن») — فقط
+    // خودِ عدد میانگین را در برابر آستانه‌های مستندشده‌ی آن (>=7f، <=3f) می‌سنجند
+    // تا سازگاری طراحی این نگاشت با آن تابع (بدون وصل‌کردن واقعی) اثبات شود؛
+    // خودِ اتصال، زیرقدم ۲ب جداگانه است.
+
+    @Test
+    fun `an action-heavy beat sheet's average reaches determineHybridPacing's documented FAST_CUT threshold (avgBeatIntensity greater or equal 7f)`() {
+        val avg = averageBeatIntensity(List(3) { beatOf(BeatEventType.SUBJECT_ACTION) })
+        assertTrue(avg >= 7f)
+    }
+
+    @Test
+    fun `a lighting-change-heavy beat sheet's average reaches determineHybridPacing's documented LONG_TAKE threshold (avgBeatIntensity less or equal 3f)`() {
+        val avg = averageBeatIntensity(List(3) { beatOf(BeatEventType.LIGHTING_CHANGE) })
+        assertTrue(avg <= 3f)
+    }
+
+    @Test
+    fun `an empty beat sheet's neutral average falls strictly between determineHybridPacing's two thresholds`() {
+        val avg = averageBeatIntensity(emptyList())
+        assertTrue(avg > 3f && avg < 7f)
     }
 }

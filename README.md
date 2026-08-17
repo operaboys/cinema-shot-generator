@@ -1942,6 +1942,22 @@ Rule تعارض دوربین و حرکت (`LogicConflictChecker.kt`)، و UI ف�
 DNA/Scene/Shot. جزئیات کامل در
 `docs/adr/106-unit03-cinematic-language-domain-wiring-step1.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۲الف از ۴ زیرقدم قدم ۲: نگاشت شدت Beat (ADR-107)
+
+پیش‌نیاز فنی `determineHybridPacing` (که یک `avgBeatIntensity: Float` می‌گیرد):
+تأیید شد `domain.shot.Beat` هیچ فیلد شدت/intensity ای ندارد (فقط
+`timestampSeconds`/`eventType`/`description`/`subjectId`). دو تابع کمکی تازه
+در `CinematicLanguage.kt` اضافه شدند — `beatIntensity(eventType):
+Float` (نگاشت هر یک از چهار `BeatEventType` به یک عدد شدت در بازه‌ی ۱ تا ۱۰،
+با منطق سینمایی: `SUBJECT_ACTION`=۸ > `CAMERA_MOVE`=۶ > `ENVIRONMENTAL`=۴ >
+`LIGHTING_CHANGE`=۲) و `averageBeatIntensity(beats): Float` (میانگین یک Beat
+Sheet کامل؛ لیست خالی → مقدار خنثی ۵، که طبق طراحی همیشه در بازه‌ی
+BALANCED آستانه‌های موجود `determineHybridPacing` می‌افتد). **این زیرقدم
+فقط زیرساخت است** — `determineHybridPacing` در این زیرقدم فراخوانی یا به
+هیچ ViewModel/ValidationAggregator وصل نشد؛ آن اتصال (زیرقدم ۲ب) جداگانه
+است. جزئیات کامل در
+`docs/adr/107-unit03-cinematic-language-step2a-beat-intensity-mapping.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

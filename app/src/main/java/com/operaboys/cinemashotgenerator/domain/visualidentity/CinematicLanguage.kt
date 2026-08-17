@@ -4,6 +4,8 @@ import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.MoodCategory
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.shot.Beat
+import com.operaboys.cinemashotgenerator.domain.shot.BeatEventType
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
@@ -56,6 +58,53 @@ fun resolveEffectiveCinematicMode(projectDna: ProjectDna, scene: Scene, shot: Sh
     shot.cinematicModeOverride?.let { return it }
     scene.cinematicModeOverride?.let { return it }
     return resolveEffectiveMode(projectDna.cinematicLanguage, scene.sceneId)
+}
+
+/**
+ * تکمیل Rule یتیم — قدم ۲الف از ۴ زیرقدم قدم ۲ (ADR-107): پیش‌نیاز فنی
+ * [determineHybridPacing] — که یک `avgBeatIntensity: Float` می‌گیرد، اما
+ * `domain.shot.Beat` (طبق بلوپرینت ۰۵ نسخه ۳، تأییدشده با خواندن مستقیم و
+ * grep) هیچ فیلد شدت/intensity ای ندارد؛ فقط `timestampSeconds`،
+ * `eventType: BeatEventType`، `description`، `subjectId?` دارد. این تابع آن
+ * شکاف را با نگاشت هر نوع رویداد Beat به یک شدت تلویحی پر می‌کند.
+ *
+ * تصمیم نگاشت (منطق سینمایی/داستانی، نه اعداد دلبخواهی) — بازه‌ی ۱ تا ۱۰،
+ * هم‌راستا با آستانه‌های [determineHybridPacing] (`>=7f` اکشن، `<=3f`
+ * احساسی):
+ * - `SUBJECT_ACTION` = ۸: کاراکتر واقعاً در حال انجام یک کنش فیزیکی است —
+ *   مستقیم‌ترین نشانه‌ی صحنه‌ی اکشن (دویدن، مبارزه)؛ بالاترین شدت.
+ * - `CAMERA_MOVE` = ۶: پویایی بصری واقعی است (Dolly/Crane/Handheld)، اما
+ *   خودِ حرکت دوربین می‌تواند در صحنه‌های آرام هم استفاده شود (مثلاً یک
+ *   Pan آهسته در یک مکالمه‌ی احساسی) — کمی پایین‌تر از SUBJECT_ACTION.
+ * - `ENVIRONMENTAL` = ۴: افکت محیطی (رعد، باد) معمولاً فضاسازی است، نه
+ *   خودِ کنش روایی — شدت متوسط-پایین.
+ * - `LIGHTING_CHANGE` = ۲: معمولاً یک تأکید ظریف احساسی/فضایی (مثلاً کم‌نور
+ *   شدن در یک لحظه‌ی آرام) است، نه یک محرک برش سریع — پایین‌ترین شدت.
+ *
+ * این چینش تضمین می‌کند یک Scene با اکثریت Beat های SUBJECT_ACTION به
+ * میانگین `>=7f` (FAST_CUT) برسد و یک Scene با اکثریت LIGHTING_CHANGE به
+ * `<=3f` (LONG_TAKE) — دقیقاً رفتار مورد انتظار بخش ب بلوپرینت ۰۳.
+ */
+fun beatIntensity(eventType: BeatEventType): Float = when (eventType) {
+    BeatEventType.SUBJECT_ACTION -> 8f
+    BeatEventType.CAMERA_MOVE -> 6f
+    BeatEventType.ENVIRONMENTAL -> 4f
+    BeatEventType.LIGHTING_CHANGE -> 2f
+}
+
+/**
+ * میانگین شدت یک Beat Sheet کامل — ورودی مستقیم [determineHybridPacing].
+ *
+ * تصمیم حالت مرزی (لیست خالی): یک Shot/Scene بدون Beat Sheet فعال (یعنی
+ * بدون هیچ داده‌ی ریتمی) نباید به‌طور تصادفی به FAST_CUT یا LONG_TAKE سوق
+ * داده شود — مقدار خنثی ۵ (وسط دقیق بازه‌ی ۱-۱۰) بازگردانده می‌شود، که طبق
+ * طراحی همیشه در بازه‌ی «نه اکشن، نه احساسی» (`3f < 5f < 7f`) می‌افتد و به
+ * `BALANCED` منجر می‌شود — هم‌راستا با `else -> BALANCED`ِ موجود
+ * [determineHybridPacing] برای حالت‌های نامشخص.
+ */
+fun averageBeatIntensity(beats: List<Beat>): Float {
+    if (beats.isEmpty()) return 5f
+    return beats.map { beatIntensity(it.eventType) }.average().toFloat()
 }
 
 /** بر اساس شدت میانگین Beat های یک Scene، حالت مناسب Hybrid را تعیین می‌کند. */
