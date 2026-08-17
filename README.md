@@ -1975,6 +1975,24 @@ BALANCED آستانه‌های موجود `determineHybridPacing` می‌افت�
 `ESTABLISHING`+شدت‌خنثی هنوز به همان `BALANCED` قبلی می‌رسد). جزئیات کامل
 در `docs/adr/108-unit03-cinematic-language-step2b-hybrid-wiring.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۲ج از ۴ زیرقدم قدم ۲: افزودن Mood به Scene + اتصال getPacingFromEmotion (ADR-109)
+
+`Scene` یک فیلد کاملاً جدید و جداگانه گرفت — `mood: Mood? = null`
+(`domain.dna.Mood`، ۲۵ مقدار، **نه** `Atmosphere` موجود روی
+`atmospherePrimary`؛ این دو enum کاملاً مستقل‌اند و بدون تبدیل خودکار به
+هم، تأییدشده با خواندن مستقیم هر دو تعریف). `resolveEffectiveCinematicMode`
+اکنون یک اولویت سه‌سطحی دارد (تصمیم صریح کاربر پروژه): **Beat واقعی شات**
+(اگر `shot.beats` غیرخالی است → `determineHybridPacing`، ADR-108) >
+**Mood صحنه** (فقط وقتی Beat کاملاً خالی است و `scene.mood` تنظیم شده →
+`getPacingFromEmotion`) > **`shotGoal` تنها** (Fallback نهایی، رفتار
+ADR-108 دست‌نخورده). تشخیص «Beat خالی» با `shot.beats.isEmpty()` مستقیم
+انجام می‌شود، نه با مقدار میانگین (چون یک Beat Sheet واقعی هم می‌تواند
+تصادفاً به میانگین خنثی ۵ برسد). `SceneEntity` نیازی به تغییر نداشت (فقط
+یک ستون JSON Blob است، همان الگوی ADR-106). هر ۹ تست موجود
+`ValidationAggregatorTest.kt` و هر ۹ تست قبلی `resolveEffectiveCinematicMode`
+بدون تغییر سبز ماندند. جزئیات کامل در
+`docs/adr/109-unit03-cinematic-language-step2c-mood-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

@@ -37,33 +37,44 @@ fun resolveEffectiveMode(
 }
 
 /**
- * تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106)، گسترش‌یافته در قدم ۲ب از ۴ زیرقدم
- * قدم ۲ (ADR-108): زنجیره‌ی کامل سه‌سطحی بلوپرینت ۰۳ بخش ب — اول Override شات
- * (`shot.cinematicModeOverride`، بالاترین اولویت؛ طبق تصریح بلوپرینت
- * «allow_shot_override همیشه true است»)، بعد Override محلی صحنه
- * (`scene.cinematicModeOverride`، فیلد مستقیم روی خودِ Scene — هم‌الگو با
- * negativePromptOverride شات)، بعد `projectDna.cinematicLanguage.sceneOverrides`
+ * تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106)، گسترش‌یافته در قدم ۲ب (ADR-108) و
+ * قدم ۲ج از ۴ زیرقدم قدم ۲ (ADR-109): زنجیره‌ی کامل سه‌سطحی بلوپرینت ۰۳ بخش ب
+ * — اول Override شات (`shot.cinematicModeOverride`، بالاترین اولویت؛ طبق
+ * تصریح بلوپرینت «allow_shot_override همیشه true است»)، بعد Override محلی
+ * صحنه (`scene.cinematicModeOverride`، فیلد مستقیم روی خودِ Scene — هم‌الگو
+ * با negativePromptOverride شات)، بعد `projectDna.cinematicLanguage.sceneOverrides`
  * (مکانیزم مستقل و مکمل بلوپرینت برای Override متمرکز چند صحنه از یک محل) —
  * **این سه لایه هر کدام یک انتخاب صریح و دستی هستند و همیشه دقیقاً همان مقدار
  * انتخاب‌شده را برمی‌گردانند، حتی اگر آن مقدار خودش BALANCED باشد.**
  *
  * فقط وقتی هیچ‌کدام از این سه Override دستی وجود ندارد و زنجیره واقعاً به
- * `globalMode` خام پروژه می‌رسد (نه یک انتخاب صریح دیگر)، یک قدم اضافه اجرا
- * می‌شود (ADR-108): اگر آن `globalMode` برابر `BALANCED` است، طبق بلوپرینت ۰۳
- * بخش ب («Hybrid: ترکیب هوشمند بر اساس Beat Sheet») این مقدار دیگر یک BALANCED
- * خام و بی‌محتوا نیست — [determineHybridPacing] با `shot.shotGoal` (تنها فیلد
- * موجود دامنه که با مقادیر رشته‌ای `sceneType` بلوپرینت هم‌راستاست: ESTABLISHING/
- * ACTION/EMOTIONAL/DIALOGUE/TRANSITION در برابر "action"/"emotional"/"dialogue")
- * و [averageBeatIntensity] روی `shot.beats` واقعی صدا زده می‌شود تا نتیجه‌ی
- * نهاییِ Hybrid برای همین شات خاص محاسبه شود. اگر `globalMode` چیزی غیر از
- * `BALANCED` است (کاربر صریحاً LONG_TAKE/FAST_CUT را برای کل پروژه انتخاب کرده)،
- * هیچ منطق Hybrid دخالت نمی‌کند — همان مقدار خام برگردانده می‌شود.
+ * `globalMode` خام پروژه می‌رسد و آن `globalMode` برابر `BALANCED` است، طبق
+ * بلوپرینت ۰۳ بخش ب («Hybrid: ترکیب هوشمند بر اساس Beat Sheet») یک منطق
+ * هوشمند سه‌سطحی اجرا می‌شود (تصمیم صریح کاربر پروژه، ADR-109— نه حدس معمار):
+ *
+ * 1. **Beat واقعی شات (بالاترین اولویت این سه‌سطحی):** اگر `shot.beats`
+ *    غیرخالی است، [determineHybridPacing] با `shot.shotGoal.name.lowercase()`
+ *    و [averageBeatIntensity] روی همان `shot.beats` واقعی صدا زده می‌شود —
+ *    داده‌ی سطح-شات همیشه از هر سیگنال سطح-صحنه دقیق‌تر است.
+ * 2. **Mood صحنه (فقط وقتی هیچ Beat ای در کار نیست):** اگر `shot.beats`
+ *    کاملاً خالی است (`isEmpty()` مستقیم — نه تکیه بر مقدار میانگین‌ خنثی،
+ *    چون یک Beat Sheet واقعی هم می‌تواند تصادفاً به میانگین ۵ برسد؛ مثلاً یک
+ *    SUBJECT_ACTION + یک LIGHTING_CHANGE) و `scene.mood` غیر-null است،
+ *    [getPacingFromEmotion] روی آن Mood صدا زده می‌شود — عقب‌نشینی از
+ *    جزئی‌تر (شات) به کلی‌تر (صحنه)، هم‌راستا با الگوی موجود خودِ این تابع.
+ * 3. **shotGoal تنها (Fallback نهایی):** اگر هم `shot.beats` خالی است و هم
+ *    `scene.mood` تنظیم نشده، رفتار ADR-108 بدون تغییر ادامه می‌یابد —
+ *    [determineHybridPacing] با همان `shotGoal` و شدت خنثی (۵، از
+ *    [averageBeatIntensity] روی لیست خالی) صدا زده می‌شود.
+ *
+ * اگر `globalMode` چیزی غیر از `BALANCED` است (کاربر صریحاً LONG_TAKE/FAST_CUT
+ * را برای کل پروژه انتخاب کرده)، هیچ منطق Hybrid/Mood دخالت نمی‌کند — همان
+ * مقدار خام برگردانده می‌شود.
  *
  * چرا گسترش همین تابع مرکزی، نه یک مسیر جدا: [validateShotDurationForCinematicMode]
  * (وایرشده در ADR-106، از `domain.validation.ValidationAggregator`) دقیقاً از
- * خروجی همین تابع تغذیه می‌شود؛ یک تابع Hybrid جدا و اختیاری یک مسیر موازی و
- * قطع‌شده از آن Rule واقعی می‌ساخت — دقیقاً همان اشتباهی که این مجموعه‌قدم‌ها
- * (طبق درسِ ADR-106 درباره‌ی محل مرکزی Validation) عمداً از آن پرهیز می‌کند.
+ * خروجی همین تابع تغذیه می‌شود؛ یک تابع Hybrid/Mood جدا و اختیاری یک مسیر
+ * موازی و قطع‌شده از آن Rule واقعی می‌ساخت.
  */
 fun resolveEffectiveCinematicMode(projectDna: ProjectDna, scene: Scene, shot: Shot): CinematicMode {
     shot.cinematicModeOverride?.let { return it }
@@ -71,6 +82,13 @@ fun resolveEffectiveCinematicMode(projectDna: ProjectDna, scene: Scene, shot: Sh
     val settings = projectDna.cinematicLanguage
     settings.sceneOverrides[scene.sceneId]?.let { return it }
     if (settings.globalMode != CinematicMode.BALANCED) return settings.globalMode
+    if (shot.beats.isNotEmpty()) {
+        return determineHybridPacing(
+            sceneType = shot.shotGoal.name.lowercase(),
+            avgBeatIntensity = averageBeatIntensity(shot.beats)
+        )
+    }
+    scene.mood?.let { return getPacingFromEmotion(it) }
     return determineHybridPacing(
         sceneType = shot.shotGoal.name.lowercase(),
         avgBeatIntensity = averageBeatIntensity(shot.beats)

@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.data.repository
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.GlobalVisualStyleRef
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
@@ -32,7 +33,8 @@ fun SceneDto.toDomain(): Scene = Scene(
     ),
     shotCount = shotCount,
     state = EntityState.valueOf(state),
-    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) }
+    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) },
+    mood = mood?.let { Mood.valueOf(it) }
 )
 
 fun Scene.toDto(): SceneDto = SceneDto(
@@ -54,5 +56,6 @@ fun Scene.toDto(): SceneDto = SceneDto(
     ),
     shotCount = shotCount,
     state = state.name,
-    cinematicModeOverride = cinematicModeOverride?.name
+    cinematicModeOverride = cinematicModeOverride?.name,
+    mood = mood?.name
 )

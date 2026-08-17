@@ -46,7 +46,11 @@ private fun testDna(globalMode: CinematicMode = CinematicMode.BALANCED, sceneOve
     cinematicLanguage = CinematicLanguageSettings(globalMode = globalMode, sceneOverrides = sceneOverrides)
 )
 
-private fun testScene(sceneId: String = "scene_001", cinematicModeOverride: CinematicMode? = null): Scene = Scene(
+private fun testScene(
+    sceneId: String = "scene_001",
+    cinematicModeOverride: CinematicMode? = null,
+    mood: Mood? = null
+): Scene = Scene(
     sceneId = sceneId,
     sceneNumber = 1,
     narrativeRole = NarrativeRole.DEVELOPMENT,
@@ -54,7 +58,8 @@ private fun testScene(sceneId: String = "scene_001", cinematicModeOverride: Cine
     timeOfDay = TimeOfDay.AFTERNOON,
     atmospherePrimary = Atmosphere.CALM,
     shotCount = 1,
-    cinematicModeOverride = cinematicModeOverride
+    cinematicModeOverride = cinematicModeOverride,
+    mood = mood
 )
 
 private fun testShot(
@@ -281,6 +286,38 @@ class CinematicLanguageTest {
         val shot = testShot(shotGoal = ShotGoal.ACTION, beats = emptyList(), cinematicModeOverride = CinematicMode.LONG_TAKE)
 
         assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    // --- resolveEffectiveCinematicMode: اتصال Mood صحنه (قدم ۲ج از ۴ زیرقدم قدم ۲، ADR-109) ---
+    // اولویت سه‌سطحی تصمیم‌شده توسط کاربر پروژه: Beat واقعی شات > Mood صحنه > shotGoal تنها.
+
+    @Test
+    fun `Mood wiring - an empty beat sheet with a DARK-category scene mood resolves via getPacingFromEmotion to FAST_CUT`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene(mood = Mood.TENSE) // MoodCategory.DARK -> getPacingFromEmotion -> FAST_CUT
+        val shot = testShot(shotGoal = ShotGoal.ESTABLISHING, beats = emptyList())
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Mood wiring - the same empty-beat scenario without a scene mood falls back to the previous shotGoal-only behavior`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene(mood = null)
+        val shot = testShot(shotGoal = ShotGoal.ESTABLISHING, beats = emptyList())
+
+        // بدون Mood صحنه: رفتار قبلی ADR-108 دست‌نخورده — ESTABLISHING + شدت خنثی -> BALANCED.
+        assertEquals(CinematicMode.BALANCED, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Mood wiring - a non-empty beat sheet wins over a contradicting scene mood (Beat takes absolute priority over Mood)`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        // Mood به‌تنهایی به LONG_TAKE اشاره می‌کند (CALM)، اما Beat/shotGoal به FAST_CUT.
+        val scene = testScene(mood = Mood.SERENE) // MoodCategory.CALM -> getPacingFromEmotion -> LONG_TAKE
+        val shot = testShot(shotGoal = ShotGoal.ACTION, beats = listOf(beatOf(BeatEventType.CAMERA_MOVE)))
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
     }
 
     // --- beatIntensity / averageBeatIntensity (تکمیل Rule یتیم — قدم ۲الف از ۴ زیرقدم قدم ۲، ADR-107) ---

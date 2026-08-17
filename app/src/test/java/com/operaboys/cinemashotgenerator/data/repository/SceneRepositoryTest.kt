@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.entity.ProjectEntity
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -56,7 +57,9 @@ class SceneRepositoryTest {
         atmosphereSecondary = Atmosphere.MYSTERIOUS,
         shotCount = 5,
         // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): پوشش صریح Round-Trip برای فیلد تازه.
-        cinematicModeOverride = CinematicMode.FAST_CUT
+        cinematicModeOverride = CinematicMode.FAST_CUT,
+        // تکمیل Rule یتیم — قدم ۲ج از ۴ زیرقدم قدم ۲ (ADR-109): پوشش صریح Round-Trip.
+        mood = Mood.MYSTERIOUS
     )
 
     @Test

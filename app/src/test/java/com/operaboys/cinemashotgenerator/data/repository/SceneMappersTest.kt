@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.data.repository
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -108,6 +109,39 @@ class SceneMappersTest {
         val decoded = json.decodeFromString(SceneDto.serializer(), oldJsonWithoutCinematicModeOverride)
 
         assertEquals(null, decoded.cinematicModeOverride)
+        assertEquals("scene_legacy", decoded.sceneId)
+    }
+
+    // تکمیل Rule یتیم — قدم ۲ج از ۴ زیرقدم قدم ۲ (ADR-109): هم‌الگو دقیق با دو
+    // جفت‌تست بالا برای mood تازه‌اضافه‌شده (domain.dna.Mood، نه Atmosphere).
+
+    @Test
+    fun `Scene toDto then toDomain round-trips mood exactly, both when set and when null`() {
+        val withMood = baseScene(locationAssetId = null).copy(mood = Mood.MYSTERIOUS)
+        assertEquals(withMood, withMood.toDto().toDomain())
+
+        val withoutMood = baseScene(locationAssetId = null)
+        assertEquals(null, withoutMood.mood)
+        assertEquals(withoutMood, withoutMood.toDto().toDomain())
+    }
+
+    @Test
+    fun `decoding an old SceneDataJson without the mood key succeeds with a null default`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val oldJsonWithoutMood = """
+            {
+              "sceneId": "scene_legacy",
+              "sceneNumber": 1,
+              "narrativeRole": "DEVELOPMENT",
+              "location": { "type": "OUTDOOR", "description": "a quiet street" },
+              "timeOfDay": "NIGHT",
+              "atmospherePrimary": "CALM"
+            }
+        """.trimIndent()
+
+        val decoded = json.decodeFromString(SceneDto.serializer(), oldJsonWithoutMood)
+
+        assertEquals(null, decoded.mood)
         assertEquals("scene_legacy", decoded.sceneId)
     }
 }

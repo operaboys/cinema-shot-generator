@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.domain.scene
 
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.stateversioning.EntityState
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
@@ -72,6 +73,21 @@ data class GlobalVisualStyleRef(
  * ProjectDna.cinematicLanguage.sceneOverrides (مکانیزم مستقل و مکمل خودِ
  * بلوپرینت، هنوز دست‌نخورده) بررسی می‌کند — جزئیات کامل تصمیم در ADR-106.
  */
+/**
+ * تکمیل Rule یتیم — قدم ۲ج از ۴ زیرقدم قدم ۲ (ADR-109): `mood` — Mood صریح
+ * این صحنه (از `domain.dna.Mood`، همان enum ۲۵مقداری DNA پروژه، **نه**
+ * `Atmosphere` بالا). این دو enum کاملاً مستقل‌اند: `Atmosphere` (۶ مقدار:
+ * CALM/TENSE/DARK/BRIGHT/MYSTERIOUS/EMOTIONAL) مفهوم قدیمی‌تر و متفاوتی
+ * است (فضای جوی صحنه، بدون `MoodCategory`/بدون اتصال به
+ * `getPacingFromEmotion`) و بدون تبدیل خودکار به `Mood` — قاطی‌کردن این دو
+ * اشتباه بود؛ به همین دلیل یک فیلد کاملاً جدید و جداگانه اضافه شد، نه
+ * بازاستفاده از `atmospherePrimary` موجود.
+ *
+ * `null` یعنی هیچ Mood صریحی برای این صحنه تعیین نشده — در آن صورت
+ * `resolveEffectiveCinematicMode` (زیرساخت Hybrid، ADR-108) به لایه‌ی
+ * سوم/آخر Fallback (فقط `shotGoal`) می‌رود. جزئیات کامل اولویت سه‌سطحی
+ * (Beat > Mood صحنه > shotGoal تنها) در ADR-109.
+ */
 data class Scene(
     val sceneId: String,
     val sceneTitle: String? = null,
@@ -87,5 +103,6 @@ data class Scene(
     val constraints: SceneConstraints = SceneConstraints(),
     val shotCount: Int = 0,
     val state: EntityState = EntityState.DRAFT,
-    val cinematicModeOverride: CinematicMode? = null
+    val cinematicModeOverride: CinematicMode? = null,
+    val mood: Mood? = null
 )

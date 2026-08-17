@@ -50,5 +50,8 @@ data class SceneDto(
     // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): nullable با پیش‌فرض null، دقیقاً
     // طبق الگوی محافظه‌کارانه‌ی locationAssetId بالا (بدون Migration رسمی Room —
     // sceneDataJson صرفاً یک Blob است).
-    val cinematicModeOverride: String? = null
+    val cinematicModeOverride: String? = null,
+    // تکمیل Rule یتیم — قدم ۲ج از ۴ زیرقدم قدم ۲ (ADR-109): همان الگوی محافظه‌کارانه —
+    // نام Enum به‌صورت String (Mood، نه Atmosphere — دو enum کاملاً مستقل).
+    val mood: String? = null
 )
