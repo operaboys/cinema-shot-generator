@@ -1,14 +1,28 @@
 package com.operaboys.cinemashotgenerator.ui.storybreakdown
 
 import android.app.Application
+import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -178,5 +192,157 @@ class AiStoryBreakdownViewModelTest {
         viewModel.processResponse()
 
         assertNotNull(viewModel.chunksCompleteWarning.value)
+    }
+
+    // G2 قدم ۳ از ۳ (ADR-101): تست‌های مسیر ۲ (ارسال خودکار) — claudeApiKeySaved،
+    // sendPromptAutomatically. هم‌الگو با AiConnectorTest.kt (MockEngine) و
+    // SecureKeyRepositoryTest.kt (SharedPreferences معمولی تزریقی، نه AndroidKeyStore
+    // واقعی). sendPromptAutomatically اکنون Job برمی‌گرداند (هم‌الگو با
+    // confirmAndSave/OutputDeliveryViewModel.regenerate — یافته‌ی مستندشده‌ی همان
+    // فایل) دقیقاً برای این‌که تست بتواند .join() کند و مطمئن شود کل زنجیره‌ی
+    // async (که شامل withContext(Dispatchers.IO) واقعی داخل SecureKeyRepository است)
+    // قبل از assert کامل شده. اما init{} که claudeApiKeySaved را بارگذاری می‌کند Job
+    // برنمی‌گرداند (داخل سازنده است، نه یک تابع صدازدنی از بیرون) — برای آن یک
+    // انتظار محدود (awaitCondition، هم‌الگو با composeRule.waitUntil در
+    // SettingsFlowTest.kt) استفاده شده؛ مقدار پیش‌فرض false نیازی به انتظار ندارد
+    // چون MutableStateFlow(false) همان مقدار اولیه‌ی هم‌زمان (synchronous) است.
+
+    private fun buildTestSecureKeyRepository(prefsName: String): SecureKeyRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        return SecureKeyRepository(context) { appContext ->
+            appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        }
+    }
+
+    private fun <T> awaitCondition(flow: StateFlow<T>, timeoutMs: Long = 3000, predicate: (T) -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (!predicate(flow.value) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5)
+        }
+        assertTrue("condition was never met within ${timeoutMs}ms, last value=${flow.value}", predicate(flow.value))
+    }
+
+    private fun buildAutoSendViewModel(
+        projectId: String,
+        secureKeyRepository: SecureKeyRepository,
+        engine: MockEngine
+    ): AiStoryBreakdownViewModel = AiStoryBreakdownViewModel(
+        application = ApplicationProvider.getApplicationContext(),
+        projectId = projectId,
+        storyRepository = StoryRepository(injectedDatabase.storyDao(), injectedDatabase.storyBreakdownSessionDao()),
+        secureKeyRepository = secureKeyRepository,
+        httpClientEngine = engine,
+        ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+    )
+
+    private fun noopEngine() = MockEngine {
+        respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+    }
+
+    @Test
+    fun `claudeApiKeySaved is false when no key has been saved`() {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_no_key_prefs")
+        val vm = buildAutoSendViewModel("proj_claude_key_absent_test", secureKeyRepository, noopEngine())
+
+        assertFalse(vm.claudeApiKeySaved.value)
+    }
+
+    @Test
+    fun `claudeApiKeySaved becomes true when a Claude key was already saved before the ViewModel is created`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_has_key_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val vm = buildAutoSendViewModel("proj_claude_key_present_test", secureKeyRepository, noopEngine())
+
+        awaitCondition(vm.claudeApiKeySaved) { it }
+    }
+
+    @Test
+    fun `sendPromptAutomatically without a saved key applies Rule 4, shows a hint, and never attempts an HTTP call`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_rule4_prefs")
+        var engineCalled = false
+        val engine = MockEngine {
+            engineCalled = true
+            respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val vm = buildAutoSendViewModel("proj_send_no_key_test", secureKeyRepository, engine)
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertFalse("بدون کلید ذخیره‌شده نباید هیچ تلاش HTTP واقعی انجام شود", engineCalled)
+        assertNotNull(vm.autoSendError.value)
+        assertEquals(BreakdownPhase.WRITE_STORY, vm.phase.value)
+    }
+
+    @Test
+    fun `a successful automatic send goes through the same processAiResponse chain and reaches FINAL_REVIEW, just like manual paste`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_success_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val innerBreakdownJson = """{"characters":[{"name":"Nora","description":"A cartographer","role":"main","gender":"female"}],"locations":[{"name":"Harbor","description":"A foggy harbor"}],"objects":[],"shots":[]}"""
+        val escapedInner = innerBreakdownJson.replace("\"", "\\\"")
+        val engine = MockEngine {
+            respond(
+                content = """{"content":[{"type":"text","text":"$escapedInner"}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildAutoSendViewModel("proj_auto_send_success_test", secureKeyRepository, engine)
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertEquals(
+            "همان applyProcessAiResponseResult مسیر ۱ (Paste دستی) — پاسخ موفق باید فاز را به FINAL_REVIEW ببرد",
+            BreakdownPhase.FINAL_REVIEW,
+            vm.phase.value
+        )
+        assertNotNull(vm.breakdownResult.value)
+        assertEquals(1, vm.breakdownResult.value!!.characters.size)
+        assertEquals("Nora", vm.breakdownResult.value!!.characters.first().name)
+        assertNull(vm.autoSendError.value)
+        assertFalse(vm.autoSendInProgress.value)
+    }
+
+    @Test
+    fun `a failed automatic send shows a meaningful error and does not lock the user out of the manual path`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_failure_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildAutoSendViewModel("proj_auto_send_failure_test", secureKeyRepository, engine)
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertEquals(
+            "شکست ارسال خودکار نباید کاربر را در فاز دیگری گیر بیندازد — باید بتواند فوری از مسیر ۱ (کپی) استفاده کند",
+            BreakdownPhase.WRITE_STORY,
+            vm.phase.value
+        )
+        assertNotNull(vm.autoSendError.value)
+        assertTrue(vm.autoSendError.value!!.contains("invalid x-api-key"))
+        assertFalse(vm.autoSendInProgress.value)
+        assertNotNull(
+            "مسیر ۱ (Copy) باید همچنان قابل‌استفاده بماند — generatedPrompt نباید پاک شود",
+            vm.generatedPrompt.value
+        )
+
+        vm.clearAutoSendError()
+        assertNull(vm.autoSendError.value)
     }
 }

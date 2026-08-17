@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,9 +55,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.JsonDiagnosis
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownResult
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
@@ -65,6 +68,7 @@ import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 import com.operaboys.cinemashotgenerator.ui.theme.minTouchTargetIfEnabled
+import io.ktor.client.engine.HttpClientEngine
 
 // واحد ۱۶ فاز ۲ — قدم ۲: صفحه‌ی واقعی AI Story Breakdown — اولین UI کل زنجیره‌ی
 // PromptBuilder→ChunkCombiner→JsonDoctor→StoryToDomainMapper (واحد ۰۱ب). سه فاز
@@ -89,6 +93,11 @@ const val AI_BREAKDOWN_BACK_BUTTON_TAG = "aiBreakdown.backButton"
 const val AI_BREAKDOWN_TOGGLE_LANGUAGE_BUTTON_TAG = "aiBreakdown.toggleLanguageButton"
 const val AI_BREAKDOWN_TOGGLE_THEME_BUTTON_TAG = "aiBreakdown.toggleThemeButton"
 
+// G2 قدم ۳ از ۳ (ADR-101): دکمه‌ی مسیر ۲ (ارسال خودکار) — «کنار» دکمه‌ی کپی
+// موجود، نه جایگزین آن.
+const val AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG = "aiBreakdown.sendAutomaticallyButton"
+const val AI_BREAKDOWN_AUTO_SEND_ERROR_TAG = "aiBreakdown.autoSendError"
+
 @Composable
 fun AiStoryBreakdownScreen(
     projectId: String,
@@ -102,12 +111,18 @@ fun AiStoryBreakdownScreen(
     assetRepository: AssetRepository? = null,
     sceneRepository: SceneRepository? = null,
     shotRepository: ShotRepository? = null,
+    // G2 قدم ۳: تزریق‌پذیر برای تست — هم‌الگو با چهارتای بالا (بدون این دو،
+    // تست‌ها یا AndroidKeyStore واقعی می‌خواهند یا تماس واقعی اینترنت؛ هر دو
+    // محدودیت مستندشده‌ی ADR-098/ADR-100).
+    secureKeyRepository: SecureKeyRepository? = null,
+    httpClientEngine: HttpClientEngine? = null,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: AiStoryBreakdownViewModel = viewModel(
         factory = AiStoryBreakdownViewModel.factory(
-            application, projectId, storyRepository, assetRepository, sceneRepository, shotRepository
+            application, projectId, storyRepository, assetRepository, sceneRepository, shotRepository,
+            secureKeyRepository, httpClientEngine
         )
     )
 
@@ -126,6 +141,9 @@ fun AiStoryBreakdownScreen(
     val processingError by viewModel.processingError.collectAsStateWithLifecycle()
     val breakdownResult by viewModel.breakdownResult.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
+    val claudeApiKeySaved by viewModel.claudeApiKeySaved.collectAsStateWithLifecycle()
+    val autoSendInProgress by viewModel.autoSendInProgress.collectAsStateWithLifecycle()
+    val autoSendError by viewModel.autoSendError.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onConfirmedAndSaved()
@@ -166,7 +184,12 @@ fun AiStoryBreakdownScreen(
                     onDefaultShotDurationSecondsChange = viewModel::setDefaultShotDurationSeconds,
                     generatedPrompt = generatedPrompt,
                     onGeneratePrompt = viewModel::generatePrompt,
-                    onProceedToPhase2 = { viewModel.setPhase(BreakdownPhase.PASTE_RESPONSE) }
+                    onProceedToPhase2 = { viewModel.setPhase(BreakdownPhase.PASTE_RESPONSE) },
+                    claudeApiKeySaved = claudeApiKeySaved,
+                    autoSendInProgress = autoSendInProgress,
+                    autoSendError = autoSendError,
+                    onSendAutomatically = viewModel::sendPromptAutomatically,
+                    onDismissAutoSendError = viewModel::clearAutoSendError
                 )
                 BreakdownPhase.PASTE_RESPONSE -> Phase2PasteResponse(
                     language = language,
@@ -318,7 +341,12 @@ private fun Phase1WriteStory(
     onDefaultShotDurationSecondsChange: (Float) -> Unit,
     generatedPrompt: String?,
     onGeneratePrompt: () -> Unit,
-    onProceedToPhase2: () -> Unit
+    onProceedToPhase2: () -> Unit,
+    claudeApiKeySaved: Boolean,
+    autoSendInProgress: Boolean,
+    autoSendError: String?,
+    onSendAutomatically: () -> Unit,
+    onDismissAutoSendError: () -> Unit
 ) {
     OutlinedTextField(
         value = freeformStory,
@@ -414,15 +442,54 @@ private fun Phase1WriteStory(
     }
 
     if (generatedPrompt != null) {
-        GeneratedPromptCard(language = language, prompt = generatedPrompt)
+        GeneratedPromptCard(
+            language = language,
+            prompt = generatedPrompt,
+            claudeApiKeySaved = claudeApiKeySaved,
+            autoSendInProgress = autoSendInProgress,
+            onSendAutomatically = onSendAutomatically
+        )
+        if (autoSendError != null) {
+            Card(modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_AUTO_SEND_ERROR_TAG)) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = autoSendError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = onDismissAutoSendError) {
+                        Text(uiString("aiBreakdown.dismissButton", language))
+                    }
+                }
+            }
+        }
         Button(onClick = onProceedToPhase2, modifier = Modifier.fillMaxWidth()) {
             Text(uiString("aiBreakdown.proceedToPhase2Button", language))
         }
     }
 }
 
+/**
+ * مسیر ۱ (کپی، موجود) و مسیر ۲ (ارسال خودکار، G2 قدم ۳/ADR-101) «کنار هم» —
+ * طبق تصمیم محصولی صریح، نه جایگزین یکدیگر. شرط سخت‌گیرانه‌ی UI: دکمه‌ی ارسال
+ * خودکار فقط وقتی claudeApiKeySaved=true، enabled است؛ در غیر این صورت یک
+ * متن راهنمای کوتاه («ابتدا کلید API را در تنظیمات وارد کنید») به‌جای رفتار
+ * ساکت/خطای بعد از کلیک نشان داده می‌شود.
+ */
 @Composable
-private fun GeneratedPromptCard(language: Language, prompt: String) {
+private fun GeneratedPromptCard(
+    language: Language,
+    prompt: String,
+    claudeApiKeySaved: Boolean,
+    autoSendInProgress: Boolean,
+    onSendAutomatically: () -> Unit
+) {
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -439,6 +506,24 @@ private fun GeneratedPromptCard(language: Language, prompt: String) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(uiString("aiBreakdown.copyButton", language))
+            }
+            Button(
+                onClick = onSendAutomatically,
+                enabled = claudeApiKeySaved && !autoSendInProgress,
+                modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG)
+            ) {
+                if (autoSendInProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(uiTemplate("aiBreakdown.sendAutomaticallyButtonTemplate", language, "service" to CLAUDE_API_PROFILE.displayName))
+            }
+            if (!claudeApiKeySaved) {
+                Text(
+                    text = uiString("aiBreakdown.sendAutomaticallyNoKeyHint", language),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
             }
         }
     }

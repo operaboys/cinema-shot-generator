@@ -1,5 +1,6 @@
 package com.operaboys.cinemashotgenerator.ui.settings
 
+import android.app.Application
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,13 +19,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,11 +40,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.BuildConfig
 import com.operaboys.cinemashotgenerator.R
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.AiConnectorProfile
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
 import com.operaboys.cinemashotgenerator.domain.workflow.HomeLayoutVariant
@@ -59,6 +70,11 @@ import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 // نیست، دقیقاً هم‌الگو با نحوه‌ی مصرف workflowViewModel در HomeScreen). جزئیات
 // کامل تصمیمات (خصوصاً محدودیت‌های صریح Display/Jump-Between-Steps/Home Image)
 // در docs/adr/058-unit16-phase6-step1-settings-autosave.md.
+//
+// G2 قدم ۳ از ۳ (ADR-101): کارت هشتم اضافه شد — «کلید API سرویس‌های AI». برخلاف
+// ۷ کارت بالا، این یکی از یک ViewModel تازه (ApiKeysViewModel، همین پکیج)
+// می‌خواند، نه WorkflowViewModel — دلیل کامل (چرا افزودن به WorkflowViewModel
+// انضباط دامنه‌ی مستندشده‌ی خودش را نقض می‌کرد) در سربرگ ApiKeysViewModel.kt.
 
 const val SETTINGS_BACK_BUTTON_TAG = "settings.backButton"
 const val SETTINGS_LANGUAGE_FA_CHIP_TAG = "settings.language.fa"
@@ -88,13 +104,30 @@ const val SETTINGS_TOGGLE_THEME_BUTTON_TAG = "settings.toggleThemeButton"
 
 fun settingsAutoSaveCadenceChipTag(seconds: Long): String = "settings.autoSaveCadence.$seconds"
 
+// G2 قدم ۳ از ۳ (ADR-101): کارت کلید API — testTag ها با profileId پارامتری‌اند
+// (نه هاردکد Claude) چون BUILTIN_AI_CONNECTOR_PROFILES می‌تواند چندتایی باشد.
+fun apiKeyFieldTag(profileId: String): String = "settings.apiKeyField.$profileId"
+fun apiKeySaveButtonTag(profileId: String): String = "settings.apiKeySaveButton.$profileId"
+fun apiKeyDeleteButtonTag(profileId: String): String = "settings.apiKeyDeleteButton.$profileId"
+fun apiKeyStatusTag(profileId: String): String = "settings.apiKeyStatus.$profileId"
+
 @Composable
 fun SettingsScreen(
     workflowViewModel: WorkflowViewModel,
     onBack: () -> Unit,
     onShowMessage: (String) -> Unit = {},
+    // G2 قدم ۳: تزریق‌پذیر برای تست — هم‌الگو با assetRepository در
+    // CharacterAssetFormScreen.kt. پیش‌فرض null یعنی ApiKeysViewModel خودش
+    // SecureKeyRepository واقعی (EncryptedSharedPreferences) می‌سازد.
+    secureKeyRepository: SecureKeyRepository? = null,
     modifier: Modifier = Modifier
 ) {
+    val application = LocalContext.current.applicationContext as Application
+    val apiKeysViewModel: ApiKeysViewModel = viewModel(
+        factory = ApiKeysViewModel.factory(application, secureKeyRepository)
+    )
+    val apiKeysSavedStatus by apiKeysViewModel.savedStatus.collectAsStateWithLifecycle()
+
     val language by workflowViewModel.language.collectAsStateWithLifecycle()
     val theme by workflowViewModel.theme.collectAsStateWithLifecycle()
     val homeLayoutVariant by workflowViewModel.homeLayoutVariant.collectAsStateWithLifecycle()
@@ -186,6 +219,13 @@ fun SettingsScreen(
                 onHomeLayoutChanged = workflowViewModel::setHomeLayoutVariant,
                 composerLayoutVariant = composerLayoutVariant,
                 onComposerLayoutChanged = workflowViewModel::setComposerLayoutVariant
+            )
+
+            ApiKeysCard(
+                language = language,
+                savedStatus = apiKeysSavedStatus,
+                onSave = apiKeysViewModel::saveApiKey,
+                onDelete = apiKeysViewModel::deleteApiKey
             )
 
             AboutCard(language = language)
@@ -452,6 +492,94 @@ private fun AboutCard(language: Language) {
                     color = CinemaTheme.extendedColors.fg4,
                     modifier = Modifier.testTag(SETTINGS_ABOUT_VERSION_TAG)
                 )
+            }
+        }
+    }
+}
+
+/**
+ * G2 قدم ۳ از ۳ (ADR-101): برای هر پروفایل در BUILTIN_AI_CONNECTOR_PROFILES یک
+ * ردیف مستقل (طبق دستور صریح: خودکار برای چندتایی، نه یک ردیف هاردکد Claude).
+ * متن شفافیت هزینه یک‌بار زیر عنوان کارت — نه هشدار تکراری per-ردیف (طبق تصمیم
+ * محصولی: «نه هشدار مزاحم در هر استفاده»).
+ */
+@Composable
+private fun ApiKeysCard(
+    language: Language,
+    savedStatus: Map<String, Boolean>,
+    onSave: (profileId: String, apiKey: String) -> Unit,
+    onDelete: (profileId: String) -> Unit
+) {
+    SettingsCard(titleKey = "settings.apiKeysCardTitle", language = language) {
+        Text(
+            text = uiString("settings.apiKeysCostNotice", language),
+            style = MaterialTheme.typography.bodySmall,
+            color = CinemaTheme.extendedColors.fg3
+        )
+        BUILTIN_AI_CONNECTOR_PROFILES.forEachIndexed { index, profile ->
+            if (index != 0) {
+                HorizontalDivider()
+            }
+            ApiKeyRow(
+                language = language,
+                profile = profile,
+                isSaved = savedStatus[profile.profileId] == true,
+                onSave = { key -> onSave(profile.profileId, key) },
+                onDelete = { onDelete(profile.profileId) }
+            )
+        }
+    }
+}
+
+/**
+ * شرط سخت‌گیرانه‌ی تصمیم محصولی (این قدم مسئول نیست، فقط منبع وضعیت است):
+ * دکمه‌ی «ارسال خودکار» در AiStoryBreakdownScreen.kt از همین savedStatus (از
+ * طریق hasApiKey واقعی) خوانده می‌شود — تا وقتی isSaved اینجا false است، آن
+ * دکمه در سطح UI غیرفعال می‌ماند، نه فقط خطای بعد از کلیک.
+ */
+@Composable
+private fun ApiKeyRow(
+    language: Language,
+    profile: AiConnectorProfile,
+    isSaved: Boolean,
+    onSave: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    var keyInput by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = profile.displayName, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = uiString(if (isSaved) "settings.apiKeySavedStatus" else "settings.apiKeyNotSavedStatus", language),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isSaved) CinemaTheme.extendedColors.success else CinemaTheme.extendedColors.fg3,
+                modifier = Modifier.testTag(apiKeyStatusTag(profile.profileId))
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = keyInput,
+                onValueChange = { keyInput = it },
+                label = { Text(uiString("settings.apiKeyFieldLabel", language)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.weight(1f).testTag(apiKeyFieldTag(profile.profileId))
+            )
+            Button(
+                onClick = { onSave(keyInput); keyInput = "" },
+                enabled = keyInput.isNotBlank(),
+                modifier = Modifier.testTag(apiKeySaveButtonTag(profile.profileId))
+            ) {
+                Text(uiString("settings.apiKeySaveButton", language))
+            }
+        }
+        if (isSaved) {
+            OutlinedButton(onClick = onDelete, modifier = Modifier.testTag(apiKeyDeleteButtonTag(profile.profileId))) {
+                Text(uiString("settings.apiKeyDeleteButton", language))
             }
         }
     }

@@ -8,8 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.JsonDiagnosis
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.ProcessAiResponseResult
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownRequest
@@ -17,12 +19,17 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownRes
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.attemptAutoFix
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.buildStoryBreakdownPrompt
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.processAiResponse
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.sendToAiConnector
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.smartCombineChunks
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateAiConnectorErrorMessage
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateChunksComplete
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateFreeformStoryLength
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateHighShotCount
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateTargetShotCountRange
 import com.operaboys.cinemashotgenerator.ui.story.defaultStoryContext
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +43,12 @@ import java.time.Instant
 // و اولین محل واقعی که خروجی این زنجیره را در AssetRepository/SceneRepository/
 // ShotRepository ذخیره می‌کند. جزئیات کامل هر تصمیم در
 // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
+//
+// G2 قدم ۳ از ۳ (ADR-101): مسیر ۲ (AI Connector) اکنون واقعاً وصل است —
+// sendPromptAutomatically پایین‌تر. secureKeyRepository/httpClientEngine هر دو
+// تزریق‌پذیرند (هم‌الگو با بقیه‌ی Repository های این سازنده) تا تست‌ها بتوانند
+// SharedPreferences معمولی/MockEngine جایگزین کنند (بدون AndroidKeyStore واقعی
+// یا تماس واقعی اینترنت در تست — همان محدودیت مستندشده‌ی ADR-098/ADR-100).
 
 enum class BreakdownPhase { WRITE_STORY, PASTE_RESPONSE, FINAL_REVIEW }
 
@@ -49,6 +62,8 @@ class AiStoryBreakdownViewModel(
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val shotRepository: ShotRepository = ShotRepository(AppDatabase.getInstance(application).shotDao()),
+    private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
+    private val httpClientEngine: HttpClientEngine = OkHttp.create(),
     private val clock: () -> String = ::nowIso8601,
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
@@ -115,6 +130,20 @@ class AiStoryBreakdownViewModel(
     private val _saveCompleted = MutableStateFlow(false)
     val saveCompleted: StateFlow<Boolean> = _saveCompleted.asStateFlow()
 
+    // G2 قدم ۳ از ۳ (ADR-101): شرط سخت‌گیرانه‌ی تصمیم محصولی — گزینه‌ی «ارسال
+    // خودکار» فقط وقتی enabled است که کلید واقعاً ذخیره شده باشد (خواندن یک‌باره
+    // در init، هم‌الگو با بارگذاری Session بالا؛ اگر کاربر بعداً از صفحه‌ی
+    // Settings کلید را ذخیره/حذف کند و به همین صفحه برگردد، یک نمونه‌ی تازه‌ی
+    // این ViewModel ساخته می‌شود — طبق چرخه‌حیات استاندارد Navigation-Compose).
+    private val _claudeApiKeySaved = MutableStateFlow(false)
+    val claudeApiKeySaved: StateFlow<Boolean> = _claudeApiKeySaved.asStateFlow()
+
+    private val _autoSendInProgress = MutableStateFlow(false)
+    val autoSendInProgress: StateFlow<Boolean> = _autoSendInProgress.asStateFlow()
+
+    private val _autoSendError = MutableStateFlow<String?>(null)
+    val autoSendError: StateFlow<String?> = _autoSendError.asStateFlow()
+
     init {
         ioScope.launch {
             storyRepository.loadBreakdownSession(projectId).getOrNull()?.let { session ->
@@ -125,6 +154,19 @@ class AiStoryBreakdownViewModel(
                 _highShotCountWarning.value = validateHighShotCount(session.targetShotCount)?.message
                 _defaultShotDurationSeconds.value = session.defaultShotDurationSeconds
             }
+        }
+        ioScope.launch {
+            // یافته‌ی واقعی راستی‌آزمایی این قدم: SecureKeyRepository پیش‌فرض تزریق‌نشده
+            // روی Robolectric واقعاً KeyStoreException پرتاب می‌کند (طبق کامنت مستندشده‌ی
+            // خودِ SecureKeyRepository.kt/ADR-098) — و چون بسیاری از تست‌های موجود این
+            // ViewModel (مثلاً AiStoryBreakdownViewModelFactoryTest) با
+            // ioScopeOverride=CoroutineScope(Dispatchers.Unconfined) اجرا می‌شوند (یک Job
+            // معمولی، نه SupervisorJob)، یک Coroutine فرزند شکست‌خورده کل Job والد و
+            // Coroutine های خواهر (از‌جمله نوشتن‌های واقعی confirmAndSave) را لغو می‌کرد —
+            // تست‌های قبلاً موفق را واقعاً شکست می‌داد (تأییدشده تجربی، نه فرضی). runCatching
+            // این ریسک را می‌بندد؛ fail-closed به false هم با شرط سخت‌گیرانه‌ی محصولی هم‌راستاست
+            // (اگر وضعیت کلید قابل‌تشخیص نباشد، گزینه‌ی ارسال خودکار باید غیرفعال بماند).
+            _claudeApiKeySaved.value = runCatching { secureKeyRepository.hasApiKey(CLAUDE_API_PROFILE.profileId) }.getOrDefault(false)
         }
     }
 
@@ -160,11 +202,12 @@ class AiStoryBreakdownViewModel(
     }
 
     /**
-     * تولید Prompt واقعی — طبق یادآوری صریح دستور کار: sendToAiConnector هنوز
-     * TODO() است، پس این تابع فقط متن Prompt را می‌سازد (برای Copy دستی کاربر)، نه
-     * ارسال خودکار به یک API. StoryContext از StoryRepository خوانده می‌شود؛ اگر هنوز
-     * ذخیره نشده (کاربر وارد Story Tab نشده)، همان پیش‌فرض خنثی StoryViewModel
-     * استفاده می‌شود (defaultStoryContext مشترک).
+     * تولید Prompt واقعی — این تابع فقط متن Prompt را می‌سازد (برای Copy دستی
+     * کاربر، مسیر ۱)؛ ارسال خودکار (مسیر ۲) کار sendPromptAutomatically پایین‌تر
+     * است (G2 قدم ۳، ADR-101) — هر دو مسیر از همین generatedPrompt استفاده
+     * می‌کنند، «کنار هم»، نه جایگزین یکدیگر. StoryContext از StoryRepository
+     * خوانده می‌شود؛ اگر هنوز ذخیره نشده (کاربر وارد Story Tab نشده)، همان
+     * پیش‌فرض خنثی StoryViewModel استفاده می‌شود (defaultStoryContext مشترک).
      */
     fun generatePrompt() {
         if (_targetShotCountError.value != null || _freeformStoryError.value != null) return
@@ -196,12 +239,19 @@ class AiStoryBreakdownViewModel(
      * دکمه‌ی «ادامه» — طبق تصمیم مستند، متن فعلی جعبه (اگر خالی نباشد) خودکار به‌عنوان
      * آخرین تکه لحاظ می‌شود (کاربر برای پاسخ تک‌تکه‌ای مجبور به کلیک «تکه‌ی جدید»
      * نیست). processAiResponse (زنجیره‌ی کامل Combine→Repair→Parse→Map) صدا زده
-     * می‌شود؛ سه حالت خروجی مدیریت می‌شود.
+     * می‌شود؛ سه حالت خروجی با applyProcessAiResponseResult مدیریت می‌شود —
+     * دقیقاً همان تابع مشترکی که sendPromptAutomatically (مسیر ۲، پایین‌تر) هم
+     * استفاده می‌کند، تا کد Parse/Repair هرگز بین دو مسیر تکرار نشود (طبق دستور
+     * صریح G2 قدم ۳).
      */
     fun processResponse() {
         val allChunks = _chunks.value + listOfNotNull(_currentChunkInput.value.takeIf { it.isNotBlank() })
         _chunksCompleteWarning.value = validateChunksComplete(allChunks)?.message
-        when (val result = processAiResponse(allChunks, _targetShotCount.value)) {
+        applyProcessAiResponseResult(processAiResponse(allChunks, _targetShotCount.value))
+    }
+
+    private fun applyProcessAiResponseResult(result: ProcessAiResponseResult) {
+        when (result) {
             is ProcessAiResponseResult.Success -> {
                 _breakdownResult.value = result.result
                 _repairDiagnosis.value = null
@@ -219,6 +269,58 @@ class AiStoryBreakdownViewModel(
 
     fun clearProcessingError() {
         _processingError.value = null
+    }
+
+    fun clearAutoSendError() {
+        _autoSendError.value = null
+    }
+
+    /**
+     * دکمه‌ی «ارسال خودکار به Claude» — مسیر ۲ (G2 قدم ۳، ADR-101). Rule ۴
+     * (validateApiKeyProvided، از قبل در AiConnector.kt) قبل از هر تلاش واقعی
+     * HTTP اعمال می‌شود. موفقیت → دقیقاً همان applyProcessAiResponseResult بالا
+     * (مسیر ۱ و ۲ کد Parse/Repair را کاملاً به اشتراک می‌گذارند). شکست HTTP →
+     * پیام معنادار Rule ۵ (validateAiConnectorErrorMessage) در autoSendError؛
+     * فاز عمداً عوض نمی‌شود — کاربر دقیقاً در همان صفحه با دکمه‌ی «کپی» موجود
+     * می‌ماند، می‌تواند فوری به مسیر ۱ برگردد (طبق شرط صریح: «گیر نکردن در جریان»).
+     * اگر پردازش موفقیت‌آمیز HTTP به NeedsManualRepair/MissingRequiredKeys برسد
+     * (نه شکست HTTP، بلکه پاسخ واقعی ناقص/بدشکل)، فاز عمداً به PASTE_RESPONSE
+     * منتقل می‌شود و پاسخ خام در currentChunkInput پر می‌شود — دقیقاً همان
+     * زیرساخت UI موجود فاز ۲ (Modal تعمیر/کارت processingError) بدون کد تکراری.
+     *
+     * Job برمی‌گرداند (هم‌الگو با confirmAndSave بالا/OutputDeliveryViewModel.regenerate):
+     * secureKeyRepository.loadApiKey و sendToAiConnector هر دو واقعاً روی
+     * Dispatcher های حقیقی (IO/Ktor Engine) اجرا می‌شوند، نه صرفاً روی
+     * ioScopeOverride=Unconfined تست — تست باید .join() کند تا مطمئن شود کل
+     * زنجیره (شامل applyProcessAiResponseResult) قبل از خواندن state کامل شده.
+     */
+    fun sendPromptAutomatically(): Job {
+        val prompt = _generatedPrompt.value ?: return Job().apply { complete() }
+        if (_autoSendInProgress.value) return Job().apply { complete() }
+        _autoSendError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(CLAUDE_API_PROFILE.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _autoSendError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _autoSendInProgress.value = true
+            val result = sendToAiConnector(CLAUDE_API_PROFILE, apiKey, prompt, httpClientEngine)
+            _autoSendInProgress.value = false
+            result.fold(
+                onSuccess = { responseText ->
+                    applyProcessAiResponseResult(processAiResponse(listOf(responseText), _targetShotCount.value))
+                    if (_phase.value != BreakdownPhase.FINAL_REVIEW) {
+                        _currentChunkInput.value = responseText
+                        _phase.value = BreakdownPhase.PASTE_RESPONSE
+                    }
+                },
+                onFailure = {
+                    _autoSendError.value = validateAiConnectorErrorMessage(result)?.message
+                        ?: "درخواست به AI Connector با خطا مواجه شد"
+                }
+            )
+        }
     }
 
     /**
@@ -283,6 +385,10 @@ class AiStoryBreakdownViewModel(
             assetRepository: AssetRepository? = null,
             sceneRepository: SceneRepository? = null,
             shotRepository: ShotRepository? = null,
+            // G2 قدم ۳ (ADR-101): دو تزریق تازه، هم‌الگو دقیق با چهارتای بالا —
+            // هرکدام مستقل با ?: به پیش‌فرض خودش می‌رسد (نه رفتار همه‌یا‌هیچ G16).
+            secureKeyRepository: SecureKeyRepository? = null,
+            httpClientEngine: HttpClientEngine? = null,
             // فقط برای تست مستقیم factory (نه Compose) — رفع G16 نیازمند اثبات
             // رفتاری است که تزریق جزئی واقعاً استفاده می‌شود، نه دور ریخته شدن؛ بدون
             // این پارامتر، init{} این ViewModel (که یک DAO Suspend واقعی صدا می‌زند)
@@ -294,7 +400,8 @@ class AiStoryBreakdownViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val anyInjected = storyRepository != null || assetRepository != null || sceneRepository != null || shotRepository != null
+                    val anyInjected = storyRepository != null || assetRepository != null || sceneRepository != null ||
+                        shotRepository != null || secureKeyRepository != null || httpClientEngine != null
                     return if (anyInjected) {
                         AiStoryBreakdownViewModel(
                             application = application,
@@ -306,6 +413,8 @@ class AiStoryBreakdownViewModel(
                             assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
                             sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
                             shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao()),
+                            secureKeyRepository = secureKeyRepository ?: SecureKeyRepository(application),
+                            httpClientEngine = httpClientEngine ?: OkHttp.create(),
                             ioScopeOverride = ioScopeOverride
                         )
                     } else {
