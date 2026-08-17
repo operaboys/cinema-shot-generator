@@ -269,4 +269,60 @@ class ValidationAggregatorTest {
 
         assertTrue(report.issuesAtLevel(ValidationLevel.CONTINUITY_AND_DEPENDENCY).none { it.issue.field == "duration_seconds" })
     }
+
+    // تکمیل Rule یتیم — قدم ۳الف از ۲ زیرقدم قدم ۳ (ADR-110): checkFastMotionLongTake
+    // (Level 3، چون effectiveCinematicMode چندمنبعی است) و checkStaticCameraInChase
+    // (Level 2، مقایسه‌ی خالص دو فیلد همین Shot).
+
+    @Test
+    fun `dynamic motion with an effective LONG_TAKE mode produces a Level 3 warning (checkFastMotionLongTake)`() {
+        val dna = neutralDna().copy(cinematicLanguage = CinematicLanguageSettings(globalMode = CinematicMode.LONG_TAKE))
+        // durationSeconds=10f عمداً داخل بازه‌ی مجاز LONG_TAKE (۸-۶۰) است تا هشدار
+        // validateShotDurationForCinematicMode بی‌ربط اینجا فعال نشود و فقط
+        // checkFastMotionLongTake سنجیده شود.
+        val shot = neutralShot(durationSeconds = 10f).copy(motionLevel = MotionLevel.DYNAMIC)
+
+        val report = aggregateShotValidation(shot, neutralScene(), dna, listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level3 = report.issuesAtLevel(ValidationLevel.CONTINUITY_AND_DEPENDENCY)
+        val motionIssue = level3.firstOrNull { it.issue.message.contains("حرکت سریع") }
+        assertTrue(motionIssue != null)
+        assertEquals(Severity.WARNING, motionIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `static or subtle motion with an effective LONG_TAKE mode produces no fast-motion warning`() {
+        val dna = neutralDna().copy(cinematicLanguage = CinematicLanguageSettings(globalMode = CinematicMode.LONG_TAKE))
+        val shot = neutralShot(durationSeconds = 10f).copy(motionLevel = MotionLevel.SUBTLE)
+
+        val report = aggregateShotValidation(shot, neutralScene(), dna, listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("حرکت سریع") })
+    }
+
+    @Test
+    fun `a static camera with a chase-like description produces a Level 2 warning (checkStaticCameraInChase)`() {
+        // neutralCamera() از قبل movement=Basic(STATIC) دارد.
+        val shot = neutralShot(shotDescription = "A tense chase through the narrow alleyways")
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val staticCameraIssue = level2.firstOrNull { it.issue.message.contains("دوربین ثابت") }
+        assertTrue(staticCameraIssue != null)
+        assertEquals(Severity.WARNING, staticCameraIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `a non-static camera movement with the same chase-like description produces no static-camera warning`() {
+        val trackingCamera = neutralCamera().copy(movement = CameraMovement.Basic(BasicMovementType.TRACKING))
+        val shot = neutralShot(
+            shotDescription = "A tense chase through the narrow alleyways",
+            camera = trackingCamera
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("دوربین ثابت") })
+    }
 }

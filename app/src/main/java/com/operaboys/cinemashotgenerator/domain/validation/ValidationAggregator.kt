@@ -7,6 +7,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
 import com.operaboys.cinemashotgenerator.domain.audio.validateActionSoundTimeline
+import com.operaboys.cinemashotgenerator.domain.camera.CameraMovement
 import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShallowDepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
@@ -111,6 +112,11 @@ fun aggregateShotValidation(
         add(l2, checkStaticMovementWithHandheldStabilization(camera.movement, camera.stabilization))
         add(l2, checkRackFocusSubjectCount(camera.focusMode, subjectCount))
         add(l2, checkExtremeWideWithShallowDepthOfField(camera.distance, camera.depthOfField))
+        // تکمیل Rule یتیم — قدم ۳الف از ۲ زیرقدم قدم ۳ (ADR-110): تعارض دوربین ثابت
+        // در صحنه‌ی تعقیب. هم‌الگو با بقیه‌ی این بلوک — فقط روی camera.overrideValue
+        // صریح شات اجرا می‌شود، نه ارث‌بری‌شده از Scene (همان الگوی موجود سایر Rule
+        // های این بلوک، اختراع نشده).
+        add(l2, checkStaticCameraInChase(camera.movement.toMovementTypeString(), shot.shotDescription))
         shot.environment.overrideValue?.visibility?.let { visibility ->
             add(l2, checkExtremeWideWithLowVisibility(camera.distance, visibility))
         }
@@ -150,7 +156,15 @@ fun aggregateShotValidation(
     // (domain.visualidentity، تا این قدم هیچ‌جا فراخوانی نمی‌شد) اکنون با حالت مؤثر
     // سه‌سطحی واقعی (resolveEffectiveCinematicMode: Override شات → Override صحنه →
     // پیش‌فرض DNA پروژه) در همین محل مرکزی Wire شد — نه یک مسیر فراخوانی جدا.
-    add(l3, validateShotDurationForCinematicMode(shot.durationSeconds, resolveEffectiveCinematicMode(dna, scene, shot)))
+    val effectiveCinematicMode = resolveEffectiveCinematicMode(dna, scene, shot)
+    add(l3, validateShotDurationForCinematicMode(shot.durationSeconds, effectiveCinematicMode))
+    // تکمیل Rule یتیم — قدم ۳الف از ۲ زیرقدم قدم ۳ (ADR-110): تعارض حرکت سریع با
+    // Long-take. در Level 3 (نه ۲) چون از همان مقدار effectiveCinematicMode
+    // چندمنبعی (DNA + Scene + Shot، از طریق resolveEffectiveCinematicMode) تغذیه
+    // می‌شود — دقیقاً هم‌الگو با علتِ قرارگیری validateShotDurationForCinematicMode
+    // در همین سطح (ADR-106): مقایسه‌ی «داده‌ی خودِ Shot» با «مقداری مشتق‌شده از چند
+    // منبع»، نه صرفاً ترکیب دو فیلد ساده‌ی همین Shot با هم (که Level 2 است).
+    add(l3, checkFastMotionLongTake(shot.motionLevel, effectiveCinematicMode))
     val cameraForDna = shot.camera.overrideValue
     if (cameraForDna != null) {
         add(l3, validateShotAgainstDna(cameraForDna.angle.name.lowercase(), "camera", dna))
@@ -177,4 +191,24 @@ fun aggregateShotValidation(
     }
 
     return AggregatedValidationReport(issues)
+}
+
+/**
+ * تکمیل Rule یتیم — قدم ۳الف از ۲ زیرقدم قدم ۳ (ADR-110): نگاشت
+ * `domain.camera.CameraMovement` (sealed class واقعی) به همان قرارداد
+ * `String` که `checkStaticCameraInChase` می‌پذیرد (طبق کامنت مستندشده‌ی خودِ
+ * آن تابع، ADR-010 — بدون تناظر تمیز enum ای برای این پارامتر، عمداً String
+ * ماند). فقط الزام واقعی این Rule: `CameraMovement.Basic(type =
+ * BasicMovementType.STATIC)` باید دقیقاً `"static"` تولید کند تا Rule فعال
+ * شود؛ برای بقیه‌ی انواع (که ذاتاً ثابت نیستند)، هر رشته‌ی غیر-"static"
+ * معنادار کافی است — اینجا نام هر نوع Basic (لغزیده به حروف کوچک) یا نام
+ * کلاس (برای انواع پیشرفته) استفاده شد، صرفاً برای خوانایی/دیباگ‌پذیری.
+ */
+private fun CameraMovement.toMovementTypeString(): String = when (this) {
+    is CameraMovement.Basic -> type.name.lowercase()
+    is CameraMovement.Orbit -> "orbit"
+    is CameraMovement.DronePath -> "drone_path"
+    is CameraMovement.DollyZoom -> "dolly_zoom"
+    is CameraMovement.HandheldShake -> "handheld_shake"
+    is CameraMovement.Compound -> "compound"
 }

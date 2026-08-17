@@ -1993,6 +1993,26 @@ ADR-108 دست‌نخورده). تشخیص «Beat خالی» با `shot.beats.is
 بدون تغییر سبز ماندند. جزئیات کامل در
 `docs/adr/109-unit03-cinematic-language-step2c-mood-wiring.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۳الف از ۲ زیرقدم قدم ۳: اتصال دو Rule تعارض دوربین/حرکت (ADR-110)
+
+دو Rule از سه Rule «تداخل با واحدهای دیگر» بلوپرینت ۰۳ (که از قبل کاملاً
+پیاده و تست شده بودند اما به هیچ‌جا وصل نبودند) اکنون در
+`aggregateShotValidation` وایر شدند: `checkFastMotionLongTake`
+(`shot.motionLevel` + `resolveEffectiveCinematicMode`) در **Level 3** —
+چون از همان مقدار چندمنبعی (DNA+Scene+Shot) تغذیه می‌شود که
+`validateShotDurationForCinematicMode` (ADR-106) را هم تغذیه می‌کند —
+و `checkStaticCameraInChase` (حرکت دوربین + شرح شات) در **Level 2** —
+چون یک مقایسه‌ی خالص دو فیلد همین Shot است، بدون وابستگی به DNA؛ داخل
+همان بلوک موجود `camera.overrideValue` (فقط روی Override صریح شات، نه
+ارث‌بری‌شده، هم‌الگو با Rule های دیگر همان بلوک). یک تابع خصوصی تازه
+(`CameraMovement.toMovementTypeString()`) `CameraMovement` واقعی را به
+قرارداد `String` موجود `checkStaticCameraInChase` نگاشت می‌کند —
+فقط `Basic(STATIC)` دقیقاً `"static"` تولید می‌کند. هر ۷ تست موجود
+`LogicConflictCheckerTest.kt` بدون تغییر سبز ماندند (فقط محل فراخوانی
+جدید اضافه شد، منطق خودِ دو تابع دست‌نخورده ماند). سومین Rule (Slow
+Motion + دیالوگ) در زیرقدم ۳ب جداگانه می‌آید. جزئیات کامل در
+`docs/adr/110-unit03-camera-motion-conflict-wiring-step3a.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
