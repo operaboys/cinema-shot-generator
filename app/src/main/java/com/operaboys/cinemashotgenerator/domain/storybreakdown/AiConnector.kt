@@ -34,8 +34,10 @@ import java.net.SocketTimeoutException
 // G2 قدم ۲ از ۳ (ADR-100): اتصال HTTP واقعی — تصمیم Option A قبلی (ADR-035:
 // sendToAiConnector عمداً TODO()) اکنون با Option B جایگزین شد. قدم ۱ (ADR-098،
 // SecureKeyRepository.kt) لایه‌ی ذخیره‌سازی امن کلید را مستقل ساخت — این فایل به
-// آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI/قدم ۳
-// است). قدم ۳ (UI انتخابگر مسیر ۱/۲) هنوز نیامده.
+// آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI بود).
+// G2 قدم ۳ (ADR-101) UI انتخابگر مسیر ۱/۲ را وصل کرد (اولش هاردکد به Claude).
+// این قدم (ADR-102) دومین پروفایل واقعی (OpenAI) را اضافه می‌کند و همان هاردکد
+// UI را به انتخابگر واقعی چندپروفایلی تبدیل می‌کند — بازبینی موعود خودِ ADR-101.
 
 /** پروفایل یک سرویس AI متنی — کاملاً مستقل از پیاده‌سازی، هم‌خانواده با ModelProfile واحد ۱۴. */
 data class AiConnectorProfile(
@@ -75,14 +77,43 @@ val CLAUDE_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
 )
 
 /**
- * پروفایل‌های آماده — طبق تصمیم قدم قبلی (ADR-035) عمداً خالی مانده بود چون افزودن
- * پروفایل واقعی نیازمند بررسی مستندات رسمی هر سرویس بود (تحقیق API خارجی، نه کار
- * دامنه‌محور). این قدم اولین و تنها پروفایل واقعی (Claude API) را اضافه می‌کند —
- * OpenAI/Gemini/DeepSeek/Qwen هرکدام نیازمند بررسی مستقل مستندات رسمی خودشان
- * هستند، خارج از Scope همین قدم (طبق دستور صریح: «اولین AiConnectorProfile واقعی،
- * الگوی سرویس‌های بعدی»، نه فهرست کامل).
+ * دومین پروفایل واقعی — OpenAI API (Chat Completions)، تأییدشده مستقیم از
+ * مستندات رسمی OpenAI (developers.openai.com/api/reference — endpoint، Header
+ * الزامی، بدنه، و choices[0].message.content):
+ * Endpoint: POST https://api.openai.com/v1/chat/completions
+ * Header الزامی: Authorization: Bearer <کلید> — برخلاف Claude (x-api-key خام،
+ * بدون Bearer)، یک تفاوت واقعی بین دو سرویس، نه فرض یکسان‌بودن.
+ * بدنه: {"model": ..., "messages": [{"role": "user", "content": "..."}]}
+ * پاسخ: choices[0].message.content — دقیقاً همان نمونه‌ی دوم صریح خودِ
+ * بلوپرینت ۰۱ب برای responseJsonPath (کنار content[0].text که برای Claude
+ * استفاده شد) — تصادفی نیست، بلوپرینت از ابتدا هر دو فرمت را در نظر داشته.
+ *
+ * مدل: gpt-5-mini — تعادل توان/هزینه (هم‌رده با انتخاب claude-sonnet-5 در
+ * پروفایل قبلی). بررسی مستقل (WebSearch، چون دسترسی مستقیم به
+ * platform.openai.com/developers.openai.com از این محیط Sandbox مسدود است —
+ * محدودیت شبکه، نه کوتاهی راستی‌آزمایی) این مدل را به‌عنوان یک Model ID واقعی
+ * و رسمی تأیید کرد (صفحه‌ی مستند developers.openai.com/api/docs/models/gpt-5-mini).
+ * نسخه‌های جدیدتر (gpt-5.4-mini و بعدتر) هم در جست‌وجو دیده شدند، اما بدون
+ * امکان Fetch مستقیم صفحه‌ی رسمی برای تأیید کامل، ترجیح داده شد به مدل از‌قبل
+ * تأییدشده (پیشنهاد معمار) پایبند بمانم — نه یک ID جدیدتر حدسی از خلاصه‌ی
+ * موتور جستجو. جزئیات کامل در docs/adr/102-g2-second-profile-openai-and-profile-selector.md.
  */
-val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE)
+val OPENAI_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
+    profileId = "openai_api",
+    displayName = "OpenAI API",
+    endpointUrl = "https://api.openai.com/v1/chat/completions",
+    requestBodyTemplate = """{"model":"gpt-5-mini","messages":[{"role":"user","content":"{{PROMPT}}"}]}""",
+    requestHeaders = mapOf("Authorization" to "Bearer {{API_KEY}}"),
+    responseJsonPath = "choices[0].message.content"
+)
+
+/**
+ * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد و صریحاً
+ * مستند کرد OpenAI/Gemini/DeepSeek/Qwen خارج از Scope آن قدم‌اند. این قدم دومین
+ * پروفایل واقعی (OpenAI) را اضافه می‌کند — طبق همان الگو (بررسی مستقل مستندات
+ * رسمی، نه حدس). Gemini/DeepSeek/Qwen همچنان خارج از Scope این قدم‌اند.
+ */
+val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE)
 
 /**
  * کاربر پیشرفته می‌تواند یک پروفایل کاملاً دستی برای سرویس ناشناخته/محلی بسازد.

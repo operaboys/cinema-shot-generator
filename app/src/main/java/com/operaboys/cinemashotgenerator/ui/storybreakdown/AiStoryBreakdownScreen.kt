@@ -59,11 +59,13 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
-import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.AiConnectorProfile
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.JsonDiagnosis
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownResult
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
+import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -97,6 +99,9 @@ const val AI_BREAKDOWN_TOGGLE_THEME_BUTTON_TAG = "aiBreakdown.toggleThemeButton"
 // موجود، نه جایگزین آن.
 const val AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG = "aiBreakdown.sendAutomaticallyButton"
 const val AI_BREAKDOWN_AUTO_SEND_ERROR_TAG = "aiBreakdown.autoSendError"
+
+/** G2/ADR-102: انتخابگر واقعی چندپروفایلی — testTag پارامتری (نه هاردکد Claude/OpenAI). */
+fun aiBreakdownProfileChipTag(profileId: String): String = "aiBreakdown.profileChip.$profileId"
 
 @Composable
 fun AiStoryBreakdownScreen(
@@ -141,7 +146,8 @@ fun AiStoryBreakdownScreen(
     val processingError by viewModel.processingError.collectAsStateWithLifecycle()
     val breakdownResult by viewModel.breakdownResult.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
-    val claudeApiKeySaved by viewModel.claudeApiKeySaved.collectAsStateWithLifecycle()
+    val selectedProfileId by viewModel.selectedProfileId.collectAsStateWithLifecycle()
+    val apiKeySavedForSelectedProfile by viewModel.apiKeySavedForSelectedProfile.collectAsStateWithLifecycle()
     val autoSendInProgress by viewModel.autoSendInProgress.collectAsStateWithLifecycle()
     val autoSendError by viewModel.autoSendError.collectAsStateWithLifecycle()
 
@@ -185,7 +191,9 @@ fun AiStoryBreakdownScreen(
                     generatedPrompt = generatedPrompt,
                     onGeneratePrompt = viewModel::generatePrompt,
                     onProceedToPhase2 = { viewModel.setPhase(BreakdownPhase.PASTE_RESPONSE) },
-                    claudeApiKeySaved = claudeApiKeySaved,
+                    selectedProfileId = selectedProfileId,
+                    onSelectProfile = viewModel::selectProfile,
+                    apiKeySavedForSelectedProfile = apiKeySavedForSelectedProfile,
                     autoSendInProgress = autoSendInProgress,
                     autoSendError = autoSendError,
                     onSendAutomatically = viewModel::sendPromptAutomatically,
@@ -342,7 +350,9 @@ private fun Phase1WriteStory(
     generatedPrompt: String?,
     onGeneratePrompt: () -> Unit,
     onProceedToPhase2: () -> Unit,
-    claudeApiKeySaved: Boolean,
+    selectedProfileId: String,
+    onSelectProfile: (String) -> Unit,
+    apiKeySavedForSelectedProfile: Boolean,
     autoSendInProgress: Boolean,
     autoSendError: String?,
     onSendAutomatically: () -> Unit,
@@ -445,7 +455,9 @@ private fun Phase1WriteStory(
         GeneratedPromptCard(
             language = language,
             prompt = generatedPrompt,
-            claudeApiKeySaved = claudeApiKeySaved,
+            selectedProfileId = selectedProfileId,
+            onSelectProfile = onSelectProfile,
+            apiKeySavedForSelectedProfile = apiKeySavedForSelectedProfile,
             autoSendInProgress = autoSendInProgress,
             onSendAutomatically = onSendAutomatically
         )
@@ -478,19 +490,30 @@ private fun Phase1WriteStory(
 /**
  * مسیر ۱ (کپی، موجود) و مسیر ۲ (ارسال خودکار، G2 قدم ۳/ADR-101) «کنار هم» —
  * طبق تصمیم محصولی صریح، نه جایگزین یکدیگر. شرط سخت‌گیرانه‌ی UI: دکمه‌ی ارسال
- * خودکار فقط وقتی claudeApiKeySaved=true، enabled است؛ در غیر این صورت یک
- * متن راهنمای کوتاه («ابتدا کلید API را در تنظیمات وارد کنید») به‌جای رفتار
- * ساکت/خطای بعد از کلیک نشان داده می‌شود.
+ * خودکار فقط وقتی apiKeySavedForSelectedProfile=true، enabled است؛ در غیر این
+ * صورت یک متن راهنمای کوتاه («ابتدا کلید API را در تنظیمات وارد کنید») به‌جای
+ * رفتار ساکت/خطای بعد از کلیک نشان داده می‌شود.
+ *
+ * انتخابگر واقعی چندپروفایلی (G2/ADR-102، بازبینی موعود ADR-101): ردیف چیپ
+ * انتخاب سرویس فقط وقتی BUILTIN_AI_CONNECTOR_PROFILES بیش از یک عضو دارد
+ * نمایش داده می‌شود (قبل از دومین پروفایل واقعی، چیزی برای انتخاب نبود).
+ * OpaqueChip (ui/assets، همان الگوی SettingsScreen.kt برای Language/Theme/
+ * Layout — همه دقیقاً همین اندازه‌ی مجموعه‌ی گزینه‌ها) بازاستفاده شد، نه یک
+ * Dropdown تازه — سازگار با زبان طراحی موجود پروژه برای انتخاب از یک مجموعه‌ی
+ * کوچک گزینه‌های منحصربه‌فرد.
  */
 @Composable
 private fun GeneratedPromptCard(
     language: Language,
     prompt: String,
-    claudeApiKeySaved: Boolean,
+    selectedProfileId: String,
+    onSelectProfile: (String) -> Unit,
+    apiKeySavedForSelectedProfile: Boolean,
     autoSendInProgress: Boolean,
     onSendAutomatically: () -> Unit
 ) {
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
+    val selectedProfile: AiConnectorProfile? = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == selectedProfileId }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -507,18 +530,30 @@ private fun GeneratedPromptCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(uiString("aiBreakdown.copyButton", language))
             }
+            if (BUILTIN_AI_CONNECTOR_PROFILES.size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BUILTIN_AI_CONNECTOR_PROFILES.forEach { profile ->
+                        OpaqueChip(
+                            label = profile.displayName,
+                            selected = profile.profileId == selectedProfileId,
+                            onClick = { onSelectProfile(profile.profileId) },
+                            testTag = aiBreakdownProfileChipTag(profile.profileId)
+                        )
+                    }
+                }
+            }
             Button(
                 onClick = onSendAutomatically,
-                enabled = claudeApiKeySaved && !autoSendInProgress,
+                enabled = apiKeySavedForSelectedProfile && !autoSendInProgress,
                 modifier = Modifier.fillMaxWidth().testTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG)
             ) {
                 if (autoSendInProgress) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(uiTemplate("aiBreakdown.sendAutomaticallyButtonTemplate", language, "service" to CLAUDE_API_PROFILE.displayName))
+                Text(uiTemplate("aiBreakdown.sendAutomaticallyButtonTemplate", language, "service" to (selectedProfile?.displayName ?: "")))
             }
-            if (!claudeApiKeySaved) {
+            if (!apiKeySavedForSelectedProfile) {
                 Text(
                     text = uiString("aiBreakdown.sendAutomaticallyNoKeyHint", language),
                     style = MaterialTheme.typography.labelSmall,

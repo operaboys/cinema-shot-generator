@@ -16,16 +16,28 @@ import org.junit.Test
 
 class AiConnectorTest {
 
-    // --- BUILTIN_AI_CONNECTOR_PROFILES (G2 قدم ۲، ADR-100: اولین پروفایل واقعی) ---
+    // --- BUILTIN_AI_CONNECTOR_PROFILES (G2 قدم ۲/ADR-100: اولین پروفایل واقعی؛ G2/ADR-102: دومین پروفایل واقعی) ---
 
     @Test
-    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly the Claude API profile, matching the official Messages API format`() {
-        assertEquals(listOf(CLAUDE_API_PROFILE), BUILTIN_AI_CONNECTOR_PROFILES)
+    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude and OpenAI, matching each service's official API format`() {
+        assertEquals(listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE), BUILTIN_AI_CONNECTOR_PROFILES)
         assertEquals("https://api.anthropic.com/v1/messages", CLAUDE_API_PROFILE.endpointUrl)
         assertEquals("content[0].text", CLAUDE_API_PROFILE.responseJsonPath)
         assertEquals("2023-06-01", CLAUDE_API_PROFILE.requestHeaders["anthropic-version"])
         assertEquals("{{API_KEY}}", CLAUDE_API_PROFILE.requestHeaders["x-api-key"])
         assertTrue(CLAUDE_API_PROFILE.requestBodyTemplate.contains("{{PROMPT}}"))
+    }
+
+    @Test
+    fun `OPENAI_API_PROFILE matches OpenAI's official Chat Completions format, distinct from Claude's`() {
+        assertEquals("https://api.openai.com/v1/chat/completions", OPENAI_API_PROFILE.endpointUrl)
+        assertEquals("choices[0].message.content", OPENAI_API_PROFILE.responseJsonPath)
+        assertEquals("Bearer {{API_KEY}}", OPENAI_API_PROFILE.requestHeaders["Authorization"])
+        assertTrue(OPENAI_API_PROFILE.requestBodyTemplate.contains("{{PROMPT}}"))
+        assertFalse(
+            "برخلاف Claude، OpenAI از x-api-key استفاده نمی‌کند — یک تفاوت واقعی بین دو سرویس",
+            OPENAI_API_PROFILE.requestHeaders.containsKey("x-api-key")
+        )
     }
 
     // --- createCustomAiConnectorProfile ---
@@ -179,6 +191,70 @@ class AiConnectorTest {
 
         assertTrue(result.isFailure)
         assertFalse(result.exceptionOrNull()!!.message.isNullOrBlank())
+    }
+
+    // --- OPENAI_API_PROFILE واقعی (G2/ADR-102: دومین پروفایل واقعی) — روی خودِ
+    // OPENAI_API_PROFILE تولیدی تست می‌شود (نه یک Fixture مشابه)، تا فرمت واقعی
+    // (Authorization: Bearer، نه x-api-key؛ choices[0].message.content، نه
+    // content[0].text) واقعاً از انتها به انتها محک بخورد.
+
+    @Test
+    fun `a successful OpenAI response extracts the correct text via choices index 0 message content`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"Hello from GPT"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(OPENAI_API_PROFILE, apiKey = "sk-openai-test-123", prompt = "hi", engine = engine)
+
+        assertTrue(result.isSuccess)
+        assertEquals("Hello from GPT", result.getOrNull())
+    }
+
+    @Test
+    fun `the real request to OpenAI carries an Authorization Bearer header, not x-api-key, with the real prompt and key`() = runBlocking {
+        var capturedBody: String? = null
+        var capturedAuthHeader: String? = null
+        var capturedApiKeyHeader: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+            capturedAuthHeader = request.headers["Authorization"]
+            capturedApiKeyHeader = request.headers["x-api-key"]
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"ok"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        sendToAiConnector(OPENAI_API_PROFILE, apiKey = "sk-openai-secret", prompt = "write a story", engine = engine)
+
+        assertTrue(capturedBody!!.contains("write a story"))
+        assertEquals(
+            "خودِ فرمت OpenAI: Authorization: Bearer <کلید> — نه x-api-key خام مثل Claude",
+            "Bearer sk-openai-secret",
+            capturedAuthHeader
+        )
+        assertNull("OpenAI هرگز نباید هدر x-api-key بگیرد — آن مخصوص Claude است", capturedApiKeyHeader)
+    }
+
+    @Test
+    fun `a 401 OpenAI-shaped error body produces a Result failure with the real error message`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"error":{"message":"Incorrect API key provided","type":"invalid_request_error","param":null,"code":"invalid_api_key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(OPENAI_API_PROFILE, apiKey = "wrong-key", prompt = "hi", engine = engine)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()!!.message!!.contains("Incorrect API key provided"))
     }
 
     // یافته‌ی راستی‌آزمایی این قدم: requestTimeoutMillis واقعی (۶۰ ثانیه) داخل خودِ

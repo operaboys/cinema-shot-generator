@@ -20,10 +20,12 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_STORY_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AiStoryBreakdownScreen
+import com.operaboys.cinemashotgenerator.ui.storybreakdown.aiBreakdownProfileChipTag
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
@@ -189,5 +191,35 @@ class ApiKeysFlowTest {
 
         composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
         composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsEnabled()
+    }
+
+    // G2/ADR-102 — دومین پروفایل واقعی (OpenAI) + انتخابگر واقعی چندپروفایلی
+    // (بازبینی موعود ADR-101).
+
+    @Test
+    fun `Settings automatically shows a key row for the second real profile (OpenAI) with no code change needed`() {
+        renderSettings()
+
+        composeRule.onNodeWithTag(apiKeyStatusTag(OPENAI_API_PROFILE.profileId)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `the profile selector chips appear once a prompt is generated, and switching to OpenAI with only a Claude key saved keeps the send button disabled`() {
+        runBlocking { secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key") }
+        renderAiStoryBreakdown()
+
+        composeRule.onNodeWithTag(AI_BREAKDOWN_STORY_FIELD_TAG).performScrollTo().performTextInput("A".repeat(60))
+        composeRule.onNodeWithTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
+        composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsEnabled()
+
+        composeRule.onNodeWithTag(aiBreakdownProfileChipTag(OPENAI_API_PROFILE.profileId)).performScrollTo().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {
+                runCatching { assertIsNotEnabled() }.isSuccess
+            }
+        }
+        composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsNotEnabled()
     }
 }

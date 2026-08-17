@@ -11,7 +11,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
-import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.JsonDiagnosis
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.ProcessAiResponseResult
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.StoryBreakdownRequest
@@ -49,6 +49,14 @@ import java.time.Instant
 // تزریق‌پذیرند (هم‌الگو با بقیه‌ی Repository های این سازنده) تا تست‌ها بتوانند
 // SharedPreferences معمولی/MockEngine جایگزین کنند (بدون AndroidKeyStore واقعی
 // یا تماس واقعی اینترنت در تست — همان محدودیت مستندشده‌ی ADR-098/ADR-100).
+//
+// G2 — دومین پروفایل واقعی + انتخابگر واقعی چندپروفایلی (ADR-102): این
+// بازبینی موعود ADR-101 است («وقتی پروفایل دوم واقعی اضافه شود، این تصمیم
+// باید بازبینی شود»، طبق دلیل هاردکد Claude همان قدم). claudeApiKeySaved
+// (تک‌پروفایلی) با selectedProfileId/apiKeySavedForSelectedProfile
+// (چندپروفایلی) جایگزین شد؛ sendPromptAutomatically اکنون پروفایل را از
+// BUILTIN_AI_CONNECTOR_PROFILES بر اساس selectedProfileId انتخاب می‌کند، نه
+// هاردکد CLAUDE_API_PROFILE.
 
 enum class BreakdownPhase { WRITE_STORY, PASTE_RESPONSE, FINAL_REVIEW }
 
@@ -130,13 +138,20 @@ class AiStoryBreakdownViewModel(
     private val _saveCompleted = MutableStateFlow(false)
     val saveCompleted: StateFlow<Boolean> = _saveCompleted.asStateFlow()
 
+    // G2/ADR-102: انتخابگر واقعی چندپروفایلی — پیش‌فرض اولین پروفایل
+    // BUILTIN_AI_CONNECTOR_PROFILES (فعلاً Claude، همان رفتار پیش‌فرض قبلی،
+    // بدون نیاز به Special-case چون Claude اولین عضو لیست است).
+    private val _selectedProfileId = MutableStateFlow(BUILTIN_AI_CONNECTOR_PROFILES.first().profileId)
+    val selectedProfileId: StateFlow<String> = _selectedProfileId.asStateFlow()
+
     // G2 قدم ۳ از ۳ (ADR-101): شرط سخت‌گیرانه‌ی تصمیم محصولی — گزینه‌ی «ارسال
-    // خودکار» فقط وقتی enabled است که کلید واقعاً ذخیره شده باشد (خواندن یک‌باره
-    // در init، هم‌الگو با بارگذاری Session بالا؛ اگر کاربر بعداً از صفحه‌ی
+    // خودکار» فقط وقتی enabled است که کلید پروفایل انتخاب‌شده واقعاً ذخیره شده
+    // باشد (نه هر کلیدی) — خواندن یک‌باره در init برای پروفایل پیش‌فرض،
+    // بازخوانی در selectProfile برای هر تعویض؛ اگر کاربر بعداً از صفحه‌ی
     // Settings کلید را ذخیره/حذف کند و به همین صفحه برگردد، یک نمونه‌ی تازه‌ی
     // این ViewModel ساخته می‌شود — طبق چرخه‌حیات استاندارد Navigation-Compose).
-    private val _claudeApiKeySaved = MutableStateFlow(false)
-    val claudeApiKeySaved: StateFlow<Boolean> = _claudeApiKeySaved.asStateFlow()
+    private val _apiKeySavedForSelectedProfile = MutableStateFlow(false)
+    val apiKeySavedForSelectedProfile: StateFlow<Boolean> = _apiKeySavedForSelectedProfile.asStateFlow()
 
     private val _autoSendInProgress = MutableStateFlow(false)
     val autoSendInProgress: StateFlow<Boolean> = _autoSendInProgress.asStateFlow()
@@ -155,19 +170,32 @@ class AiStoryBreakdownViewModel(
                 _defaultShotDurationSeconds.value = session.defaultShotDurationSeconds
             }
         }
-        ioScope.launch {
-            // یافته‌ی واقعی راستی‌آزمایی این قدم: SecureKeyRepository پیش‌فرض تزریق‌نشده
-            // روی Robolectric واقعاً KeyStoreException پرتاب می‌کند (طبق کامنت مستندشده‌ی
-            // خودِ SecureKeyRepository.kt/ADR-098) — و چون بسیاری از تست‌های موجود این
-            // ViewModel (مثلاً AiStoryBreakdownViewModelFactoryTest) با
-            // ioScopeOverride=CoroutineScope(Dispatchers.Unconfined) اجرا می‌شوند (یک Job
-            // معمولی، نه SupervisorJob)، یک Coroutine فرزند شکست‌خورده کل Job والد و
-            // Coroutine های خواهر (از‌جمله نوشتن‌های واقعی confirmAndSave) را لغو می‌کرد —
-            // تست‌های قبلاً موفق را واقعاً شکست می‌داد (تأییدشده تجربی، نه فرضی). runCatching
-            // این ریسک را می‌بندد؛ fail-closed به false هم با شرط سخت‌گیرانه‌ی محصولی هم‌راستاست
-            // (اگر وضعیت کلید قابل‌تشخیص نباشد، گزینه‌ی ارسال خودکار باید غیرفعال بماند).
-            _claudeApiKeySaved.value = runCatching { secureKeyRepository.hasApiKey(CLAUDE_API_PROFILE.profileId) }.getOrDefault(false)
-        }
+        ioScope.launch { refreshApiKeySavedStatus(_selectedProfileId.value) }
+    }
+
+    /**
+     * یافته‌ی واقعی راستی‌آزمایی G2 قدم ۳ (ADR-101، هنوز صادق): SecureKeyRepository
+     * پیش‌فرض تزریق‌نشده روی Robolectric واقعاً KeyStoreException پرتاب می‌کند
+     * (طبق کامنت مستندشده‌ی خودِ SecureKeyRepository.kt/ADR-098) — و چون بسیاری از
+     * تست‌های موجود این ViewModel با ioScopeOverride=Dispatchers.Unconfined اجرا
+     * می‌شوند (یک Job معمولی، نه SupervisorJob)، یک Coroutine فرزند شکست‌خورده کل
+     * Job والد و Coroutine های خواهر را لغو می‌کرد. runCatching این ریسک را
+     * می‌بندد؛ fail-closed به false هم با شرط سخت‌گیرانه‌ی محصولی هم‌راستاست.
+     */
+    private suspend fun refreshApiKeySavedStatus(profileId: String) {
+        _apiKeySavedForSelectedProfile.value = runCatching { secureKeyRepository.hasApiKey(profileId) }.getOrDefault(false)
+    }
+
+    /**
+     * انتخابگر واقعی چندپروفایلی (G2/ADR-102) — دکمه‌ی «ارسال خودکار» طبق شرط
+     * سخت‌گیرانه‌ی UI (ADR-101) فقط برای همین پروفایل انتخاب‌شده Enabled می‌شود.
+     * Job برمی‌گرداند (هم‌الگو دقیق با sendPromptAutomatically/confirmAndSave
+     * پایین‌تر) چون hasApiKey داخلاً روی Dispatchers.IO واقعی اجرا می‌شود — تست
+     * باید .join() کند.
+     */
+    fun selectProfile(profileId: String): Job {
+        _selectedProfileId.value = profileId
+        return ioScope.launch { refreshApiKeySavedStatus(profileId) }
     }
 
     fun setPhase(newPhase: BreakdownPhase) {
@@ -276,7 +304,9 @@ class AiStoryBreakdownViewModel(
     }
 
     /**
-     * دکمه‌ی «ارسال خودکار به Claude» — مسیر ۲ (G2 قدم ۳، ADR-101). Rule ۴
+     * دکمه‌ی «ارسال خودکار» — مسیر ۲ (G2 قدم ۳، ADR-101؛ چندپروفایلی، G2/ADR-102).
+     * پروفایل از BUILTIN_AI_CONNECTOR_PROFILES بر اساس selectedProfileId
+     * انتخاب می‌شود، نه هاردکد CLAUDE_API_PROFILE (بازبینی موعود ADR-101). Rule ۴
      * (validateApiKeyProvided، از قبل در AiConnector.kt) قبل از هر تلاش واقعی
      * HTTP اعمال می‌شود. موفقیت → دقیقاً همان applyProcessAiResponseResult بالا
      * (مسیر ۱ و ۲ کد Parse/Repair را کاملاً به اشتراک می‌گذارند). شکست HTTP →
@@ -297,15 +327,17 @@ class AiStoryBreakdownViewModel(
     fun sendPromptAutomatically(): Job {
         val prompt = _generatedPrompt.value ?: return Job().apply { complete() }
         if (_autoSendInProgress.value) return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedProfileId.value }
+            ?: return Job().apply { complete() }
         _autoSendError.value = null
         return ioScope.launch {
-            val apiKey = secureKeyRepository.loadApiKey(CLAUDE_API_PROFILE.profileId)
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
             if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
                 _autoSendError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
                 return@launch
             }
             _autoSendInProgress.value = true
-            val result = sendToAiConnector(CLAUDE_API_PROFILE, apiKey, prompt, httpClientEngine)
+            val result = sendToAiConnector(profile, apiKey, prompt, httpClientEngine)
             _autoSendInProgress.value = false
             result.fold(
                 onSuccess = { responseText ->

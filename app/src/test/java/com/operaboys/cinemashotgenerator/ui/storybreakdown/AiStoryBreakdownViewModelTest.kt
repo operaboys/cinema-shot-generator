@@ -8,6 +8,7 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -194,18 +195,25 @@ class AiStoryBreakdownViewModelTest {
         assertNotNull(viewModel.chunksCompleteWarning.value)
     }
 
-    // G2 قدم ۳ از ۳ (ADR-101): تست‌های مسیر ۲ (ارسال خودکار) — claudeApiKeySaved،
+    // G2 قدم ۳ از ۳ (ADR-101): تست‌های مسیر ۲ (ارسال خودکار) — apiKeySavedForSelectedProfile،
     // sendPromptAutomatically. هم‌الگو با AiConnectorTest.kt (MockEngine) و
     // SecureKeyRepositoryTest.kt (SharedPreferences معمولی تزریقی، نه AndroidKeyStore
     // واقعی). sendPromptAutomatically اکنون Job برمی‌گرداند (هم‌الگو با
     // confirmAndSave/OutputDeliveryViewModel.regenerate — یافته‌ی مستندشده‌ی همان
     // فایل) دقیقاً برای این‌که تست بتواند .join() کند و مطمئن شود کل زنجیره‌ی
     // async (که شامل withContext(Dispatchers.IO) واقعی داخل SecureKeyRepository است)
-    // قبل از assert کامل شده. اما init{} که claudeApiKeySaved را بارگذاری می‌کند Job
-    // برنمی‌گرداند (داخل سازنده است، نه یک تابع صدازدنی از بیرون) — برای آن یک
-    // انتظار محدود (awaitCondition، هم‌الگو با composeRule.waitUntil در
-    // SettingsFlowTest.kt) استفاده شده؛ مقدار پیش‌فرض false نیازی به انتظار ندارد
-    // چون MutableStateFlow(false) همان مقدار اولیه‌ی هم‌زمان (synchronous) است.
+    // قبل از assert کامل شده. اما init{} که apiKeySavedForSelectedProfile را
+    // بارگذاری می‌کند Job برنمی‌گرداند (داخل سازنده است، نه یک تابع صدازدنی از
+    // بیرون) — برای آن یک انتظار محدود (awaitCondition، هم‌الگو با
+    // composeRule.waitUntil در SettingsFlowTest.kt) استفاده شده؛ مقدار پیش‌فرض
+    // false نیازی به انتظار ندارد چون MutableStateFlow(false) همان مقدار اولیه‌ی
+    // هم‌زمان (synchronous) است.
+    //
+    // G2/ADR-102: claudeApiKeySaved (تک‌پروفایلی) با selectedProfileId/
+    // apiKeySavedForSelectedProfile (چندپروفایلی، بازبینی موعود ADR-101) جایگزین
+    // شد — تست‌های زیر انتخابگر واقعی (selectProfile) و ارسال موفق با پروفایل
+    // OpenAI (نه فقط Claude) را هم اضافه می‌کنند تا اثبات شود کد این ViewModel
+    // واقعاً پروفایل انتخاب‌شده را استفاده می‌کند، نه هاردکد باقی‌مانده.
 
     private fun buildTestSecureKeyRepository(prefsName: String): SecureKeyRepository {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -240,20 +248,46 @@ class AiStoryBreakdownViewModelTest {
     }
 
     @Test
-    fun `claudeApiKeySaved is false when no key has been saved`() {
+    fun `apiKeySavedForSelectedProfile is false when no key has been saved`() {
         val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_no_key_prefs")
         val vm = buildAutoSendViewModel("proj_claude_key_absent_test", secureKeyRepository, noopEngine())
 
-        assertFalse(vm.claudeApiKeySaved.value)
+        assertFalse(vm.apiKeySavedForSelectedProfile.value)
     }
 
     @Test
-    fun `claudeApiKeySaved becomes true when a Claude key was already saved before the ViewModel is created`() = runBlocking {
+    fun `apiKeySavedForSelectedProfile becomes true when a Claude key was already saved before the ViewModel is created`() = runBlocking {
         val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_has_key_prefs")
         secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
         val vm = buildAutoSendViewModel("proj_claude_key_present_test", secureKeyRepository, noopEngine())
 
-        awaitCondition(vm.claudeApiKeySaved) { it }
+        assertEquals(
+            "پیش‌فرض selectedProfileId باید اولین پروفایل (Claude) باشد — همان رفتار قبلی، بدون Special-case",
+            CLAUDE_API_PROFILE.profileId,
+            vm.selectedProfileId.value
+        )
+        awaitCondition(vm.apiKeySavedForSelectedProfile) { it }
+    }
+
+    @Test
+    fun `selectProfile switches selectedProfileId and apiKeySavedForSelectedProfile reflects only the newly-selected profile's own key`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_select_profile_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val vm = buildAutoSendViewModel("proj_select_profile_test", secureKeyRepository, noopEngine())
+        awaitCondition(vm.apiKeySavedForSelectedProfile) { it }
+
+        vm.selectProfile(OPENAI_API_PROFILE.profileId).join()
+
+        assertEquals(OPENAI_API_PROFILE.profileId, vm.selectedProfileId.value)
+        assertFalse(
+            "کلید فقط برای Claude ذخیره شده — انتخاب OpenAI نباید apiKeySavedForSelectedProfile را true نگه دارد",
+            vm.apiKeySavedForSelectedProfile.value
+        )
+
+        secureKeyRepository.saveApiKey(OPENAI_API_PROFILE.profileId, "sk-openai-real-key")
+        vm.selectProfile(OPENAI_API_PROFILE.profileId).join()
+
+        assertTrue(vm.apiKeySavedForSelectedProfile.value)
     }
 
     @Test
@@ -308,6 +342,36 @@ class AiStoryBreakdownViewModelTest {
         assertEquals("Nora", vm.breakdownResult.value!!.characters.first().name)
         assertNull(vm.autoSendError.value)
         assertFalse(vm.autoSendInProgress.value)
+    }
+
+    @Test
+    fun `a successful automatic send with the OpenAI profile selected also reaches FINAL_REVIEW through the same shared chain`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_openai_success_prefs")
+        secureKeyRepository.saveApiKey(OPENAI_API_PROFILE.profileId, "sk-openai-real-key")
+        val innerBreakdownJson = """{"characters":[{"name":"Nora","description":"A cartographer","role":"main","gender":"female"}],"locations":[{"name":"Harbor","description":"A foggy harbor"}],"objects":[],"shots":[]}"""
+        val escapedInner = innerBreakdownJson.replace("\"", "\\\"")
+        val engine = MockEngine {
+            // فرمت واقعی OpenAI (choices[0].message.content) — نه content[0].text
+            // Claude — تا اثبات شود انتخابگر واقعاً پروفایل درست را استفاده می‌کند.
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"$escapedInner"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildAutoSendViewModel("proj_auto_send_openai_success_test", secureKeyRepository, engine)
+        vm.selectProfile(OPENAI_API_PROFILE.profileId).join()
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertEquals(BreakdownPhase.FINAL_REVIEW, vm.phase.value)
+        assertNotNull(vm.breakdownResult.value)
+        assertEquals("Nora", vm.breakdownResult.value!!.characters.first().name)
+        assertNull(vm.autoSendError.value)
     }
 
     @Test

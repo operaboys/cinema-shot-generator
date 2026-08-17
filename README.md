@@ -1820,6 +1820,24 @@ end-to-end: کلید را در Settings وارد کند → داستان بنو�
 Claude ارسال کند → مستقیماً Scene/Shot/Asset دریافت کند — یا در هر لحظه به
 مسیر ۱ (کپی/پیست دستی) برگردد.
 
+### ✅ G2 — دومین پروفایل واقعی (OpenAI) + انتخابگر واقعی چندپروفایلی (ADR-102)
+
+بازبینی موعود ADR-101 (که صادقانه مستند کرده بود «وقتی پروفایل دوم واقعی
+اضافه شود، هاردکد Claude در مسیر ۲ باید بازبینی شود»). `OPENAI_API_PROFILE`
+(Chat Completions API، تأییدشده مستقل از فرمت رسمی OpenAI — Endpoint، Header
+`Authorization: Bearer <کلید>` که برخلاف `x-api-key` خام Claude است، و
+`choices[0].message.content`) به `BUILTIN_AI_CONNECTOR_PROFILES` اضافه شد.
+مسیر ۲ در AI Story Breakdown اکنون یک انتخابگر واقعی است — وقتی بیش از یک
+پروفایل موجود باشد، یک ردیف چیپ (`OpaqueChip`، هم‌الگو با انتخابگرهای Settings)
+برای انتخاب سرویس ظاهر می‌شود؛ شرط سخت‌گیرانه‌ی UI (دکمه‌ی ارسال خودکار فقط با
+کلید ذخیره‌شده Enabled) اکنون per-profile است — اگر OpenAI انتخاب شده ولی فقط
+کلید Claude ذخیره شده، دکمه همچنان غیرفعال می‌ماند. `SettingsScreen.kt`/
+`ApiKeysViewModel.kt` بدون هیچ تغییری برای پروفایل دوم کار کردند — دقیقاً
+همان‌طور که ADR-101 طراحی کرده بود (ردیف کلید OpenAI خودکار در Settings ظاهر
+می‌شود). جزئیات کامل (شامل محدودیت دسترسی شبکه به مستندات رسمی OpenAI از این
+محیط و نحوه‌ی رفع آن با WebSearch) در
+`docs/adr/102-g2-second-profile-openai-and-profile-selector.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
