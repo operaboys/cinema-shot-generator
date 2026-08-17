@@ -37,27 +37,44 @@ fun resolveEffectiveMode(
 }
 
 /**
- * تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): زنجیره‌ی کامل سه‌سطحی بلوپرینت ۰۳
- * بخش ب — اول Override شات (`shot.cinematicModeOverride`، بالاترین اولویت؛
- * طبق تصریح بلوپرینت «allow_shot_override همیشه true است»)، بعد Override محلی
- * صحنه (`scene.cinematicModeOverride`، فیلد مستقیم روی خودِ Scene — هم‌الگو با
- * negativePromptOverride شات)، در نهایت [resolveEffectiveMode] موجود (که خودش
- * ابتدا `projectDna.cinematicLanguage.sceneOverrides` — مکانیزم مستقل و مکمل
- * بلوپرینت برای Override متمرکز چند صحنه از یک محل — و در نهایت globalMode را
- * بررسی می‌کند).
+ * تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106)، گسترش‌یافته در قدم ۲ب از ۴ زیرقدم
+ * قدم ۲ (ADR-108): زنجیره‌ی کامل سه‌سطحی بلوپرینت ۰۳ بخش ب — اول Override شات
+ * (`shot.cinematicModeOverride`، بالاترین اولویت؛ طبق تصریح بلوپرینت
+ * «allow_shot_override همیشه true است»)، بعد Override محلی صحنه
+ * (`scene.cinematicModeOverride`، فیلد مستقیم روی خودِ Scene — هم‌الگو با
+ * negativePromptOverride شات)، بعد `projectDna.cinematicLanguage.sceneOverrides`
+ * (مکانیزم مستقل و مکمل بلوپرینت برای Override متمرکز چند صحنه از یک محل) —
+ * **این سه لایه هر کدام یک انتخاب صریح و دستی هستند و همیشه دقیقاً همان مقدار
+ * انتخاب‌شده را برمی‌گردانند، حتی اگر آن مقدار خودش BALANCED باشد.**
  *
- * تصمیم طراحی (چرا دو مسیر Override صحنه، نه فقط یکی): `scene.cinematicModeOverride`
- * یک فیلد مستقیم و محلی روی خودِ Scene است (مشابه locationAssetId/
- * negativePromptOverride) — برای ویرایش تک‌صحنه‌ای. `sceneOverrides` روی
- * ProjectDna دقیقاً همان ساختار Map مفهومی خودِ بلوپرینت (`scene_overrides`
- * در JSON) است — برای مدیریت متمرکز چند Override از یک محل واحد (مثلاً یک
- * صفحه‌ی تنظیمات آینده). این تابع هر دو را بدون تناقض پشتیبانی می‌کند: فیلد
- * مستقیم صحنه اولویت دارد؛ اگر خالی بود، به مکانیزم متمرکز پروژه برمی‌گردد.
+ * فقط وقتی هیچ‌کدام از این سه Override دستی وجود ندارد و زنجیره واقعاً به
+ * `globalMode` خام پروژه می‌رسد (نه یک انتخاب صریح دیگر)، یک قدم اضافه اجرا
+ * می‌شود (ADR-108): اگر آن `globalMode` برابر `BALANCED` است، طبق بلوپرینت ۰۳
+ * بخش ب («Hybrid: ترکیب هوشمند بر اساس Beat Sheet») این مقدار دیگر یک BALANCED
+ * خام و بی‌محتوا نیست — [determineHybridPacing] با `shot.shotGoal` (تنها فیلد
+ * موجود دامنه که با مقادیر رشته‌ای `sceneType` بلوپرینت هم‌راستاست: ESTABLISHING/
+ * ACTION/EMOTIONAL/DIALOGUE/TRANSITION در برابر "action"/"emotional"/"dialogue")
+ * و [averageBeatIntensity] روی `shot.beats` واقعی صدا زده می‌شود تا نتیجه‌ی
+ * نهاییِ Hybrid برای همین شات خاص محاسبه شود. اگر `globalMode` چیزی غیر از
+ * `BALANCED` است (کاربر صریحاً LONG_TAKE/FAST_CUT را برای کل پروژه انتخاب کرده)،
+ * هیچ منطق Hybrid دخالت نمی‌کند — همان مقدار خام برگردانده می‌شود.
+ *
+ * چرا گسترش همین تابع مرکزی، نه یک مسیر جدا: [validateShotDurationForCinematicMode]
+ * (وایرشده در ADR-106، از `domain.validation.ValidationAggregator`) دقیقاً از
+ * خروجی همین تابع تغذیه می‌شود؛ یک تابع Hybrid جدا و اختیاری یک مسیر موازی و
+ * قطع‌شده از آن Rule واقعی می‌ساخت — دقیقاً همان اشتباهی که این مجموعه‌قدم‌ها
+ * (طبق درسِ ADR-106 درباره‌ی محل مرکزی Validation) عمداً از آن پرهیز می‌کند.
  */
 fun resolveEffectiveCinematicMode(projectDna: ProjectDna, scene: Scene, shot: Shot): CinematicMode {
     shot.cinematicModeOverride?.let { return it }
     scene.cinematicModeOverride?.let { return it }
-    return resolveEffectiveMode(projectDna.cinematicLanguage, scene.sceneId)
+    val settings = projectDna.cinematicLanguage
+    settings.sceneOverrides[scene.sceneId]?.let { return it }
+    if (settings.globalMode != CinematicMode.BALANCED) return settings.globalMode
+    return determineHybridPacing(
+        sceneType = shot.shotGoal.name.lowercase(),
+        avgBeatIntensity = averageBeatIntensity(shot.beats)
+    )
 }
 
 /**

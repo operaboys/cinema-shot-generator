@@ -1958,6 +1958,23 @@ BALANCED آستانه‌های موجود `determineHybridPacing` می‌افت�
 است. جزئیات کامل در
 `docs/adr/107-unit03-cinematic-language-step2a-beat-intensity-mapping.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۲ب از ۴ زیرقدم قدم ۲: اتصال واقعی Hybrid (ADR-108)
+
+`resolveEffectiveCinematicMode` (ADR-106) اکنون واقعاً هوشمند است.
+اولویت Override های دستی (شات > صحنه > Map متمرکز پروژه) کاملاً حفظ شد؛
+فقط وقتی هیچ‌کدام وجود ندارد **و** `globalMode` خام پروژه برابر `BALANCED`
+است، `determineHybridPacing` با `shot.shotGoal.name.lowercase()`
+(نگاشت مستقیم `ESTABLISHING`/`ACTION`/`EMOTIONAL`/`DIALOGUE`/`TRANSITION`
+موجود — بدون نیاز به فیلد `sceneType` تازه) و
+`averageBeatIntensity(shot.beats)` (ADR-107) واقعاً اجرا می‌شود. اگر
+`globalMode` صریحاً `LONG_TAKE`/`FAST_CUT` باشد، هیچ منطق Hybrid دخالت
+نمی‌کند. چون `validateShotDurationForCinematicMode` (ADR-106) دقیقاً از
+همین تابع مرکزی تغذیه می‌شود، این هوشمندی خودکار به مسیر Validation واقعی
+هم می‌رسد — بدون کد تکراری یا مسیر موازی. هر ۹ تست موجود
+`ValidationAggregatorTest.kt` بدون هیچ تغییری سبز ماندند (رفتار
+`ESTABLISHING`+شدت‌خنثی هنوز به همان `BALANCED` قبلی می‌رسد). جزئیات کامل
+در `docs/adr/108-unit03-cinematic-language-step2b-hybrid-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

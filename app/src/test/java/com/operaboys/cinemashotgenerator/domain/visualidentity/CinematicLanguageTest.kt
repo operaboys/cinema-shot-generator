@@ -57,15 +57,20 @@ private fun testScene(sceneId: String = "scene_001", cinematicModeOverride: Cine
     cinematicModeOverride = cinematicModeOverride
 )
 
-private fun testShot(cinematicModeOverride: CinematicMode? = null): Shot = Shot(
+private fun testShot(
+    cinematicModeOverride: CinematicMode? = null,
+    shotGoal: ShotGoal = ShotGoal.ESTABLISHING,
+    beats: List<Beat> = emptyList()
+): Shot = Shot(
     shotId = "shot_001",
     sceneId = "scene_001",
     shotNumber = 1,
     shotDescription = "A perfectly neutral, valid shot description",
-    shotGoal = ShotGoal.ESTABLISHING,
+    shotGoal = shotGoal,
     shotType = ShotType.MEDIUM,
     durationSeconds = 4f,
     motionLevel = MotionLevel.SUBTLE,
+    beats = beats,
     soundProfile = SoundProfile(enabled = false),
     cinematicModeOverride = cinematicModeOverride
 )
@@ -224,6 +229,58 @@ class CinematicLanguageTest {
         val shot = testShot(cinematicModeOverride = CinematicMode.FAST_CUT)
 
         assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    // --- resolveEffectiveCinematicMode: اتصال واقعی Hybrid هوشمند (تکمیل Rule یتیم —
+    // قدم ۲ب از ۴ زیرقدم قدم ۲، ADR-108) — فقط زمانی اجرا می‌شود که هیچ Override دستی
+    // (نه شات، نه صحنه، نه Map متمرکز پروژه) وجود نداشته باشد و globalMode واقعاً
+    // BALANCED باشد.
+
+    @Test
+    fun `Hybrid wiring - ACTION shotGoal always resolves to FAST_CUT regardless of beat intensity, when globalMode is BALANCED and no override exists`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene()
+        val shot = testShot(shotGoal = ShotGoal.ACTION, beats = emptyList()) // شدت خنثی (۵)، اما sceneType=="action" اولویت دارد
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Hybrid wiring - high beat intensity resolves to FAST_CUT even for a DIALOGUE shotGoal, when globalMode is BALANCED`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene()
+        val highIntensityBeats = listOf(beatOf(BeatEventType.SUBJECT_ACTION), beatOf(BeatEventType.SUBJECT_ACTION)) // avg = 8f >= 7f
+        val shot = testShot(shotGoal = ShotGoal.DIALOGUE, beats = highIntensityBeats)
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Hybrid wiring - moderate beat intensity resolves to BALANCED for a DIALOGUE shotGoal, when globalMode is BALANCED`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene()
+        val moderateBeats = listOf(beatOf(BeatEventType.CAMERA_MOVE)) // avg = 6f, not >=7f and not <=3f
+        val shot = testShot(shotGoal = ShotGoal.DIALOGUE, beats = moderateBeats)
+
+        assertEquals(CinematicMode.BALANCED, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Hybrid wiring - does not engage when globalMode is explicitly non-BALANCED, even for an ACTION shotGoal`() {
+        val dna = testDna(globalMode = CinematicMode.LONG_TAKE)
+        val scene = testScene()
+        val shot = testShot(shotGoal = ShotGoal.ACTION, beats = emptyList())
+
+        assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `Hybrid wiring - an explicit manual override still wins over Hybrid, even when globalMode is BALANCED and shotGoal is ACTION`() {
+        val dna = testDna(globalMode = CinematicMode.BALANCED)
+        val scene = testScene()
+        val shot = testShot(shotGoal = ShotGoal.ACTION, beats = emptyList(), cinematicModeOverride = CinematicMode.LONG_TAKE)
+
+        assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(dna, scene, shot))
     }
 
     // --- beatIntensity / averageBeatIntensity (تکمیل Rule یتیم — قدم ۲الف از ۴ زیرقدم قدم ۲، ADR-107) ---
