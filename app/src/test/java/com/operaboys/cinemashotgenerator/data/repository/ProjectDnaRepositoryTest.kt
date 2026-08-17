@@ -17,6 +17,8 @@ import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -76,6 +78,13 @@ class ProjectDnaRepositoryTest {
             mandatoryElements = listOf("subject_visible"),
             maxShotDurationSeconds = 10,
             aspectRatio = AspectRatio.ANAMORPHIC_2_39
+        ),
+        // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): پوشش صریح Round-Trip برای فیلد
+        // تازه، با sceneOverrides غیرخالی (نه فقط پیش‌فرض) تا نگاشت Map<String, String> ↔
+        // Map<String, CinematicMode> واقعاً تمرین شود.
+        cinematicLanguage = CinematicLanguageSettings(
+            globalMode = CinematicMode.LONG_TAKE,
+            sceneOverrides = mapOf("scene_001" to CinematicMode.FAST_CUT, "scene_002" to CinematicMode.BALANCED)
         )
     )
 

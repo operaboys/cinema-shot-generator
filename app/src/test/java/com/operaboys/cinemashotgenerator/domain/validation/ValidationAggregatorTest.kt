@@ -49,6 +49,8 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -235,5 +237,36 @@ class ValidationAggregatorTest {
         val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
 
         assertTrue(report.issues.isEmpty())
+    }
+
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): validateShotDurationForCinematicMode
+    // اکنون از طریق resolveEffectiveCinematicMode واقعاً در این تجمیع‌کننده فراخوانی
+    // می‌شود — این تست‌ها ثابت می‌کنند خروجی واقعاً به Level 3 اضافه می‌شود، نه فقط
+    // اینکه تابع مستقلاً درست کار می‌کند (که در CinematicLanguageTest.kt پوشش دارد).
+
+    @Test
+    fun `a shot duration outside the project's global cinematic mode range produces a Level 3 warning`() {
+        val dna = neutralDna().copy(cinematicLanguage = CinematicLanguageSettings(globalMode = CinematicMode.LONG_TAKE))
+        val shot = neutralShot(durationSeconds = 4f) // خارج از بازه‌ی مجاز LONG_TAKE (۸-۶۰ ثانیه)
+
+        val report = aggregateShotValidation(shot, neutralScene(), dna, listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level3 = report.issuesAtLevel(ValidationLevel.CONTINUITY_AND_DEPENDENCY)
+        val cinematicIssue = level3.firstOrNull { it.issue.field == "duration_seconds" }
+        assertTrue(cinematicIssue != null)
+        assertEquals(Severity.WARNING, cinematicIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `a shot override wins over the project's global cinematic mode in the aggregated report`() {
+        // پروژه LONG_TAKE (نیازمند ۸-۶۰ ثانیه) است، اما خودِ شات Override به FAST_CUT دارد
+        // (نیازمند ۱-۵ ثانیه) — با مدت ۴ ثانیه، هیچ هشداری نباید تولید شود چون FAST_CUT
+        // (نه LONG_TAKE) واقعاً حالت مؤثر است.
+        val dna = neutralDna().copy(cinematicLanguage = CinematicLanguageSettings(globalMode = CinematicMode.LONG_TAKE))
+        val shot = neutralShot(durationSeconds = 4f).copy(cinematicModeOverride = CinematicMode.FAST_CUT)
+
+        val report = aggregateShotValidation(shot, neutralScene(), dna, listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issuesAtLevel(ValidationLevel.CONTINUITY_AND_DEPENDENCY).none { it.issue.field == "duration_seconds" })
     }
 }

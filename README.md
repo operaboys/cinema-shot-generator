@@ -1906,6 +1906,42 @@ Qwen) اضافه شدند؛ کاربر می‌تواند در Settings برای 
 شد، بدون کد تکراری. جزئیات کامل در
 `docs/adr/105-g2-fifth-profile-qwen-and-g2-completion.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۱ از ۴: اتصال دامنه‌ای کامل (ADR-106)
+
+`domain/visualidentity/CinematicLanguage.kt` (واحد ۰۳ بخش ب) از قبل کامل و
+درست بود اما یک Rule یتیم بود — با `grep` تأیید شد هیچ‌کدام از نمادهایش
+(`CinematicMode`، `resolveEffectiveMode`، `validateShotDurationForCinematicMode`
+و غیره) در هیچ مسیر تولید واقعی فراخوانی نمی‌شدند. این قدم (اولین از ۴ قدم
+برنامه‌ریزی‌شده) زنجیره‌ی سه‌سطحی بلوپرینت ۰۳ بخش ب را به‌طور کامل در لایه‌ی
+دامنه وصل کرد، **بدون هیچ تغییر UI**:
+
+- `ProjectDna.cinematicLanguage: CinematicLanguageSettings` (پیش‌فرض
+  `globalMode=BALANCED`، Breaking-Change-کمینه) + DTO/Mapper متناظر.
+- `Scene.cinematicModeOverride: CinematicMode?` و
+  `Shot.cinematicModeOverride: CinematicMode?` (هر دو `null` پیش‌فرض،
+  هم‌الگوی دقیق `negativePromptOverride`) + DTO/Mapper متناظر —
+  `SceneEntity`/`ShotEntity` نیازی به تغییر نداشتند (هر دو صرفاً یک ستون
+  JSON Blob هستند، بدون Room Migration).
+- تابع تازه‌ی `resolveEffectiveCinematicMode(dna, scene, shot)`: اولویت
+  Override شات > Override مستقیم صحنه > `sceneOverrides` متمرکز پروژه
+  (از طریق `resolveEffectiveMode` موجود) > `globalMode` پروژه.
+- وایرینگ واقعی در محل مرکزی واقعی Validation —
+  `aggregateShotValidation` در `domain/validation/ValidationAggregator.kt`
+  (نه `validateShotAgainstDna`، که پیش‌بریفینگ به اشتباه به‌عنوان محل
+  مرکزی فرض کرده بود؛ آن فقط یک Rule مستقل است که خودش از داخل همین
+  Aggregator فراخوانی می‌شود) — Level 3 (`CONTINUITY_AND_DEPENDENCY`).
+
+**بررسی مستقل ADR-027 (پیش از کد):** حذف قبلی `stylePreferences`/
+`overrideRules` (`requiresApprovalForOverride`) کاملاً بی‌ربط به
+`CinematicLanguageSettings` بود — این یک افزودنی تازه است، نه بازگرداندن
+چیزی که عمداً حذف شده بود.
+
+**خارج از Scope این قدم (قدم‌های ۲/۳/۴ بعدی):**
+`determineHybridPacing`/`getPacingFromEmotion` (منطق هوشمند Hybrid)، سه
+Rule تعارض دوربین و حرکت (`LogicConflictChecker.kt`)، و UI فرم‌های
+DNA/Scene/Shot. جزئیات کامل در
+`docs/adr/106-unit03-cinematic-language-domain-wiring-step1.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

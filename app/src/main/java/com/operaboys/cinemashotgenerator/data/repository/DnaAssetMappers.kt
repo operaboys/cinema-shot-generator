@@ -38,6 +38,8 @@ import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۱): نگاشت دوطرفه‌ی DTO ↔ نوع واقعی دامنه برای ProjectDna
 // و CharacterAsset/LocationAsset — هم‌الگو با DtoMappers.kt (ADR-018).
@@ -75,6 +77,10 @@ fun ProjectDnaDto.toDomain(): ProjectDna = ProjectDna(
     qualityDirectives = QualityDirectives(
         qualityTags = qualityDirectives.qualityTags,
         negativePrompt = qualityDirectives.negativePrompt
+    ),
+    cinematicLanguage = CinematicLanguageSettings(
+        globalMode = CinematicMode.valueOf(cinematicLanguage.globalMode),
+        sceneOverrides = cinematicLanguage.sceneOverrides.mapValues { CinematicMode.valueOf(it.value) }
     )
 )
 
@@ -111,6 +117,10 @@ fun ProjectDna.toDto(): ProjectDnaDto = ProjectDnaDto(
     qualityDirectives = QualityDirectivesDto(
         qualityTags = qualityDirectives.qualityTags,
         negativePrompt = qualityDirectives.negativePrompt
+    ),
+    cinematicLanguage = CinematicLanguageSettingsDto(
+        globalMode = cinematicLanguage.globalMode.name,
+        sceneOverrides = cinematicLanguage.sceneOverrides.mapValues { it.value.name }
     )
 )
 

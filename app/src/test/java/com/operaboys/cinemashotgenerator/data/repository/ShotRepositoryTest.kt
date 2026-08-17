@@ -43,6 +43,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -101,7 +102,9 @@ class ShotRepositoryTest {
         soundProfile = SoundProfile(enabled = true),
         negativePromptOverride = "no modern objects",
         characterIds = listOf("char_001"),
-        overrideScene = true
+        overrideScene = true,
+        // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): پوشش صریح Round-Trip برای فیلد تازه.
+        cinematicModeOverride = CinematicMode.LONG_TAKE
     )
 
     private suspend fun seedProjectAndScene(projectId: String, sceneId: String) {

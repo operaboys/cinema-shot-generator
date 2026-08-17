@@ -61,6 +61,18 @@ data class QualityDirectivesDto(
     val negativePrompt: String = ""
 )
 
+// تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): sceneOverrides دامنه (Map<String,
+// CinematicMode>) به همان شکل (Map<String, String> — sceneId به نام Enum)
+// در JSON ذخیره می‌شود، دقیقاً هم‌الگو با بقیه‌ی این فایل (هر Enum دامنه به‌صورت
+// نام رشته‌ای ذخیره می‌شود، نه یک نوع DTO جدا) — kotlinx.serialization به‌طور
+// بومی از Map<String, String> به‌عنوان یک شیء JSON پشتیبانی می‌کند، نیازی به
+// شکل جایگزین (مثلاً List<Pair>) نبود.
+@Serializable
+data class CinematicLanguageSettingsDto(
+    val globalMode: String = "BALANCED",
+    val sceneOverrides: Map<String, String> = emptyMap()
+)
+
 @Serializable
 data class ProjectDnaDto(
     val dnaId: String,
@@ -70,5 +82,6 @@ data class ProjectDnaDto(
     val outputConstraints: OutputConstraintsDto,
     val globalMoodBase: GlobalMoodBaseDto,
     val lightingPreference: LightingPreferenceDto = LightingPreferenceDto(),
-    val qualityDirectives: QualityDirectivesDto = QualityDirectivesDto()
+    val qualityDirectives: QualityDirectivesDto = QualityDirectivesDto(),
+    val cinematicLanguage: CinematicLanguageSettingsDto = CinematicLanguageSettingsDto()
 )

@@ -36,6 +36,8 @@ import com.operaboys.cinemashotgenerator.domain.shot.validateNegativePromptOverr
 import com.operaboys.cinemashotgenerator.domain.shot.validateShotBeatTimeline
 import com.operaboys.cinemashotgenerator.domain.shot.validateShotDescription
 import com.operaboys.cinemashotgenerator.domain.shot.validateShotHasSubject
+import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.validateShotDurationForCinematicMode
 
 // واحد ۱۶ فاز ۵ — قدم ۱: صفحه‌ی Validation. منبع حقیقت دوگانه:
 // docs/blueprints/16-user-workflow-v2.md («مراحل ۶-۷-۸») و docs/design/README.md
@@ -144,6 +146,11 @@ fun aggregateShotValidation(
 
     // --- Level 3: تداوم و وابستگی (این Shot در برابر DNA پروژه و Asset های متصل) ---
     add(l3, validateShotDuration(shot.durationSeconds.toInt(), dna))
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): validateShotDurationForCinematicMode
+    // (domain.visualidentity، تا این قدم هیچ‌جا فراخوانی نمی‌شد) اکنون با حالت مؤثر
+    // سه‌سطحی واقعی (resolveEffectiveCinematicMode: Override شات → Override صحنه →
+    // پیش‌فرض DNA پروژه) در همین محل مرکزی Wire شد — نه یک مسیر فراخوانی جدا.
+    add(l3, validateShotDurationForCinematicMode(shot.durationSeconds, resolveEffectiveCinematicMode(dna, scene, shot)))
     val cameraForDna = shot.camera.overrideValue
     if (cameraForDna != null) {
         add(l3, validateShotAgainstDna(cameraForDna.angle.name.lowercase(), "camera", dna))

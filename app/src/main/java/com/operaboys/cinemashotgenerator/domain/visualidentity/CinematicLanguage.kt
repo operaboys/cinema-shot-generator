@@ -2,6 +2,9 @@ package com.operaboys.cinemashotgenerator.domain.visualidentity
 
 import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.MoodCategory
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 
@@ -29,6 +32,30 @@ fun resolveEffectiveMode(
     sceneId: String
 ): CinematicMode {
     return settings.sceneOverrides[sceneId] ?: settings.globalMode
+}
+
+/**
+ * تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): زنجیره‌ی کامل سه‌سطحی بلوپرینت ۰۳
+ * بخش ب — اول Override شات (`shot.cinematicModeOverride`، بالاترین اولویت؛
+ * طبق تصریح بلوپرینت «allow_shot_override همیشه true است»)، بعد Override محلی
+ * صحنه (`scene.cinematicModeOverride`، فیلد مستقیم روی خودِ Scene — هم‌الگو با
+ * negativePromptOverride شات)، در نهایت [resolveEffectiveMode] موجود (که خودش
+ * ابتدا `projectDna.cinematicLanguage.sceneOverrides` — مکانیزم مستقل و مکمل
+ * بلوپرینت برای Override متمرکز چند صحنه از یک محل — و در نهایت globalMode را
+ * بررسی می‌کند).
+ *
+ * تصمیم طراحی (چرا دو مسیر Override صحنه، نه فقط یکی): `scene.cinematicModeOverride`
+ * یک فیلد مستقیم و محلی روی خودِ Scene است (مشابه locationAssetId/
+ * negativePromptOverride) — برای ویرایش تک‌صحنه‌ای. `sceneOverrides` روی
+ * ProjectDna دقیقاً همان ساختار Map مفهومی خودِ بلوپرینت (`scene_overrides`
+ * در JSON) است — برای مدیریت متمرکز چند Override از یک محل واحد (مثلاً یک
+ * صفحه‌ی تنظیمات آینده). این تابع هر دو را بدون تناقض پشتیبانی می‌کند: فیلد
+ * مستقیم صحنه اولویت دارد؛ اگر خالی بود، به مکانیزم متمرکز پروژه برمی‌گردد.
+ */
+fun resolveEffectiveCinematicMode(projectDna: ProjectDna, scene: Scene, shot: Shot): CinematicMode {
+    shot.cinematicModeOverride?.let { return it }
+    scene.cinematicModeOverride?.let { return it }
+    return resolveEffectiveMode(projectDna.cinematicLanguage, scene.sceneId)
 }
 
 /** بر اساس شدت میانگین Beat های یک Scene، حالت مناسب Hybrid را تعیین می‌کند. */

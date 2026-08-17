@@ -10,6 +10,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -53,7 +54,9 @@ class SceneRepositoryTest {
         timeOfDay = TimeOfDay.NIGHT,
         atmospherePrimary = Atmosphere.TENSE,
         atmosphereSecondary = Atmosphere.MYSTERIOUS,
-        shotCount = 5
+        shotCount = 5,
+        // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): پوشش صریح Round-Trip برای فیلد تازه.
+        cinematicModeOverride = CinematicMode.FAST_CUT
     )
 
     @Test

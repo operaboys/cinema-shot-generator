@@ -1,11 +1,72 @@
 package com.operaboys.cinemashotgenerator.domain.visualidentity
 
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
+import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
+import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
+import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
+import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
 import com.operaboys.cinemashotgenerator.domain.dna.Mood
+import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
+import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
+import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
+import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
+import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
+import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.shot.Shot
+import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
+import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+// تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): داده‌های پایه برای تست‌های
+// resolveEffectiveCinematicMode. هم‌الگو با neutralDna/neutralScene/neutralShot
+// در ValidationAggregatorTest.kt (کمینه، بدون نقض هیچ Rule دیگری).
+
+private fun testDna(globalMode: CinematicMode = CinematicMode.BALANCED, sceneOverrides: Map<String, CinematicMode> = emptyMap()): ProjectDna = ProjectDna(
+    dnaId = "dna_001",
+    projectId = "proj_001",
+    coreIdentity = CoreIdentity(VisualStyle.CINEMATIC_STYLE, RealismLevel.SEMI_REALISTIC, StyleConsistency.MODERATE),
+    masterPalette = MasterPalette(ColorTemperature.NEUTRAL, SaturationLevel.MEDIUM, ContrastLevel.MEDIUM, ""),
+    outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, AspectRatio.LANDSCAPE_16_9),
+    globalMoodBase = GlobalMoodBase(Mood.CALM),
+    cinematicLanguage = CinematicLanguageSettings(globalMode = globalMode, sceneOverrides = sceneOverrides)
+)
+
+private fun testScene(sceneId: String = "scene_001", cinematicModeOverride: CinematicMode? = null): Scene = Scene(
+    sceneId = sceneId,
+    sceneNumber = 1,
+    narrativeRole = NarrativeRole.DEVELOPMENT,
+    location = SceneLocation(LocationType.MIXED, "A neutral location"),
+    timeOfDay = TimeOfDay.AFTERNOON,
+    atmospherePrimary = Atmosphere.CALM,
+    shotCount = 1,
+    cinematicModeOverride = cinematicModeOverride
+)
+
+private fun testShot(cinematicModeOverride: CinematicMode? = null): Shot = Shot(
+    shotId = "shot_001",
+    sceneId = "scene_001",
+    shotNumber = 1,
+    shotDescription = "A perfectly neutral, valid shot description",
+    shotGoal = ShotGoal.ESTABLISHING,
+    shotType = ShotType.MEDIUM,
+    durationSeconds = 4f,
+    motionLevel = MotionLevel.SUBTLE,
+    soundProfile = SoundProfile(enabled = false),
+    cinematicModeOverride = cinematicModeOverride
+)
 
 class CinematicLanguageTest {
 
@@ -122,5 +183,44 @@ class CinematicLanguageTest {
     @Test
     fun `rule2 duration within balanced range is valid`() {
         assertNull(validateShotDurationForCinematicMode(10f, CinematicMode.BALANCED))
+    }
+
+    // --- resolveEffectiveCinematicMode (تکمیل Rule یتیم — قدم ۱ از ۴، ADR-106) ---
+    // زنجیره‌ی سه‌سطحی بلوپرینت ۰۳ بخش ب: Override شات > Override صحنه > پیش‌فرض DNA پروژه.
+
+    @Test
+    fun `resolveEffectiveCinematicMode falls back to project global mode when no override exists at any tier`() {
+        val dna = testDna(globalMode = CinematicMode.LONG_TAKE)
+        val scene = testScene()
+        val shot = testShot()
+
+        assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `resolveEffectiveCinematicMode uses scene override when present without a shot override`() {
+        val dna = testDna(globalMode = CinematicMode.LONG_TAKE)
+        val scene = testScene(cinematicModeOverride = CinematicMode.FAST_CUT)
+        val shot = testShot()
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `resolveEffectiveCinematicMode uses project sceneOverrides map when scene has no direct override`() {
+        val dna = testDna(globalMode = CinematicMode.LONG_TAKE, sceneOverrides = mapOf("scene_001" to CinematicMode.BALANCED))
+        val scene = testScene(sceneId = "scene_001")
+        val shot = testShot()
+
+        assertEquals(CinematicMode.BALANCED, resolveEffectiveCinematicMode(dna, scene, shot))
+    }
+
+    @Test
+    fun `resolveEffectiveCinematicMode shot override wins over everything else`() {
+        val dna = testDna(globalMode = CinematicMode.LONG_TAKE, sceneOverrides = mapOf("scene_001" to CinematicMode.BALANCED))
+        val scene = testScene(sceneId = "scene_001", cinematicModeOverride = CinematicMode.BALANCED)
+        val shot = testShot(cinematicModeOverride = CinematicMode.FAST_CUT)
+
+        assertEquals(CinematicMode.FAST_CUT, resolveEffectiveCinematicMode(dna, scene, shot))
     }
 }

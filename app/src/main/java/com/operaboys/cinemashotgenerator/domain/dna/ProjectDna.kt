@@ -1,5 +1,8 @@
 package com.operaboys.cinemashotgenerator.domain.dna
 
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+
 // واحد ۰۲ — DNA Manager (ساختار داده)
 // منبع حقیقت: docs/blueprints/02-dna-manager-v2.md (نسخه ۵)
 //
@@ -231,6 +234,15 @@ data class LightingPreference(
  * فیلدهای این data class دقیقاً مطابق data class ProjectDna بلوپرینت ۰۲ نسخه ۵ و
  * ردیف ProjectDna در type-registry.md است — بدون stylePreferences/overrideRules
  * (طبق تصمیم صریح معمار در این Migration؛ جزئیات کامل در ADR-027).
+ *
+ * cinematicLanguage (تکمیل Rule یتیم — قدم ۱ از ۴، ADR-106): این افزودنی تازه‌ای
+ * است، نه بازگرداندن stylePreferences/overrideRules بالا — آن دو مفهومی کاملاً
+ * متفاوت بودند (requiresApprovalForOverride، تأیید دستی Override؛ ADR-027)، در
+ * حالی که CinematicLanguageSettings از قبل در domain.visualidentity.CinematicLanguage.kt
+ * (واحد ۰۳ بخش ب) کامل و درست تعریف شده بود اما تا این قدم به هیچ‌جا وصل نشده بود.
+ * پیش‌فرض globalMode=BALANCED (خنثی‌ترین حالت سه‌گانه، طبق بلوپرینت) و sceneOverrides
+ * خالی — Breaking-Change-کمینه، پروژه‌ها/تست‌های موجود بدون این فیلد صریح هم کار
+ * می‌کنند.
  */
 data class ProjectDna(
     val dnaId: String,
@@ -240,5 +252,6 @@ data class ProjectDna(
     val outputConstraints: OutputConstraints,
     val globalMoodBase: GlobalMoodBase,
     val lightingPreference: LightingPreference = LightingPreference(),
-    val qualityDirectives: QualityDirectives = QualityDirectives()
+    val qualityDirectives: QualityDirectives = QualityDirectives(),
+    val cinematicLanguage: CinematicLanguageSettings = CinematicLanguageSettings(globalMode = CinematicMode.BALANCED)
 )

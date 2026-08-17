@@ -6,6 +6,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -74,6 +75,39 @@ class SceneMappersTest {
         val decoded = json.decodeFromString(SceneDto.serializer(), oldJsonWithoutLinkedAssetIds)
 
         assertTrue(decoded.linkedAssetIds.isEmpty())
+        assertEquals("scene_legacy", decoded.sceneId)
+    }
+
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): هم‌الگو دقیق با دو تست بالا برای
+    // cinematicModeOverride تازه‌اضافه‌شده.
+
+    @Test
+    fun `Scene toDto then toDomain round-trips cinematicModeOverride exactly, both when set and when null`() {
+        val withOverride = baseScene(locationAssetId = null).copy(cinematicModeOverride = CinematicMode.FAST_CUT)
+        assertEquals(withOverride, withOverride.toDto().toDomain())
+
+        val withoutOverride = baseScene(locationAssetId = null)
+        assertEquals(null, withoutOverride.cinematicModeOverride)
+        assertEquals(withoutOverride, withoutOverride.toDto().toDomain())
+    }
+
+    @Test
+    fun `decoding an old SceneDataJson without the cinematicModeOverride key succeeds with a null default`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val oldJsonWithoutCinematicModeOverride = """
+            {
+              "sceneId": "scene_legacy",
+              "sceneNumber": 1,
+              "narrativeRole": "DEVELOPMENT",
+              "location": { "type": "OUTDOOR", "description": "a quiet street" },
+              "timeOfDay": "NIGHT",
+              "atmospherePrimary": "CALM"
+            }
+        """.trimIndent()
+
+        val decoded = json.decodeFromString(SceneDto.serializer(), oldJsonWithoutCinematicModeOverride)
+
+        assertEquals(null, decoded.cinematicModeOverride)
         assertEquals("scene_legacy", decoded.sceneId)
     }
 }

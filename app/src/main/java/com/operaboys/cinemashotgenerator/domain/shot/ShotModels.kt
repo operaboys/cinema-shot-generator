@@ -3,6 +3,7 @@ package com.operaboys.cinemashotgenerator.domain.shot
 import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۰۵ — Shot Engine (ساختار داده)
 // منبع حقیقت: docs/blueprints/05-shot-engine-v2.md (نسخه ۳)
@@ -105,5 +106,11 @@ data class Shot(
     val characterIds: List<String> = emptyList(),
     val objectIds: List<String> = emptyList(),
     val locationIds: List<String> = emptyList(),
-    val overrideScene: Boolean = false
+    val overrideScene: Boolean = false,
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): Override محلی سطح شات؛ null یعنی از
+    // حالت مؤثر صحنه/پروژه پیروی کن (resolveEffectiveCinematicMode،
+    // domain.visualidentity.CinematicLanguage.kt) — بالاترین اولویت در زنجیره‌ی
+    // سه‌سطحی بلوپرینت ۰۳ بخش ب («allow_shot_override همیشه true است»). هم‌الگو
+    // دقیق با negativePromptOverride بالا.
+    val cinematicModeOverride: CinematicMode? = null
 )

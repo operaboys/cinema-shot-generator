@@ -88,5 +88,9 @@ data class ShotDto(
     val characterIds: List<String> = emptyList(),
     val objectIds: List<String> = emptyList(),
     val locationIds: List<String> = emptyList(),
-    val overrideScene: Boolean = false
+    val overrideScene: Boolean = false,
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): nullable با پیش‌فرض null، هم‌الگو
+    // دقیق با negativePromptOverride بالا (بدون Migration رسمی Room — shotDataJson
+    // صرفاً یک Blob است).
+    val cinematicModeOverride: String? = null
 )

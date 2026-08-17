@@ -39,6 +39,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۱۵ — قدم ۲: نگاشت دوطرفه‌ی DTO ↔ نوع واقعی دامنه. این تنها فایلی است که هم از
 // data.repository (DTO ها) و هم از domain.* (انواع واقعی) import می‌کند — دقیقاً همان
@@ -152,7 +153,8 @@ fun ShotDto.toDomain(): Shot = Shot(
     characterIds = characterIds,
     objectIds = objectIds,
     locationIds = locationIds,
-    overrideScene = overrideScene
+    overrideScene = overrideScene,
+    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) }
 )
 
 fun Shot.toDto(): ShotDto = ShotDto(
@@ -181,5 +183,6 @@ fun Shot.toDto(): ShotDto = ShotDto(
     characterIds = characterIds,
     objectIds = objectIds,
     locationIds = locationIds,
-    overrideScene = overrideScene
+    overrideScene = overrideScene,
+    cinematicModeOverride = cinematicModeOverride?.name
 )

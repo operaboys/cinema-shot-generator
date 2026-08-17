@@ -9,6 +9,7 @@ import com.operaboys.cinemashotgenerator.domain.scene.SceneConstraints
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.stateversioning.EntityState
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۲): نگاشت دوطرفه‌ی SceneDto ↔ Scene واقعی دامنه.
 
@@ -30,7 +31,8 @@ fun SceneDto.toDomain(): Scene = Scene(
         constraints.environmentRestrictions
     ),
     shotCount = shotCount,
-    state = EntityState.valueOf(state)
+    state = EntityState.valueOf(state),
+    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) }
 )
 
 fun Scene.toDto(): SceneDto = SceneDto(
@@ -51,5 +53,6 @@ fun Scene.toDto(): SceneDto = SceneDto(
         constraints.environmentRestrictions
     ),
     shotCount = shotCount,
-    state = state.name
+    state = state.name,
+    cinematicModeOverride = cinematicModeOverride?.name
 )

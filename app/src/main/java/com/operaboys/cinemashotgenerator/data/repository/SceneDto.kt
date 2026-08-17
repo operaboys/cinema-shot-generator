@@ -46,5 +46,9 @@ data class SceneDto(
     val shotCount: Int = 0,
     // واحد ۱۶ فاز ۴ قدم ۱: هم‌الگو با ProjectEntity.state — رشته‌ی خام EntityState،
     // پیش‌فرض «DRAFT».
-    val state: String = "DRAFT"
+    val state: String = "DRAFT",
+    // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): nullable با پیش‌فرض null، دقیقاً
+    // طبق الگوی محافظه‌کارانه‌ی locationAssetId بالا (بدون Migration رسمی Room —
+    // sceneDataJson صرفاً یک Blob است).
+    val cinematicModeOverride: String? = null
 )

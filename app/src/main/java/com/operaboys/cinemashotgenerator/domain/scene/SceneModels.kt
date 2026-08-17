@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.scene
 
 import com.operaboys.cinemashotgenerator.domain.stateversioning.EntityState
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۰۴ — Scene Engine (ساختار داده)
 // منبع حقیقت: docs/blueprints/04-scene-engine.md
@@ -61,6 +62,16 @@ data class GlobalVisualStyleRef(
  * kotlinx.serialization به‌طور پیش‌فرض هر کلید غایب در JSON قدیمی را با همین
  * مقدار پیش‌فرض (لیست خالی) پر می‌کند.
  */
+/**
+ * تکمیل Rule یتیم (قدم ۱ از ۴، ADR-106): cinematicModeOverride — Override محلی
+ * سطح صحنه؛ null یعنی از پیش‌فرض پروژه پیروی کن (طبق سه‌سطحی بلوپرینت ۰۳ بخش
+ * ب). این فیلد به‌عنوان یک راه مستقیم/محلی برای Override هر صحنه اضافه شد —
+ * هم‌الگو دقیق با locationAssetId/linkedAssetIds/negativePromptOverride (Shot):
+ * فیلد تکی روی خودِ Entity، نه ارجاع غیرمستقیم. resolveEffectiveCinematicMode
+ * (domain.visualidentity.CinematicLanguage.kt) این فیلد را قبل از
+ * ProjectDna.cinematicLanguage.sceneOverrides (مکانیزم مستقل و مکمل خودِ
+ * بلوپرینت، هنوز دست‌نخورده) بررسی می‌کند — جزئیات کامل تصمیم در ADR-106.
+ */
 data class Scene(
     val sceneId: String,
     val sceneTitle: String? = null,
@@ -75,5 +86,6 @@ data class Scene(
     val globalVisualStyle: GlobalVisualStyleRef = GlobalVisualStyleRef(),
     val constraints: SceneConstraints = SceneConstraints(),
     val shotCount: Int = 0,
-    val state: EntityState = EntityState.DRAFT
+    val state: EntityState = EntityState.DRAFT,
+    val cinematicModeOverride: CinematicMode? = null
 )
