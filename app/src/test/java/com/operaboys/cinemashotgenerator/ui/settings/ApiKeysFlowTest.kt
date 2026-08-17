@@ -20,6 +20,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.DEEPSEEK_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG
@@ -244,6 +245,36 @@ class ApiKeysFlowTest {
         composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
 
         composeRule.onNodeWithTag(aiBreakdownProfileChipTag(GEMINI_API_PROFILE.profileId)).performScrollTo().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {
+                runCatching { assertIsNotEnabled() }.isSuccess
+            }
+        }
+        composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    // G2/ADR-104 — چهارمین پروفایل واقعی (DeepSeek). هدف این دو تست دقیقاً
+    // اثبات این ادعای ADR-102/103 است: پروفایل چهارم هم بدون هیچ تغییر کد UI
+    // باید کار کند.
+
+    @Test
+    fun `Settings automatically shows a key row for the fourth real profile (DeepSeek) with no code change needed`() {
+        renderSettings()
+
+        composeRule.onNodeWithTag(apiKeyStatusTag(DEEPSEEK_API_PROFILE.profileId)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `selecting DeepSeek in the profile chip row keeps the send button gated on DeepSeek's own key, just like the other three profiles`() {
+        runBlocking { secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key") }
+        renderAiStoryBreakdown()
+
+        composeRule.onNodeWithTag(AI_BREAKDOWN_STORY_FIELD_TAG).performScrollTo().performTextInput("A".repeat(60))
+        composeRule.onNodeWithTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
+
+        composeRule.onNodeWithTag(aiBreakdownProfileChipTag(DEEPSEEK_API_PROFILE.profileId)).performScrollTo().performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {

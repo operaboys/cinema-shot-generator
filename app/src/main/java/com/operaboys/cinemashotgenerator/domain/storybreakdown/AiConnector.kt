@@ -37,10 +37,12 @@ import java.net.SocketTimeoutException
 // آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI بود).
 // G2 قدم ۳ (ADR-101) UI انتخابگر مسیر ۱/۲ را وصل کرد (اولش هاردکد به Claude).
 // ADR-102 دومین پروفایل واقعی (OpenAI) را اضافه کرد و همان هاردکد UI را به
-// انتخابگر واقعی چندپروفایلی تبدیل کرد. این قدم (ADR-103) سومین پروفایل واقعی
-// (Gemini، سومین الگوی متفاوت احراز هویت/بدنه) را اضافه می‌کند — بدون هیچ
-// تغییری در UI/ViewModel (تأیید عملی صحت طراحی پویای ADR-102)؛ همچنین یک
-// یافته‌ی واقعی extractByJsonPath (حالت thoughtSignature-فقط Gemini) رفع شد.
+// انتخابگر واقعی چندپروفایلی تبدیل کرد. ADR-103 سومین پروفایل واقعی (Gemini،
+// سومین الگوی متفاوت احراز هویت/بدنه) را اضافه کرد و یک یافته‌ی واقعی
+// extractByJsonPath (حالت thoughtSignature-فقط Gemini) را رفع کرد — بدون هیچ
+// تغییری در UI/ViewModel. این قدم (ADR-104) چهارمین پروفایل واقعی (DeepSeek،
+// فرمت کاملاً سازگار با OpenAI) را اضافه می‌کند؛ همچنین یک یافته‌ی حیاتی
+// درباره‌ی بازنشستگی نام‌های مدل قدیمی DeepSeek (۲۴ جولای ۲۰۲۶) مستند شد.
 
 /** پروفایل یک سرویس AI متنی — کاملاً مستقل از پیاده‌سازی، هم‌خانواده با ModelProfile واحد ۱۴. */
 data class AiConnectorProfile(
@@ -150,13 +152,63 @@ val GEMINI_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
 )
 
 /**
+ * چهارمین پروفایل واقعی — DeepSeek API، تأییدشده مستقل (WebFetch مستقیم به
+ * api-docs.deepseek.com هم مثل platform.openai.com/ai.google.dev از این محیط
+ * Sandbox مسدود بود — `EGRESS_BLOCKED`؛ با WebSearch چندمنبعی تأیید شد،
+ * از‌جمله عنوان مستقیم صفحه‌ی رسمی «Chat Completions API | DeepSeek API Docs»
+ * در نتایج جست‌وجو):
+ * DeepSeek عمداً و کاملاً با فرمت OpenAI Chat Completions سازگار است — همان
+ * Authorization: Bearer <کلید>، همان بدنه‌ی {model, messages}، همان مسیر
+ * پاسخ choices[0].message.content. تنها تفاوت واقعی: endpointUrl و نام مدل.
+ *
+ * Endpoint: POST https://api.deepseek.com/chat/completions — **بدون** پیشوند
+ * `/v1/` (برخلاف OpenAI). چند منبع کمی متفاوت نوشته بودند (برخی `/v1/` را هم
+ * نشان می‌دادند)؛ بررسی چندمنبعی مشخص کرد `/v1/` فقط برای سازگاری با SDK های
+ * رسمی OpenAI پذیرفته می‌شود، اما مسیر رسمی مستندشده در خودِ
+ * api-docs.deepseek.com بدون `/v1/` است — همان چیزی که پیش‌بریفینگ معمار هم
+ * گفته بود، تأییدشده نه فرض.
+ *
+ * ⚠️ یافته‌ی حیاتی (تأییدشده با چند منبع مستقل، تاریخ‌دار — طبق همان روش
+ * محافظه‌کارانه‌ی ADR-102 برای مدل OpenAI): نام‌های قدیمی مدل `deepseek-chat`
+ * و `deepseek-reasoner` در ساعت ۱۵:۵۹ UTC روز ۲۴ جولای ۲۰۲۶ عملاً بازنشسته
+ * شدند و دیگر بدون خطا کار نمی‌کنند — هر دو نام قدیمی (نه فقط یکی) در دوره‌ی
+ * انتقال به `deepseek-v4-flash` Route می‌شدند (نکته‌ای دقیق‌تر از آنچه
+ * پیش‌بریفینگ گفته بود — پیش‌بریفینگ deepseek-v4-pro/deepseek-v4-flash را دو
+ * جایگزین مستقل برای دو نام قدیمی معرفی کرده بود؛ منابع مستقل نشان دادند هر
+ * دو نام قدیمی در واقع به همان مدل زیرین (V4، در دو حالت Thinking/Non-Thinking)
+ * اشاره می‌کردند و هر دو به `deepseek-v4-flash` مهاجرت می‌کنند — `deepseek-v4-pro`
+ * یک مدل جداگانه‌ی قوی‌تر است، نه جایگزین مستقیم هیچ‌کدام از دو نام قدیمی).
+ * چون تاریخ فعلی پروژه (۲۰۲۶-۰۸-۱۷) پس از این بازنشستگی است، از نام تازه‌ی
+ * تأییدشده `deepseek-v4-flash` استفاده شد (طبق پیشنهاد معمار هم، تأییدشده
+ * مستقل) — نه نام‌های منسوخِ `deepseek-chat`/`deepseek-reasoner` که واقعاً
+ * دیگر کار نمی‌کنند. جزئیات کامل (شامل منابع) در
+ * docs/adr/104-g2-fourth-profile-deepseek-and-model-deprecation.md.
+ *
+ * تصمیم طراحی: به‌جای یک تابع/Helper مشترک برای «پروفایل‌های سازگار با فرمت
+ * OpenAI»، این پروفایل هم مثل سه‌تای قبلی یک `val` کاملاً مستقل است — هم‌الگو
+ * با بقیه‌ی این فایل. یک Helper مشترک فقط برای این یک نقطه‌ی استفاده‌ی دوم
+ * (OpenAI + DeepSeek) پیچیدگی بی‌دلیل اضافه می‌کرد (طبق فلسفه‌ی Simplicity
+ * پروژه)؛ اگر سرویس سازگار سوم/چهارمی بعداً اضافه شد، این تصمیم قابل‌بازبینی
+ * است.
+ */
+val DEEPSEEK_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
+    profileId = "deepseek_api",
+    displayName = "DeepSeek API",
+    endpointUrl = "https://api.deepseek.com/chat/completions",
+    requestBodyTemplate = """{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"{{PROMPT}}"}]}""",
+    requestHeaders = mapOf("Authorization" to "Bearer {{API_KEY}}"),
+    responseJsonPath = "choices[0].message.content"
+)
+
+/**
  * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد و صریحاً
  * مستند کرد OpenAI/Gemini/DeepSeek/Qwen خارج از Scope آن قدم‌اند. ADR-102 دومین
- * پروفایل واقعی (OpenAI) را اضافه کرد. این قدم سومین پروفایل واقعی (Gemini) را
- * اضافه می‌کند — طبق همان الگو (بررسی مستقل مستندات رسمی، نه حدس). DeepSeek/Qwen
- * همچنان خارج از Scope این قدم‌اند.
+ * پروفایل واقعی (OpenAI) و ADR-103 سومین (Gemini) را اضافه کردند. این قدم
+ * (ADR-104) چهارمین پروفایل واقعی (DeepSeek) را اضافه می‌کند — طبق همان الگو
+ * (بررسی مستقل مستندات رسمی، نه حدس). Qwen همچنان خارج از Scope این قدم است.
  */
-val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> = listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE)
+val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> =
+    listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE)
 
 /**
  * کاربر پیشرفته می‌تواند یک پروفایل کاملاً دستی برای سرویس ناشناخته/محلی بسازد.

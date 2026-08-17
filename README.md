@@ -1857,6 +1857,26 @@ Claude/OpenAI که همیشه دقیقاً یک آیتم دارند). `SettingsS
 سوم واقعی، نه فقط ادعا. جزئیات کامل در
 `docs/adr/103-g2-third-profile-gemini-and-parser-robustness.md`.
 
+### ✅ G2 — چهارمین پروفایل واقعی (DeepSeek) + یافته‌ی حیاتی بازنشستگی نام مدل قدیمی (ADR-104)
+
+`DEEPSEEK_API_PROFILE` به `BUILTIN_AI_CONNECTOR_PROFILES` اضافه شد — عمداً و
+کاملاً با فرمت OpenAI Chat Completions سازگار (همان
+`Authorization: Bearer`، همان بدنه‌ی `{model, messages}`، همان مسیر پاسخ
+`choices[0].message.content`)؛ تنها تفاوت واقعی `endpointUrl`
+(`https://api.deepseek.com/chat/completions`، **بدون** پیشوند `/v1/`) و نام
+مدل. **یافته‌ی حیاتی حین بررسی مستقل مستندات رسمی (چندمنبعی، چون دسترسی
+مستقیم به `api-docs.deepseek.com` هم مثل OpenAI/Gemini از این محیط مسدود
+بود):** نام‌های قدیمی مدل `deepseek-chat`/`deepseek-reasoner` در ۲۴ جولای
+۲۰۲۶ بازنشسته شدند و دیگر بدون خطا کار نمی‌کنند — پروفایل از نام تازه‌ی
+تأییدشده `deepseek-v4-flash` استفاده می‌کند. تصمیم آگاهانه: بدون یک Helper
+مشترک برای «پروفایل‌های سازگار با OpenAI» — با فلسفه‌ی Simplicity پروژه،
+یک `val` مستقل (هم‌الگو با سه پروفایل قبلی) کافی و درست‌تر بود.
+`SettingsScreen.kt`/`ApiKeysViewModel.kt`/`AiStoryBreakdownViewModel.kt`/
+`AiStoryBreakdownScreen.kt` باز هم **صفر خط تغییر داشتند** — دومین تأیید
+عملی متوالی صحت طراحی پویای ADR-102. جزئیات کامل (شامل منابع و تاریخ دقیق
+یافته‌ی بازنشستگی مدل، برای رهگیری اگر بعداً دوباره تغییر کرد) در
+`docs/adr/104-g2-fourth-profile-deepseek-and-model-deprecation.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

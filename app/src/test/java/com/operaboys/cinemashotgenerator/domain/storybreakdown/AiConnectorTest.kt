@@ -16,11 +16,14 @@ import org.junit.Test
 
 class AiConnectorTest {
 
-    // --- BUILTIN_AI_CONNECTOR_PROFILES (ADR-100: اولین پروفایل؛ ADR-102: دومین؛ ADR-103: سومین) ---
+    // --- BUILTIN_AI_CONNECTOR_PROFILES (ADR-100: اولین؛ ADR-102: دومین؛ ADR-103: سومین؛ ADR-104: چهارمین) ---
 
     @Test
-    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude, OpenAI, and Gemini, matching each service's official API format`() {
-        assertEquals(listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE), BUILTIN_AI_CONNECTOR_PROFILES)
+    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude, OpenAI, Gemini, and DeepSeek, matching each service's official API format`() {
+        assertEquals(
+            listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE),
+            BUILTIN_AI_CONNECTOR_PROFILES
+        )
         assertEquals("https://api.anthropic.com/v1/messages", CLAUDE_API_PROFILE.endpointUrl)
         assertEquals("content[0].text", CLAUDE_API_PROFILE.responseJsonPath)
         assertEquals("2023-06-01", CLAUDE_API_PROFILE.requestHeaders["anthropic-version"])
@@ -351,6 +354,89 @@ class AiConnectorTest {
             result.isSuccess
         )
         assertEquals("Hello from Gemini after thinking", result.getOrNull())
+    }
+
+    // --- DEEPSEEK_API_PROFILE واقعی (G2/ADR-104: چهارمین پروفایل واقعی، فرمت
+    // کاملاً سازگار با OpenAI اما endpointUrl/مدل متفاوت) — روی خودِ
+    // DEEPSEEK_API_PROFILE تولیدی تست می‌شود. هدف اصلی این بخش اثبات این است
+    // که دو پروفایل با بدنه/پاسخ ساختاری یکسان (OpenAI و DeepSeek) واقعاً به
+    // دو Endpoint متفاوت می‌روند و با یکدیگر قاطی نمی‌شوند.
+
+    @Test
+    fun `a successful DeepSeek response extracts the correct text via the same choices index 0 message content path as OpenAI`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"Hello from DeepSeek"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(DEEPSEEK_API_PROFILE, apiKey = "sk-deepseek-test-123", prompt = "hi", engine = engine)
+
+        assertTrue(result.isSuccess)
+        assertEquals("Hello from DeepSeek", result.getOrNull())
+    }
+
+    @Test
+    fun `the real request to DeepSeek carries an Authorization Bearer header and the real prompt and key, same auth shape as OpenAI`() = runBlocking {
+        var capturedBody: String? = null
+        var capturedAuthHeader: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+            capturedAuthHeader = request.headers["Authorization"]
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"ok"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        sendToAiConnector(DEEPSEEK_API_PROFILE, apiKey = "sk-deepseek-secret", prompt = "write a story", engine = engine)
+
+        assertTrue(capturedBody!!.contains("write a story"))
+        assertTrue("بدنه‌ی واقعی باید نام مدل تازه‌ی DeepSeek (نه نام منسوخ) را داشته باشد", capturedBody!!.contains("deepseek-v4-flash"))
+        assertEquals("Bearer sk-deepseek-secret", capturedAuthHeader)
+    }
+
+    /**
+     * دو پروفایل با فرمت بدنه/پاسخ کاملاً یکسان (OpenAI و DeepSeek) نباید هرگز
+     * قاطی شوند — تنها تفاوت واقعی endpointUrl/requestBodyTemplate (نام مدل)
+     * است. این تست هر دو پروفایل را در یک اجرا صدا می‌زند و صریحاً تأیید
+     * می‌کند درخواست واقعی هرکدام به Endpoint خودشان می‌رود، نه دیگری.
+     */
+    @Test
+    fun `OpenAI and DeepSeek profiles never get confused despite an identical body and response shape`() = runBlocking {
+        var openAiEndpointCalled = false
+        var deepSeekEndpointCalled = false
+        val openAiEngine = MockEngine { request ->
+            openAiEndpointCalled = request.url.toString() == OPENAI_API_PROFILE.endpointUrl
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"from openai"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val deepSeekEngine = MockEngine { request ->
+            deepSeekEndpointCalled = request.url.toString() == DEEPSEEK_API_PROFILE.endpointUrl
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"from deepseek"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val openAiResult = sendToAiConnector(OPENAI_API_PROFILE, apiKey = "sk-openai", prompt = "hi", engine = openAiEngine)
+        val deepSeekResult = sendToAiConnector(DEEPSEEK_API_PROFILE, apiKey = "sk-deepseek", prompt = "hi", engine = deepSeekEngine)
+
+        assertTrue("درخواست OpenAI باید واقعاً به endpointUrl خودِ OpenAI برود", openAiEndpointCalled)
+        assertTrue("درخواست DeepSeek باید واقعاً به endpointUrl خودِ DeepSeek برود، نه OpenAI", deepSeekEndpointCalled)
+        assertEquals("from openai", openAiResult.getOrNull())
+        assertEquals("from deepseek", deepSeekResult.getOrNull())
+        assertTrue(
+            "خودِ Endpoint دو سرویس باید واقعاً متفاوت باشد",
+            OPENAI_API_PROFILE.endpointUrl != DEEPSEEK_API_PROFILE.endpointUrl
+        )
     }
 
     // یافته‌ی راستی‌آزمایی این قدم: requestTimeoutMillis واقعی (۶۰ ثانیه) داخل خودِ
