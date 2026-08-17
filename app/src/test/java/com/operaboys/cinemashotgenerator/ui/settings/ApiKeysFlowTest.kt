@@ -23,6 +23,7 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFIL
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.DEEPSEEK_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.QWEN_API_PROFILE
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG
 import com.operaboys.cinemashotgenerator.ui.storybreakdown.AI_BREAKDOWN_STORY_FIELD_TAG
@@ -275,6 +276,36 @@ class ApiKeysFlowTest {
         composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
 
         composeRule.onNodeWithTag(aiBreakdownProfileChipTag(DEEPSEEK_API_PROFILE.profileId)).performScrollTo().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {
+                runCatching { assertIsNotEnabled() }.isSuccess
+            }
+        }
+        composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    // G2/ADR-105 — پنجمین و آخرین پروفایل واقعی (Qwen). هدف این دو تست دقیقاً
+    // اثبات این ادعای ADR-102/103/104 است: آخرین پروفایل برنامه‌ریزی‌شده هم
+    // بدون هیچ تغییر کد UI باید کار کند — G2 با این قدم به‌طور کامل بسته می‌شود.
+
+    @Test
+    fun `Settings automatically shows a key row for the fifth and final real profile (Qwen) with no code change needed`() {
+        renderSettings()
+
+        composeRule.onNodeWithTag(apiKeyStatusTag(QWEN_API_PROFILE.profileId)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `selecting Qwen in the profile chip row keeps the send button gated on Qwen's own key, just like the other four profiles`() {
+        runBlocking { secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key") }
+        renderAiStoryBreakdown()
+
+        composeRule.onNodeWithTag(AI_BREAKDOWN_STORY_FIELD_TAG).performScrollTo().performTextInput("A".repeat(60))
+        composeRule.onNodeWithTag(AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { existsInTree(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG) }
+
+        composeRule.onNodeWithTag(aiBreakdownProfileChipTag(QWEN_API_PROFILE.profileId)).performScrollTo().performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onNodeWithTag(AI_BREAKDOWN_SEND_AUTOMATICALLY_BUTTON_TAG).run {

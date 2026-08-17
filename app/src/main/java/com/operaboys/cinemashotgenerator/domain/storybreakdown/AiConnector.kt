@@ -37,12 +37,12 @@ import java.net.SocketTimeoutException
 // آن وابسته نیست (کلید همچنان پارامتر ورودی است، خواندنش از Storage کار UI بود).
 // G2 قدم ۳ (ADR-101) UI انتخابگر مسیر ۱/۲ را وصل کرد (اولش هاردکد به Claude).
 // ADR-102 دومین پروفایل واقعی (OpenAI) را اضافه کرد و همان هاردکد UI را به
-// انتخابگر واقعی چندپروفایلی تبدیل کرد. ADR-103 سومین پروفایل واقعی (Gemini،
-// سومین الگوی متفاوت احراز هویت/بدنه) را اضافه کرد و یک یافته‌ی واقعی
-// extractByJsonPath (حالت thoughtSignature-فقط Gemini) را رفع کرد — بدون هیچ
-// تغییری در UI/ViewModel. این قدم (ADR-104) چهارمین پروفایل واقعی (DeepSeek،
-// فرمت کاملاً سازگار با OpenAI) را اضافه می‌کند؛ همچنین یک یافته‌ی حیاتی
-// درباره‌ی بازنشستگی نام‌های مدل قدیمی DeepSeek (۲۴ جولای ۲۰۲۶) مستند شد.
+// انتخابگر واقعی چندپروفایلی تبدیل کرد. ADR-103 سومین پروفایل واقعی (Gemini)
+// را اضافه کرد و یک یافته‌ی واقعی extractByJsonPath را رفع کرد. ADR-104
+// چهارمین پروفایل واقعی (DeepSeek) را اضافه کرد و یافته‌ی حیاتی بازنشستگی
+// نام مدل قدیمی را مستند کرد. این قدم (ADR-105) پنجمین و **آخرین** پروفایل
+// برنامه‌ریزی‌شده (Qwen) را اضافه می‌کند — G2 با این قدم به‌طور کامل بسته
+// می‌شود. در تمام این چهار قدم آخر، UI/ViewModel صفر خط تغییر داشتند.
 
 /** پروفایل یک سرویس AI متنی — کاملاً مستقل از پیاده‌سازی، هم‌خانواده با ModelProfile واحد ۱۴. */
 data class AiConnectorProfile(
@@ -201,14 +201,61 @@ val DEEPSEEK_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
 )
 
 /**
- * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد و صریحاً
- * مستند کرد OpenAI/Gemini/DeepSeek/Qwen خارج از Scope آن قدم‌اند. ADR-102 دومین
- * پروفایل واقعی (OpenAI) و ADR-103 سومین (Gemini) را اضافه کردند. این قدم
- * (ADR-104) چهارمین پروفایل واقعی (DeepSeek) را اضافه می‌کند — طبق همان الگو
- * (بررسی مستقل مستندات رسمی، نه حدس). Qwen همچنان خارج از Scope این قدم است.
+ * پنجمین و آخرین پروفایل واقعی (طبق برنامه‌ی پنج‌پروفایلی G2) — Qwen API
+ * (Alibaba Cloud Model Studio / DashScope)، تأییدشده مستقل (WebFetch مستقیم
+ * به alibabacloud.com هم مثل سه سرویس قبلی از این محیط Sandbox مسدود بود —
+ * `EGRESS_BLOCKED`؛ با WebSearch چندمنبعی تأیید شد).
+ * Qwen عمداً و کاملاً با فرمت OpenAI Chat Completions سازگار است — همان
+ * Authorization: Bearer <کلید>، همان بدنه‌ی {model, messages}، همان مسیر
+ * پاسخ choices[0].message.content.
+ *
+ * ⚠️ نکته‌ی معماری حیاتی — دو نوع Endpoint متفاوت، فقط یکی سازگار با این
+ * پروژه: برای برخی مناطق (Singapore و مشابه)، Alibaba Cloud یک الگوی URL
+ * می‌دهد که WorkspaceId شخصیِ هر کاربر را داخل خودِ مسیر URL دارد (مثلاً
+ * `https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/...`)
+ * — این با معماری `AiConnectorProfile` این پروژه ناسازگار است، چون
+ * `endpointUrl` یک مقدار ثابت و از‌پیش‌تعیین‌شده در کد است، نه چیزی که
+ * per-user جایگزین شود؛ پروژه فعلاً هیچ مکانیزمی برای «پارامتر کاربر داخل
+ * URL» ندارد و اضافه‌کردنش گسترش معماری غیرضروری برای این قدم بود — رد شد،
+ * عمداً. به‌جایش از الگوی بدون WorkspaceId استفاده شد که رسماً هم وجود دارد
+ * و کار می‌کند: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions`.
+ * بین نوع داخل‌چین (`dashscope.aliyuncs.com`) و بین‌المللی
+ * (`dashscope-intl.aliyuncs.com`)، بررسی مستقل نوع بین‌المللی را برای
+ * کاربران عمومی/بدون محدودیت جغرافیایی تأیید کرد (منابع چندگانه: کلید API
+ * باید با منطقه‌ی ثبت حساب Alibaba Cloud هم‌خوان باشد؛ چون این پروژه به یک
+ * کشور خاص محدود نیست، نوع بین‌المللی منطقی‌تر است — مطابق پیشنهاد معمار،
+ * تأییدشده نه فرض).
+ *
+ * مدل: `qwen-plus` — یک نام پایدار و غیر-نسخه‌دار (برخلاف نام‌های نسخه‌دار
+ * مثل `qwen3.6-plus`/`qwen3.7-plus` که در جست‌وجو هم دیده شدند اما ریسک
+ * بازنشستگی دارند — دقیقاً همان درسی که از یافته‌ی مدل منسوخ DeepSeek
+ * (ADR-104) گرفته شد)؛ بررسی مستقل `qwen-plus` را به‌عنوان یک نام پایدار و
+ * همچنان معتبر (کنار `qwen-max`/`qwen-flash`) تأیید کرد — مطابق پیشنهاد
+ * معمار، بدون نیاز به جایگزینی. جزئیات کامل در
+ * docs/adr/105-g2-fifth-profile-qwen-and-g2-completion.md.
+ *
+ * تصمیم طراحی (طبق ADR-104): این پروفایل هم مثل چهارتای قبلی یک `val`
+ * کاملاً مستقل است، بدون Helper مشترک — بررسی کد فعلی دلیل قانع‌کننده‌ای
+ * برای تغییر آن تصمیم به دست نداد (همان استدلال Simplicity هنوز صادق است).
+ */
+val QWEN_API_PROFILE: AiConnectorProfile = AiConnectorProfile(
+    profileId = "qwen_api",
+    displayName = "Qwen API",
+    endpointUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+    requestBodyTemplate = """{"model":"qwen-plus","messages":[{"role":"user","content":"{{PROMPT}}"}]}""",
+    requestHeaders = mapOf("Authorization" to "Bearer {{API_KEY}}"),
+    responseJsonPath = "choices[0].message.content"
+)
+
+/**
+ * پروفایل‌های آماده — ADR-100 اولین پروفایل واقعی (Claude) را اضافه کرد.
+ * ADR-102 دومین (OpenAI)، ADR-103 سومین (Gemini)، و ADR-104 چهارمین
+ * (DeepSeek) را اضافه کردند. این قدم (ADR-105) پنجمین و **آخرین** پروفایل
+ * برنامه‌ریزی‌شده (Qwen) را اضافه می‌کند — با این قدم، G2 («اتصال واقعی به
+ * AI Connector») به‌طور کامل بسته می‌شود.
  */
 val BUILTIN_AI_CONNECTOR_PROFILES: List<AiConnectorProfile> =
-    listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE)
+    listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE, QWEN_API_PROFILE)
 
 /**
  * کاربر پیشرفته می‌تواند یک پروفایل کاملاً دستی برای سرویس ناشناخته/محلی بسازد.

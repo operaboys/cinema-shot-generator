@@ -16,14 +16,20 @@ import org.junit.Test
 
 class AiConnectorTest {
 
-    // --- BUILTIN_AI_CONNECTOR_PROFILES (ADR-100: اولین؛ ADR-102: دومین؛ ADR-103: سومین؛ ADR-104: چهارمین) ---
+    // --- BUILTIN_AI_CONNECTOR_PROFILES (ADR-100: اولین؛ ADR-102: دومین؛ ADR-103: سومین؛ ADR-104: چهارمین؛ ADR-105: پنجمین و آخرین) ---
 
+    /**
+     * این آخرین قدم G2 است — این تست صریحاً تأیید می‌کند لیست نهایی دقیقاً
+     * همان پنج پروفایل برنامه‌ریزی‌شده را دارد، نه کمتر نه بیشتر (طبق دستور
+     * صریح این قدم).
+     */
     @Test
-    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly Claude, OpenAI, Gemini, and DeepSeek, matching each service's official API format`() {
+    fun `BUILTIN_AI_CONNECTOR_PROFILES contains exactly the five planned profiles - Claude, OpenAI, Gemini, DeepSeek, and Qwen - no more, no less`() {
         assertEquals(
-            listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE),
+            listOf(CLAUDE_API_PROFILE, OPENAI_API_PROFILE, GEMINI_API_PROFILE, DEEPSEEK_API_PROFILE, QWEN_API_PROFILE),
             BUILTIN_AI_CONNECTOR_PROFILES
         )
+        assertEquals(5, BUILTIN_AI_CONNECTOR_PROFILES.size)
         assertEquals("https://api.anthropic.com/v1/messages", CLAUDE_API_PROFILE.endpointUrl)
         assertEquals("content[0].text", CLAUDE_API_PROFILE.responseJsonPath)
         assertEquals("2023-06-01", CLAUDE_API_PROFILE.requestHeaders["anthropic-version"])
@@ -436,6 +442,73 @@ class AiConnectorTest {
         assertTrue(
             "خودِ Endpoint دو سرویس باید واقعاً متفاوت باشد",
             OPENAI_API_PROFILE.endpointUrl != DEEPSEEK_API_PROFILE.endpointUrl
+        )
+    }
+
+    // --- QWEN_API_PROFILE واقعی (G2/ADR-105: پنجمین و آخرین پروفایل واقعی،
+    // فرمت کاملاً سازگار با OpenAI) — روی خودِ QWEN_API_PROFILE تولیدی تست
+    // می‌شود. یافته‌ی ریسک اصلی این قدم (طبق دستور اجرایی): endpointUrl باید
+    // یک URL کامل و بدون هیچ Placeholder جای‌خالی‌مانده (مثل {WorkspaceId})
+    // باشد — تست اختصاصی زیر همین را صریحاً بررسی می‌کند.
+
+    @Test
+    fun `a successful Qwen response extracts the correct text via the same choices index 0 message content path as OpenAI`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"Hello from Qwen"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = sendToAiConnector(QWEN_API_PROFILE, apiKey = "sk-qwen-test-123", prompt = "hi", engine = engine)
+
+        assertTrue(result.isSuccess)
+        assertEquals("Hello from Qwen", result.getOrNull())
+    }
+
+    @Test
+    fun `the real request to Qwen carries an Authorization Bearer header and the real prompt and key`() = runBlocking {
+        var capturedBody: String? = null
+        var capturedAuthHeader: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+            capturedAuthHeader = request.headers["Authorization"]
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"ok"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        sendToAiConnector(QWEN_API_PROFILE, apiKey = "sk-qwen-secret", prompt = "write a story", engine = engine)
+
+        assertTrue(capturedBody!!.contains("write a story"))
+        assertTrue("بدنه‌ی واقعی باید مدل پایدار qwen-plus را داشته باشد", capturedBody!!.contains("qwen-plus"))
+        assertEquals("Bearer sk-qwen-secret", capturedAuthHeader)
+    }
+
+    /**
+     * مهم‌ترین ریسک این قدم (طبق دستور اجرایی صریح): نوع اشتباهِ Endpoint
+     * Alibaba Cloud شامل {WorkspaceId} به‌عنوان یک Placeholder جای‌خالی‌مانده
+     * در خودِ URL است (مثلاً یک زیردامنه‌ی جای‌گذاری‌نشده) — این تست صریحاً
+     * تأیید می‌کند endpointUrl نهایی هیچ آکولاد {}/Placeholder ای ندارد و
+     * دقیقاً میزبان بدون WorkspaceId (`dashscope-intl.aliyuncs.com`) است، یعنی
+     * یک URL کامل و بلافاصله قابل‌فراخوانی، نه یک الگوی ناقص.
+     */
+    @Test
+    fun `QWEN_API_PROFILE endpointUrl is a fully-resolved URL with no leftover WorkspaceId placeholder`() {
+        assertEquals(
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+            QWEN_API_PROFILE.endpointUrl
+        )
+        assertFalse(
+            "endpointUrl نباید هیچ Placeholder جای‌خالی‌مانده (مثل {WorkspaceId}) داشته باشد",
+            QWEN_API_PROFILE.endpointUrl.contains("{")
+        )
+        assertFalse(
+            "نباید از نوع Endpoint حاوی WorkspaceId استفاده شود (مثل الگوی *.maas.aliyuncs.com)",
+            QWEN_API_PROFILE.endpointUrl.contains("maas.aliyuncs.com")
         )
     }
 

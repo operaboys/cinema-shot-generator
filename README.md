@@ -1877,6 +1877,35 @@ Claude/OpenAI که همیشه دقیقاً یک آیتم دارند). `SettingsS
 یافته‌ی بازنشستگی مدل، برای رهگیری اگر بعداً دوباره تغییر کرد) در
 `docs/adr/104-g2-fourth-profile-deepseek-and-model-deprecation.md`.
 
+### ✅ G2 — پنجمین و آخرین پروفایل واقعی (Qwen)؛ **هر پنج پروفایل کامل شدند** (ADR-105)
+
+`QWEN_API_PROFILE` (Alibaba Cloud Model Studio / DashScope) به
+`BUILTIN_AI_CONNECTOR_PROFILES` اضافه شد — پنجمین و آخرین پروفایل
+برنامه‌ریزی‌شده، عمداً و کاملاً سازگار با فرمت OpenAI Chat Completions (همان
+`Authorization: Bearer`، همان بدنه‌ی `{model, messages}`، همان مسیر پاسخ
+`choices[0].message.content`). **یافته‌ی معماری حیاتی، تأییدشده مستقل:**
+Alibaba Cloud برای برخی مناطق یک الگوی URL با `WorkspaceId` شخصیِ هر کاربر
+داخل خودِ مسیر می‌دهد (`https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/...`)
+که با معماری `AiConnectorProfile` این پروژه (یک `endpointUrl` ثابت در کد،
+نه Per-user) ناسازگار است — عمداً رد شد؛ به‌جایش از الگوی بین‌المللی بدون
+WorkspaceId استفاده شد:
+`https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions`.
+مدل: `qwen-plus` (نام پایدار، نه یک نام نسخه‌دار در معرض بازنشستگی — همان
+درسِ یافته‌ی مدل منسوخ DeepSeek، ADR-104). `SettingsScreen.kt`/
+`ApiKeysViewModel.kt`/`AiStoryBreakdownViewModel.kt`/
+`AiStoryBreakdownScreen.kt` باز هم **صفر خط تغییر داشتند** — سومین تأیید
+عملی متوالی صحت طراحی پویای ADR-102.
+
+**نتیجه: با این قدم، G2 («اتصال واقعی به AI Connector») به‌طور کامل بسته
+می‌شود.** هر پنج پروفایل برنامه‌ریزی‌شده (Claude، OpenAI، Gemini، DeepSeek،
+Qwen) اضافه شدند؛ کاربر می‌تواند در Settings برای هرکدام کلید API وارد کند،
+در AI Story Breakdown از یک انتخابگر واقعی سرویس را انتخاب کند، و با یک
+کلیک درخواست را مستقیماً به سرویس انتخاب‌شده بفرستد — همه از طریق همان
+زیرساخت مشترک (`sendToAiConnector`/`extractByJsonPath`/
+`applyProcessAiResponseResult`) که در پنج قدم G2 (ADR-098 تا ADR-105) ساخته
+شد، بدون کد تکراری. جزئیات کامل در
+`docs/adr/105-g2-fifth-profile-qwen-and-g2-completion.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

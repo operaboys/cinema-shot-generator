@@ -11,6 +11,7 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFIL
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.DEEPSEEK_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.OPENAI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.QWEN_API_PROFILE
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -426,6 +427,37 @@ class AiStoryBreakdownViewModelTest {
         }
         val vm = buildAutoSendViewModel("proj_auto_send_deepseek_success_test", secureKeyRepository, engine)
         vm.selectProfile(DEEPSEEK_API_PROFILE.profileId).join()
+        vm.setTargetShotCount(5)
+        vm.setFreeformStory("A".repeat(60))
+        vm.generatePrompt()
+        awaitCondition(vm.generatedPrompt) { it != null }
+
+        vm.sendPromptAutomatically().join()
+
+        assertEquals(BreakdownPhase.FINAL_REVIEW, vm.phase.value)
+        assertNotNull(vm.breakdownResult.value)
+        assertEquals("Nora", vm.breakdownResult.value!!.characters.first().name)
+        assertNull(vm.autoSendError.value)
+    }
+
+    @Test
+    fun `a successful automatic send with the Qwen profile selected also reaches FINAL_REVIEW, proving the selector genuinely works for the fifth and final profile with zero UI or ViewModel code changes`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("auto_send_vm_test_qwen_success_prefs")
+        secureKeyRepository.saveApiKey(QWEN_API_PROFILE.profileId, "sk-qwen-real-key")
+        val innerBreakdownJson = """{"characters":[{"name":"Nora","description":"A cartographer","role":"main","gender":"female"}],"locations":[{"name":"Harbor","description":"A foggy harbor"}],"objects":[],"shots":[]}"""
+        val escapedInner = innerBreakdownJson.replace("\"", "\\\"")
+        val engine = MockEngine {
+            // فرمت Qwen عیناً هم‌شکل OpenAI/DeepSeek است (choices[0].message.content)
+            // — تا اثبات شود انتخابگر واقعاً پروفایل انتخاب‌شده (Qwen) را صدا
+            // می‌زند، نه یکی دیگر از سه پروفایل هم‌فرمت دیگر.
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"$escapedInner"}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildAutoSendViewModel("proj_auto_send_qwen_success_test", secureKeyRepository, engine)
+        vm.selectProfile(QWEN_API_PROFILE.profileId).join()
         vm.setTargetShotCount(5)
         vm.setFreeformStory("A".repeat(60))
         vm.generatePrompt()
