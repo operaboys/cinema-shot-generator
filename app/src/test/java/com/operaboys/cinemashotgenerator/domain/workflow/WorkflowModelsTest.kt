@@ -154,4 +154,56 @@ class WorkflowModelsTest {
         // visualSpecificity نباید به صفر یا نصف بی‌جهت افت کند.
         assertEquals(20, score.visualSpecificity)
     }
+
+    // --- هوشمندسازی evaluatePromptQuality — قدم ۱ از ۳ زیرقدم (ADR-118):
+    // کلمات مبهم + MATTR. هر سه تست از subjectDescription استفاده می‌کنند (بدون
+    // میانگین‌گیری‌ای مثل visualSpecificity، ساده‌ترین محور برای ایزوله‌کردن رفتار).
+
+    @Test
+    fun `evaluatePromptQuality penalizes text made purely of vague English words despite sufficient length`() {
+        // ۱۰ کلمه‌ی مبهم متفاوت (نه تکراری) — طول کافی برای پایه‌ی ۲۰، اما نسبت
+        // کلمات مبهم=۱۰/۱۰=۱.۰>۰.۵ → یک پله جریمه (MATTR این متن خودش ۱.۰ است،
+        // چون همه‌ی ۱۰ کلمه متفاوت‌اند — این تست فقط سیگنال کلمات مبهم را می‌سنجد).
+        val parts = richStructuredParts().copy(
+            subjectDescription = "nice beautiful amazing cool good great awesome wonderful stunning lovely"
+        )
+        val blueprint = blueprintWith(parts)
+        val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = "a".repeat(500), language = "en")
+
+        val score = evaluatePromptQuality(rendered, blueprint)
+
+        assertEquals(12, score.subjectClarity)
+    }
+
+    @Test
+    fun `evaluatePromptQuality penalizes repetitive low-diversity text (low MATTR) despite high length`() {
+        // یک کلمه‌ی غیرمبهم (مرد) ۱۵ بار تکرار — طول کافی برای پایه‌ی ۲۰، اما
+        // MATTR در هر پنجره ۰.۱ (۱ کلمه‌ی یکتا از ۱۰) → زیر آستانه‌ی ۰.۵ → یک پله
+        // جریمه (نسبت کلمات مبهم این متن خودش صفر است — این تست فقط سیگنال MATTR
+        // را می‌سنجد، دقیقاً هم‌مثال «مرد مرد مرد مرد» خودِ دستور کار این قدم).
+        val repeatedWord = List(15) { "مرد" }.joinToString(" ")
+        val parts = richStructuredParts().copy(subjectDescription = repeatedWord)
+        val blueprint = blueprintWith(parts)
+        val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = "a".repeat(500), language = "en")
+
+        val score = evaluatePromptQuality(rendered, blueprint)
+
+        assertEquals(12, score.subjectClarity)
+    }
+
+    @Test
+    fun `evaluatePromptQuality detects vague words in both English and Persian within the same text`() {
+        // ۲ کلمه‌ی مبهم انگلیسی + ۲ کلمه‌ی مبهم فارسی + یک کلمه‌ی خنثی — نسبت
+        // مبهم=۴/۵=۰.۸>۰.۵ → یک پله جریمه؛ اثبات صریح اینکه countVagueWords هر
+        // دو فهرست (EN+FA) را در یک متن واحد تشخیص می‌دهد، نه فقط یکی.
+        val parts = richStructuredParts().copy(
+            subjectDescription = "nice beautiful زیبا قشنگ subject"
+        )
+        val blueprint = blueprintWith(parts)
+        val rendered = RenderedOutput(modelProfileId = "veo_3_1", formattedPrompt = "a".repeat(500), language = "en")
+
+        val score = evaluatePromptQuality(rendered, blueprint)
+
+        assertEquals(12, score.subjectClarity)
+    }
 }

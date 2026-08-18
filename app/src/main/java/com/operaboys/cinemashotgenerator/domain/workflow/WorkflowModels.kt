@@ -97,21 +97,103 @@ data class QualityScore(
     val total: Int get() = subjectClarity + cinematicClarity + visualSpecificity + styleCoherence + conciseness
 }
 
+// هوشمندسازی و اتصال evaluatePromptQuality — قدم ۱ از ۳ زیرقدم (ADR-118):
+// دو سیگنال مستقل، تحقیق‌شده، برای تقویت scoreTextRichness (که تا این قدم فقط
+// طول خام متن را می‌سنجید). منبع محتوایی هر دو (فهرست کلمات مبهم، انتخاب
+// MATTR/آستانه‌ها) تحقیق مستقل معمار پروژه در منابع صنعت نوشتن پرامپت AI
+// تصویر/ویدیو است — نه پیشنهاد این پیاده‌سازی؛ جزئیات کامل در ADR-118.
+
 /**
- * تشخیص «غنای» یک بخش متنی از structuredParts — سه سطح ساده (خالی/کوتاه/کافی).
- * بلوپرینت هیچ الگوریتم دقیقی برای evaluatePromptQuality نداده (برخلاف
- * diagnoseJsonError در واحد ۰۱ب) — فقط پنج محور کیفی با توضیح یک‌خطی. این یک
- * تخمین ساده و معقول است، طبق تصمیم مستند در docs/adr/037-unit16-workflow-models-quality-score.md
- * (Option A) — نه یک الگوریتم تحلیل معنایی واقعی.
+ * صفت‌های ذهنی مبهم بدون جزئیات بصری — سیگنال کیفیت پایین، حتی در متن طولانی.
+ * انگلیسی برای فیلدهای عمدتاً Enum-based (styleModifiers/cameraSpecs)، فارسی
+ * برای فیلدهایی که می‌توانند شامل توضیح دستی کاربر باشند (مثل subjectDescription).
+ */
+private val ENGLISH_VAGUE_WORDS = setOf(
+    "nice", "beautiful", "amazing", "cool", "good", "great", "awesome", "wonderful",
+    "stunning", "lovely", "pretty", "fine", "several", "various", "many", "some"
+)
+
+private val PERSIAN_VAGUE_WORDS = setOf(
+    "قشنگ", "زیبا", "خوب", "عالی", "جالب", "باحال", "خفن", "فوق‌العاده", "چندتا", "چند", "خیلی", "بعضی"
+)
+
+/**
+ * تقسیم متن به کلمات با حذف علائم نگارشی از ابتدا/انتهای هر واحد — نه یک
+ * regex محدود به `\w` (که کاراکترهای فارسی را نمی‌شناسد)، بلکه بر اساس
+ * `Char.isLetterOrDigit()` که Unicode-aware است و هر دو زبان را پوشش می‌دهد.
+ * پایه‌ی مشترک هم برای تطبیق کلمه‌به‌کلمه‌ی countVagueWords (نه substring خام
+ * — «goodness» هرگز واحد جدایی از «good» شمرده نمی‌شود) و هم برای calculateMattr.
+ */
+private fun tokenizeWords(text: String): List<String> =
+    text.split(Regex("\\s+"))
+        .map { it.trim { c -> !c.isLetterOrDigit() } }
+        .filter { it.isNotEmpty() }
+
+/** شمارش کلمات مبهم (هر دو زبان) — case-insensitive برای انگلیسی (nice/Nice/NICE هر سه شمرده می‌شوند). */
+private fun countVagueWords(text: String): Int =
+    tokenizeWords(text).count { word ->
+        val lower = word.lowercase()
+        lower in ENGLISH_VAGUE_WORDS || lower in PERSIAN_VAGUE_WORDS
+    }
+
+/**
+ * MATTR (Moving-Average Type-Token Ratio) — طبق یافته‌ی تحقیقی معمار، قوی‌ترین
+ * پیش‌بینی‌کننده‌ی منفرد کیفیت پرامپت (Cohen's d=۰.۷۰۷ روی ۱۰,۰۰۰ پرامپت واقعی).
+ * اگر کلمات متن کمتر از windowSize باشند، از کل متن به‌عنوان یک پنجره‌ی واحد
+ * استفاده می‌شود (نه خطا/تقسیم بر صفر). متن خالی از کلمه → ۱.۰ (نه ۰/NaN؛ نبود
+ * کلمه نباید به «تنوع صفر» تعبیر شود — خودِ خالی‌بودن متن از قبل توسط شرط طول
+ * صفر در scoreTextRichness پوشش داده شده).
+ */
+private fun calculateMattr(text: String, windowSize: Int = 10): Double {
+    val words = tokenizeWords(text).map { it.lowercase() }
+    if (words.isEmpty()) return 1.0
+    if (words.size < windowSize) {
+        return words.toSet().size.toDouble() / words.size
+    }
+    val windowCount = words.size - windowSize + 1
+    val totalTtr = (0 until windowCount).sumOf { start ->
+        words.subList(start, start + windowSize).toSet().size.toDouble() / windowSize
+    }
+    return totalTtr / windowCount
+}
+
+/** آستانه‌ها: بیش از نیمی از کلمات متن مبهم‌اند؛ یا نیمی از کلمات یک پنجره تکراری‌اند. */
+private const val VAGUE_WORD_MAJORITY_THRESHOLD = 0.5
+private const val LOW_MATTR_THRESHOLD = 0.5
+
+/** چهار سطح موجود scoreTextRichness، به‌ترتیب افزایشی — برای «پله پایین آوردن» جریمه. */
+private val RICHNESS_LEVELS = listOf(0, 5, 12, 20)
+
+/**
+ * تشخیص «غنای» یک بخش متنی از structuredParts. پایه همان منطق قبلی طول خام
+ * است (Option A، docs/adr/037-unit16-workflow-models-quality-score.md) — این
+ * قدم آن را کاملاً جایگزین نمی‌کند، بلکه با دو جریمه‌ی مستقل تقویتش می‌کند:
+ * اگر بیش از نیمی از کلمات متن مبهم باشند، یا MATTR زیر آستانه باشد، امتیاز
+ * یک «پله» در فهرست ثابت RICHNESS_LEVELS (۰→۵→۱۲→۲۰) پایین می‌آید — اگر هر دو
+ * شرط همزمان رخ دهند، دو پله. تصمیم فنی (نه محتوایی): جمع جریمه‌های مستقل
+ * روی شاخص سطح (نه ضرب ضریب یا فرمول پیوسته) چون رفتار قابل‌پیش‌بینی، قابل‌تست‌
+ * دقیق (یک تست = یک شرط ایزوله‌شده)، و همچنان محدود به همان چهار سطح گسسته‌ی
+ * قبلی است — بدون نیاز به تغییر نوع بازگشتی یا معماری QualityScore.
  */
 private fun scoreTextRichness(text: String): Int {
     val trimmed = text.trim()
-    return when {
-        trimmed.isEmpty() -> 0
+    val baseScore = when {
+        trimmed.isEmpty() -> return 0
         trimmed.length < 10 -> 5
         trimmed.length < 25 -> 12
         else -> 20
     }
+
+    val wordCount = tokenizeWords(trimmed).size
+    if (wordCount == 0) return baseScore
+
+    var penaltySteps = 0
+    if (countVagueWords(trimmed).toDouble() / wordCount > VAGUE_WORD_MAJORITY_THRESHOLD) penaltySteps++
+    if (calculateMattr(trimmed) < LOW_MATTR_THRESHOLD) penaltySteps++
+    if (penaltySteps == 0) return baseScore
+
+    val baseIndex = RICHNESS_LEVELS.indexOf(baseScore)
+    return RICHNESS_LEVELS[(baseIndex - penaltySteps).coerceAtLeast(0)]
 }
 
 /**
