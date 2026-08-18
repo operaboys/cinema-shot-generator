@@ -2084,6 +2084,27 @@ Secondary بی‌معناست)، این‌بار در سطح State. بررسی �
 (دامنه + DTO + Mapper + ViewModel) — بدون هیچ UI (زیرقدم بعدی). جزئیات
 کامل در `docs/adr/113-unit03-style-matrix-connection-step1a-core-identity-secondary-influence.md`.
 
+### ✅ اتصال کامل Style Matrix — قدم ۲الف از ۹ زیرقدم: ماتریس واقعی سازگاری سبک‌ها (ADR-114)
+
+`checkStyleCompatibility` رفتار حداقلی قدیمی (همیشه `MEDIUM/false`) را
+با یک ماتریس واقعی جایگزین کرد و امضایش از `(String, String)` به
+`(VisualStyle, VisualStyle)` تغییر کرد. **منبع محتوایی ماتریس تحقیق
+مستقل معمار پروژه در منابع صنعت انیمیشن/هنر بصری است، نه حدس** — فهرست
+کامل قوانین (ماتریس ۵×۵ سطح دسته + ۵ Override دقیق سطح سبک، هرکدام با
+اولویت بر دسته) در ADR-114 به‌عنوان مرجع آینده مستند شده. دو `Map`
+متقارن (`categoryCompatibility`، `explicitStyleOverrides`) با
+`checkNotNull` (نه Fallback خاموش) پیاده‌سازی شدند تا هر سطر جاافتاده‌ی
+احتمالی در آینده بلافاصله و صریح خطا بدهد، نه بی‌صدا پنهان شود.
+`StyleMatrix.primaryStyle`/`secondaryStyle` هم از `StyleReference`
+منسوخ به `VisualStyle` مستقیم تغییر کردند (`StyleReference`/
+`combineStyles`/`getInfluenceModifier` برای `promptTokens` قدم‌های
+آینده دست‌نخورده ماندند). یافته‌ی خارج از Scope صریح: `validatePrimaryStyleUpdate`
+همچنان روی `StyleReference?` است و اکنون با نوع واقعی `StyleMatrix.primaryStyle`
+ناسازگار — طبق دستور صریح تغییر داده نشد، فقط گزارش شد. ۱۷ تست (از ۱۰
+قبلی) `StyleMatrixTest.kt` را کامل بازنویسی کردند، شامل دو تست که عمداً
+اثبات می‌کنند Override واقعاً بر Category اولویت دارد. جزئیات کامل در
+`docs/adr/114-unit03-style-matrix-connection-step2a-compatibility-matrix.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
