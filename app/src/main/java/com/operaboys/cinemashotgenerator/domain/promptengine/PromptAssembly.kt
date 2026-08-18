@@ -3,6 +3,8 @@ package com.operaboys.cinemashotgenerator.domain.promptengine
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.shot.resolveNegativePrompt
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.visualidentity.combineStyles
+import com.operaboys.cinemashotgenerator.domain.visualidentity.toStyleReference
 import java.util.UUID
 
 // واحد ۱۱ — تابع اصلی مونتاژ PromptBlueprint (قلب معماری کل سیستم)
@@ -43,6 +45,19 @@ fun assemblePromptBlueprint(
     // input.environment.weatherType مشتق می‌شود (چون Scene خودش weather ندارد؛ ADR-012).
     val sceneWeather = input.environment.weatherType.name.lowercase()
 
+    // اتصال کامل Style Matrix — قدم ۴-اتصال از ۸ زیرقدم (آخرین زیرقدم، ADR-117):
+    // تا این قدم styleModifiers فقط نام خام enum سبک اصلی بود (مثلاً
+    // "CINEMATIC_STYLE style") و secondaryStyle/influence (ADR-113) هیچ اثری
+    // روی پرامپت نهایی نداشتند. اکنون همان زنجیره‌ی واقعی دامنه (توابع
+    // دست‌نخورده‌ی موجود، از قدم اول این پلن) فراخوانی می‌شود:
+    // toStyleReference() (ADR-116، promptTokens غنی) + combineStyles (اگر
+    // secondaryStyle/influence هر دو ست باشند، سبک ثانویه با Modifier درست
+    // اضافه می‌شود؛ در غیر این صورت فقط سبک اصلی، دقیقاً طبق منطق موجود خودِ
+    // combineStyles).
+    val primaryStyleRef = input.dna.coreIdentity.dominantVisualStyle.toStyleReference()
+    val secondaryStyleRef = input.dna.coreIdentity.secondaryStyle?.toStyleReference()
+    val combinedStyle = combineStyles(primaryStyleRef, secondaryStyleRef, input.dna.coreIdentity.influence)
+
     val structuredParts = StructuredParts(
         subjectDescription = enforceCharacterContinuity(input.characters, input.scene, sceneWeather).joinToString(", "),
         sceneContext = "${input.scene.atmospherePrimary} atmosphere, ${input.scene.timeOfDay} time",
@@ -50,7 +65,7 @@ fun assemblePromptBlueprint(
         cameraSpecs = "${input.camera.angle} angle, ${input.camera.distance} shot, ${input.camera.lensType} lens",
         lightingSpecs = "${input.lighting.style} lighting, ${input.lighting.keyLightPosition} key light, ${input.lighting.contrastRatio} contrast",
         environmentSpecs = if (input.environment.weatherType != WeatherType.CLEAR) "${input.environment.weatherType} weather" else null,
-        styleModifiers = "${input.dna.coreIdentity.dominantVisualStyle} style, ${input.dna.masterPalette.colorGradingPreset}",
+        styleModifiers = "$combinedStyle, ${input.dna.masterPalette.colorGradingPreset}",
         timelineBeats = timelineBeats,
         audioDescription = audioDescription
     )

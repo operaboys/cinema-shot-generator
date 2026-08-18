@@ -2144,6 +2144,30 @@ ADR-116 مستند شده. پیاده‌سازی از `when` بدون `else` ا�
 به‌علاوه‌ی یک تست کامل‌بودن (۳۴ ورودی، `styleId` یکتا). جزئیات کامل در
 `docs/adr/116-unit03-style-matrix-connection-step4-content-prompt-tokens.md`.
 
+### ✅ اتصال کامل Style Matrix — قدم ۴-اتصال (آخرین زیرقدم): اتصال واقعی به PromptAssembly.kt؛ **کل برنامه‌ی «اتصال کامل Style Matrix» به‌طور کامل و End-to-End بسته شد** (ADR-117)
+
+`styleModifiers` در `PromptAssembly.kt` تا این قدم فقط نام خام enum
+سبک اصلی بود (`"CINEMATIC_STYLE style"`) و `secondaryStyle`/`influence`
+(ADR-113) هیچ اثری روی پرامپت نهایی نداشتند. اکنون سه تابع/فیلد موجود
+از قدم‌های قبلی — `toStyleReference()` (ADR-116)، `combineStyles`
+(دست‌نخورده از ابتدا)، `CoreIdentity.secondaryStyle`/`influence`
+(ADR-113) — فراخوانی می‌شوند تا `styleModifiers` واقعی هم سبک اصلی و
+هم سبک ثانویه (با Modifier درست بر اساس Influence) را منعکس کند.
+بررسی گسترده‌تر تأیید کرد `RendererTest.kt`/`ModelProfilesTest.kt`/
+`WorkflowModelsTest.kt` (که `styleModifiers` را دستی می‌سازند، نه از
+`assemblePromptBlueprint`) بدون هیچ تغییری سبز ماندند. یک تست
+End-to-End واقعی تازه (`StyleMatrixConnectionEndToEndTest.kt`) —
+برخلاف بقیه‌ی تست‌ها که یک `ProjectDna` دستی می‌سازند — از خودِ
+`DnaViewModel` واقعی + `ProjectDnaRepository` واقعی Room استفاده
+می‌کند تا اثبات کند کل زنجیره‌ی ۸ زیرقدم (ADR-113 تا ADR-117:
+UI/ViewModel → Repository/Room واقعی → دامنه → `PromptAssembly`)
+واقعاً به‌هم وصل است. **با این قدم، برنامه‌ی «اتصال کامل Style Matrix»
+(ADR-113 تا ADR-117) به‌طور کامل بسته شد** — یک کاربر واقعی اکنون
+می‌تواند سبک ثانویه و شدت تأثیرش را در تب DNA تنظیم کند و ببیند این
+انتخاب واقعاً وارد پرامپت نهایی ارسالی به مدل‌های تولید تصویر/ویدیو
+می‌شود. جزئیات کامل در
+`docs/adr/117-unit03-style-matrix-connection-step4-final-prompt-assembly-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

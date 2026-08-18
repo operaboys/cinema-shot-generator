@@ -59,6 +59,9 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
+import com.operaboys.cinemashotgenerator.domain.visualidentity.combineStyles
+import com.operaboys.cinemashotgenerator.domain.visualidentity.toStyleReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -210,7 +213,13 @@ class PromptAssemblyTest {
         assertTrue(parts.cameraSpecs.contains("EYE_LEVEL"))
         assertTrue(parts.lightingSpecs.contains("DRAMATIC"))
         assertEquals("RAIN weather", parts.environmentSpecs)
-        assertTrue(parts.styleModifiers.contains("CINEMATIC"))
+        // اتصال کامل Style Matrix — قدم ۴-اتصال از ۸ زیرقدم (ADR-117): این تست
+        // قبلاً انتظار نام خام enum ("CINEMATIC") را داشت. sampleDna() از قبل
+        // dominantVisualStyle=VisualStyle.CINEMATIC_STYLE دارد (تأییدشده با
+        // خواندن مستقیم sampleDna() بالا)؛ promptTokens واقعی آن (ADR-116) با
+        // "cinematic style" شروع می‌شود — رفتار جدید و صحیح، نه چیزی که باید
+        // حفظ می‌شد.
+        assertTrue(parts.styleModifiers.contains("cinematic style"))
         assertNotNull(parts.timelineBeats)
         assertTrue(parts.timelineBeats!!.contains("قدم اول"))
         assertNotNull(parts.audioDescription)
@@ -260,6 +269,47 @@ class PromptAssemblyTest {
             validationIssues = emptyList()
         )
         assertEquals("blurry, low quality", blueprint.negativePrompt)
+    }
+
+    // اتصال کامل Style Matrix — قدم ۴-اتصال از ۸ زیرقدم (آخرین زیرقدم، ADR-117):
+    // اثبات صریح که secondaryStyle/influence (ADR-113) واقعاً به styleModifiers
+    // نهایی می‌رسند — نه فقط اینکه رشته‌ی primary دیگر خام نیست.
+
+    @Test
+    fun `assemblePromptBlueprint includes the secondary style with the correct influence modifier when both are set`() {
+        val dnaWithSecondaryStyle = sampleDna().let {
+            it.copy(coreIdentity = it.coreIdentity.copy(secondaryStyle = VisualStyle.STUDIO_GHIBLI, influence = StyleInfluence.STRONG))
+        }
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(dna = dnaWithSecondaryStyle),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        val expectedCombinedStyle = combineStyles(
+            VisualStyle.CINEMATIC_STYLE.toStyleReference(),
+            VisualStyle.STUDIO_GHIBLI.toStyleReference(),
+            StyleInfluence.STRONG
+        )
+        assertTrue(blueprint.structuredParts.styleModifiers.startsWith(expectedCombinedStyle))
+        assertTrue(blueprint.structuredParts.styleModifiers.contains("strongly influenced by"))
+        assertTrue(blueprint.structuredParts.styleModifiers.contains(VisualStyle.STUDIO_GHIBLI.toStyleReference().promptTokens))
+        // colorGradingPreset ("natural") همچنان در انتها باقی می‌ماند.
+        assertTrue(blueprint.structuredParts.styleModifiers.endsWith("natural"))
+    }
+
+    @Test
+    fun `assemblePromptBlueprint contains only the primary style's promptTokens when no secondary style is set`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput(),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        val primaryOnly = combineStyles(VisualStyle.CINEMATIC_STYLE.toStyleReference(), secondary = null, influence = null)
+        assertEquals("$primaryOnly, natural", blueprint.structuredParts.styleModifiers)
     }
 
     @Test
