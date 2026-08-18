@@ -276,6 +276,30 @@ class OutputDeliveryViewModelTest {
     }
 
     /**
+     * هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119):
+     * اثبات اتصال End-to-End واقعی — نه یک تست دوباره روی مقدار عددی دقیق
+     * (که قبلاً در WorkflowModelsTest.kt/ADR-108 پوشش داده شده)، بلکه اثبات
+     * اینکه regenerate() واقعی این ViewModel واقعاً evaluatePromptQuality را
+     * صدا می‌زند و نتیجه‌اش در state.value منعکس می‌شود.
+     */
+    @Test
+    fun `regenerate populates a real, in-range qualityScore in the Ready state`() = runBlocking {
+        val shotId = "${SHOT_ID}_quality"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val viewModel = buildViewModel(shotId, initialModelProfileId = "universal_default")
+        viewModel.regenerate().join()
+        val state = viewModel.state.value as OutputDeliveryState.Ready
+
+        assertTrue("total باید در بازه‌ی معتبر ۰ تا ۱۰۰ باشد، مقدار واقعی: ${state.qualityScore.total}", state.qualityScore.total in 0..100)
+        assertEquals(
+            state.qualityScore.total,
+            state.qualityScore.subjectClarity + state.qualityScore.cinematicClarity +
+                state.qualityScore.visualSpecificity + state.qualityScore.styleCoherence + state.qualityScore.conciseness
+        )
+    }
+
+    /**
      * exportOutput واقعاً exportFiles بسته‌ی رندرشده را می‌نویسد — از طریق
      * ExportFileWriter تزریقی (Fake اینجا)، بدون نیاز به Context/File I/O واقعی.
      */

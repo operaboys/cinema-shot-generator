@@ -31,6 +31,8 @@ import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateConfl
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
+import com.operaboys.cinemashotgenerator.domain.workflow.QualityScore
+import com.operaboys.cinemashotgenerator.domain.workflow.evaluatePromptQuality
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -63,7 +65,12 @@ sealed class OutputDeliveryState {
         // composeOutput (واحد ۱۴) اکنون بلافاصله بعد از رندر/پاک‌سازی موفق صدا
         // زده می‌شود، نه در لحظه‌ی کلیک Export — دکمه‌ی Export فقط exportFiles
         // موجود این بسته را روی دیسک می‌نویسد.
-        val outputPackage: OutputPackage
+        val outputPackage: OutputPackage,
+        // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119):
+        // فقط QualityScore نهایی (نه کل blueprint) نگه داشته می‌شود — نگه‌داشتن
+        // کل blueprint در state برای این یک مصرف (نمایش یک کارت اطلاعاتی) بی‌دلیل
+        // بزرگ‌تر از لازم بود.
+        val qualityScore: QualityScore
     ) : OutputDeliveryState()
 }
 
@@ -209,6 +216,12 @@ class OutputDeliveryViewModel(
 
             val finalRenderedOutput = finalization?.rendered ?: renderedOutput
 
+            // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119):
+            // هر دو ورودی لازم (finalRenderedOutput، blueprint) همین‌جا در دسترس‌اند —
+            // محاسبه بلافاصله بعد از ساخته‌شدن finalRenderedOutput انجام می‌شود، نه
+            // یک محل جدا/دیرتر.
+            val qualityScore = evaluatePromptQuality(finalRenderedOutput, blueprint)
+
             // رفع یافته‌ی معماری «دکمه‌ی Export مستعار Copy است» (G4/G18، ADR-067،
             // رفع در ADR-069). محدودیت شناخته‌شده و آگاهانه (نه بدهی فنی این قدم،
             // طبق Bilingual.kt که صریحاً generateBilingualPrompt/translateToFarsi
@@ -233,7 +246,8 @@ class OutputDeliveryViewModel(
                 warnings = blueprint.warnings + renderWarnings + cleaningWarnings,
                 tokenCheck = finalization?.tokenCheck,
                 cleaningSucceeded = finalization != null,
-                outputPackage = outputPackage
+                outputPackage = outputPackage,
+                qualityScore = qualityScore
             )
         }
         regenerateJob = job

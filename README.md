@@ -2187,6 +2187,24 @@ On-Device) اضافه شد — **منبع محتوایی هر دو، تحقیق 
 هر سه تست قبلی بدون تغییر سبز ماندند. جزئیات کامل در
 `docs/adr/118-unit16-evaluate-prompt-quality-step1-vague-words-mattr.md`.
 
+### ✅ هوشمندسازی evaluatePromptQuality — قدم ۲ از ۳ زیرقدم: اتصال به UI در OutputDeliveryScreen (فقط مسیر ۱، بدون AI) (ADR-119)
+
+`evaluatePromptQuality` (هوشمندشده در ADR-118) تا این قدم هرگز از هیچ‌جای
+UI فراخوانی نمی‌شد. `OutputDeliveryState.Ready` یک فیلد `qualityScore`
+تازه گرفت که در `regenerate()`، بلافاصله بعد از ساخته‌شدن
+`finalRenderedOutput`، محاسبه می‌شود (فقط `QualityScore` نهایی نگه
+داشته می‌شود، نه کل `blueprint`). یک کارت تازه — `PromptQualityCard` —
+بلافاصله بعد از `OutputPreviewCard` و پیش از بخش هشدارها اضافه شد:
+عنوان **«شاخص کیفیت نوشتاری پرامپت (سریع نه دقیق)»** (تصمیم محتوایی
+مستقیم معمار/کاربر پروژه، نه پیشنهاد Claude Code)، امتیاز کل برجسته،
+و پنج زیرمعیار با برچسب‌های متناظر. کاملاً اطلاعاتی و غیرمسدودکننده —
+هیچ رنگ خطا برای امتیاز پایین نمایش داده نمی‌شود، هم‌راستا با فلسفه‌ی
+خودِ `evaluatePromptQuality` («کمک، نه بلاک‌کردن»). یک تست تازه‌ی
+ViewModel اتصال End-to-End واقعی را اثبات می‌کند (نه تکرار تست مقدار
+عددی که در ADR-118 پوشش داده شده). این قدم فقط مسیر ۱ (بدون AI) را
+وصل کرد — مسیر ۲/AI اختیاری قدم ۳ این برنامه است. جزئیات کامل در
+`docs/adr/119-unit16-evaluate-prompt-quality-step2-output-delivery-ui.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

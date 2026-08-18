@@ -43,6 +43,7 @@ import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckRes
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
+import com.operaboys.cinemashotgenerator.domain.workflow.QualityScore
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -63,6 +64,8 @@ const val OUTPUT_DELIVERY_REGENERATE_BUTTON_TAG = "outputDelivery.regenerateButt
 const val OUTPUT_DELIVERY_EXPORT_BUTTON_TAG = "outputDelivery.exportButton"
 const val OUTPUT_DELIVERY_TOGGLE_LANGUAGE_BUTTON_TAG = "outputDelivery.toggleLanguageButton"
 const val OUTPUT_DELIVERY_TOGGLE_THEME_BUTTON_TAG = "outputDelivery.toggleThemeButton"
+/** هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119). */
+const val OUTPUT_DELIVERY_QUALITY_CARD_TAG = "outputDelivery.qualityCard"
 
 fun outputDeliveryModelChipTag(profileId: String): String = "outputDelivery.modelChip.$profileId"
 
@@ -164,6 +167,12 @@ fun OutputDeliveryScreen(
                         // بازخورد کافی است.
                         onExport = { viewModel.exportOutput() }
                     )
+                    // ترتیب عمدی: بلافاصله بعد از خودِ کارت پیش‌نمایش (متن واقعی پرامپت)
+                    // و پیش از بخش هشدارها — این کارت مستقیماً درباره‌ی همان متنی است که
+                    // در OutputPreviewCard دیده شد (نه یک بخش مستقل جدا)، پس منطقی است
+                    // بلافاصله زیرش بیاید؛ هشدارها (که می‌توانند به دلایل کاملاً متفاوتی
+                    // مثل تضاد Validation باشند، نه فقط کیفیت نوشتاری) بعد از آن.
+                    PromptQualityCard(score = currentState.qualityScore, language = language)
                     WarningsSection(warnings = currentState.warnings, language = language)
                 }
             }
@@ -276,6 +285,49 @@ private fun OutputPreviewCard(
                 Text(uiString("outputDelivery.exportButton", language))
             }
         }
+    }
+}
+
+/**
+ * هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119):
+ * کارت کاملاً اطلاعاتی/غیرمسدودکننده — هیچ رنگ خطا/Blocking برای امتیاز پایین
+ * نمایش داده نمی‌شود (هم‌راستا با کامنت خودِ evaluatePromptQuality در
+ * WorkflowModels.kt: «کمک به کاربر، نه بلاک‌کردن جریان کار»). هم‌الگو با
+ * OutputPreviewCard (همان Card/رنگ‌بندی CinemaTheme).
+ */
+@Composable
+private fun PromptQualityCard(score: QualityScore, language: Language) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().testTag(OUTPUT_DELIVERY_QUALITY_CARD_TAG)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(text = uiString("outputDelivery.qualityCardTitle", language), style = MaterialTheme.typography.titleMedium)
+
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = uiString("outputDelivery.qualityScoreTotalLabel", language), style = MaterialTheme.typography.bodyMedium)
+                Text(text = "${score.total}/100", style = MaterialTheme.typography.headlineSmall)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                QualityAxisRow(uiString("outputDelivery.qualitySubjectClarityLabel", language), score.subjectClarity)
+                QualityAxisRow(uiString("outputDelivery.qualityCinematicClarityLabel", language), score.cinematicClarity)
+                QualityAxisRow(uiString("outputDelivery.qualityVisualSpecificityLabel", language), score.visualSpecificity)
+                QualityAxisRow(uiString("outputDelivery.qualityStyleCoherenceLabel", language), score.styleCoherence)
+                QualityAxisRow(uiString("outputDelivery.qualityConcisenessLabel", language), score.conciseness)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QualityAxisRow(label: String, value: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
+        Text(text = "$value/20", style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
     }
 }
 
