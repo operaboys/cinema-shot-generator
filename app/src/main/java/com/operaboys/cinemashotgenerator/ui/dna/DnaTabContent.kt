@@ -65,6 +65,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.dna.validateColorPalette
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
@@ -108,6 +109,8 @@ const val DNA_FORBIDDEN_VALUE_FIELD_TAG = "dna.forbiddenValueField"
 const val DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG = "dna.addForbiddenElementButton"
 const val DNA_QUALITY_TAGS_FIELD_TAG = "dna.qualityTagsField"
 const val DNA_NEGATIVE_PROMPT_FIELD_TAG = "dna.negativePromptField"
+/** تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): حالت سراسری Cinematic Language. */
+const val DNA_CINEMATIC_MODE_FIELD_TAG = "dna.cinematicModeField"
 
 /** طبق «مثلاً» بلوپرینت ۰۲ (forbidden_elements: camera/lighting/weather) — همان سه دسته‌ای که Rule 2 (validateShotAgainstDna) واقعاً روی‌شان اعمال می‌شود. */
 val DNA_FORBIDDEN_ELEMENT_CATEGORIES = listOf("camera", "lighting", "weather")
@@ -280,6 +283,21 @@ fun DnaTabContent(
                         onSelected = { viewModel.setPreferredLightingStyle(it); onDismiss() }
                     )
                 }
+            }
+        }
+
+        // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112، آخرین قدم کل فیچر): حالت سراسری
+        // Cinematic Language پروژه — تا این قدم فقط پیش‌فرض‌های برنامه‌نویسی‌شده
+        // اعمال می‌شدند، بدون هیچ راهی برای تنظیم دستی توسط کاربر. سه مقدار ثابت
+        // (غیر-nullable) — هم‌الگو دقیق با فیلدهای Enum ساده‌ی گروه‌های بالا
+        // (RealismLevel/StyleConsistency).
+        DnaGroup(title = uiString("dna.group.cinematicLanguage", language), fieldCount = 1) {
+            EnumDropdownField(
+                label = uiString("dna.cinematicLanguage.globalModeLabel", language),
+                selectedLabel = cinematicModeLabel(dna.cinematicLanguage.globalMode, language),
+                testTag = DNA_CINEMATIC_MODE_FIELD_TAG
+            ) { onDismiss ->
+                FlatEntries(CinematicMode.entries, { cinematicModeLabel(it, language) }) { viewModel.setGlobalCinematicMode(it); onDismiss() }
             }
         }
 

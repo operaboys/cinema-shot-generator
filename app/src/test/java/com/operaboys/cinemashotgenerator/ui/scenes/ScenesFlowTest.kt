@@ -32,6 +32,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
@@ -39,7 +40,10 @@ import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.ui.dna.cinematicModeLabel
 import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
+import com.operaboys.cinemashotgenerator.ui.story.moodLabel
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
@@ -280,6 +284,59 @@ class ScenesFlowTest {
         composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
         composeRule.waitUntilExactlyOneExists(hasText(visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)), timeoutMillis = 5_000)
         composeRule.onNodeWithText("FILM_NOIR").assertDoesNotExist()
+    }
+
+    /**
+     * تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): هم‌الگو دقیق با تست بالا برای
+     * globalVisualStyleOverride — اثبات می‌کند Dropdown تازه‌ی cinematicModeOverride
+     * واقعاً مقدار انتخاب‌شده را ذخیره می‌کند (نه یک مقدار جای‌گیر یا رشته‌ی خام)
+     * و OverviewTab آن را با برچسب ترجمه‌شده نشان می‌دهد.
+     */
+    @Test
+    fun `choosing a cinematic mode override from SceneSettingsDialog saves it and shows the translated label in Overview`() {
+        createProjectAndOpenScenesTab("Scenes Cinematic Mode Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText(uiString("sceneDetail.overview.cinematicModeFromProject", Language.FA)).assertExists()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_EDIT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.settingsDialogTitle", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag("sceneDetail.settings.cinematicModeField").clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(cinematicModeLabel(CinematicMode.FAST_CUT, Language.FA)), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(cinematicModeLabel(CinematicMode.FAST_CUT, Language.FA)).performClick()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(cinematicModeLabel(CinematicMode.FAST_CUT, Language.FA)), timeoutMillis = 5_000)
+    }
+
+    /** هم‌الگو دقیق با تست بالا — برای فیلد `mood` تازه (ADR-109). */
+    @Test
+    fun `choosing a mood from SceneSettingsDialog saves it and shows the translated label in Overview`() {
+        createProjectAndOpenScenesTab("Scenes Mood Test")
+
+        composeRule.onNodeWithTag(SCENES_LIST_NEW_SCENE_FAB_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.tab.overview", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithText(uiString("sceneDetail.overview.moodUnset", Language.FA)).assertExists()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_EDIT_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(uiString("sceneDetail.settingsDialogTitle", Language.FA)), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag("sceneDetail.settings.moodField").clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(moodLabel(Mood.MYSTERIOUS, Language.FA)), timeoutMillis = 5_000)
+        // یافته‌ی واقعی این تست (هم‌خانواده با یافته‌ی مستندشده‌ی بالای این فایل برای FAB):
+        // performClick() مبتنی بر مختصات، وقتی آیتم هدف (Mood.MYSTERIOUS، در جایگاه ۱۷ از
+        // ۲۵ مقدار) پایین‌تر از ناحیه‌ی قابل‌مشاهده‌ی اولیه‌ی این Popup غیر-Lazy طولانی قرار
+        // دارد، هیچ کلیکی Trigger نمی‌کند (گره در Semantics Tree پیدا می‌شود، اما لامبدای
+        // onClick هرگز اجرا نمی‌شود) — رفع با همان راه‌حل تثبیت‌شده‌ی پروژه:
+        // performSemanticsAction(SemanticsActions.OnClick) به‌جای performClick().
+        composeRule.onNodeWithText(moodLabel(Mood.MYSTERIOUS, Language.FA)).clickViaSemantics()
+
+        composeRule.onNodeWithTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(moodLabel(Mood.MYSTERIOUS, Language.FA)), timeoutMillis = 5_000)
     }
 
     /**

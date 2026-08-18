@@ -66,12 +66,14 @@ import com.operaboys.cinemashotgenerator.domain.asset.AssetType
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ShotListViewMode
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
@@ -82,8 +84,10 @@ import com.operaboys.cinemashotgenerator.ui.assets.characterTierLabel
 import com.operaboys.cinemashotgenerator.ui.assets.locationContinuityLevelLabel
 import com.operaboys.cinemashotgenerator.ui.assets.objectSubtypeLabel
 import com.operaboys.cinemashotgenerator.ui.assets.propContinuityLevelLabel
+import com.operaboys.cinemashotgenerator.ui.dna.cinematicModeLabel
 import com.operaboys.cinemashotgenerator.ui.dna.visualStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.story.moodLabel
 import com.operaboys.cinemashotgenerator.ui.shots.ShotListScreen
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
@@ -304,8 +308,8 @@ fun SceneDetailScreen(
             connectedLocationName = locationAssets.find { it.assetId == sceneForSettings.locationAssetId }?.name,
             onChangeLocationClick = { showSettingsDialog = false; showLocationPicker = true },
             onDismiss = { showSettingsDialog = false },
-            onSave = { title, role, time, primary, secondary, visualStyleOverride ->
-                viewModel.saveSceneSettings(title, role, time, primary, secondary, visualStyleOverride)
+            onSave = { title, role, time, primary, secondary, visualStyleOverride, cinematicModeOverride, mood ->
+                viewModel.saveSceneSettings(title, role, time, primary, secondary, visualStyleOverride, cinematicModeOverride, mood)
                 showSettingsDialog = false
             }
         )
@@ -434,6 +438,18 @@ private fun OverviewTab(
             label = uiString("sceneDetail.overview.globalVisualStyleLabel", language),
             value = scene.globalVisualStyle.override?.let { visualStyleLabel(VisualStyle.valueOf(it), language) }
                 ?: uiString("sceneDetail.overview.globalVisualStyleFromDna", language)
+        )
+        // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): هم‌الگو دقیق با globalVisualStyle
+        // بالا — نمایش InfoRow برای هر دو فیلد تازه، کنار Dropdown ویرایش در
+        // SceneSettingsDialog (جفت کامل «خواندن + نوشتن»، مثل بقیه‌ی فیلدهای این Tab).
+        InfoRow(
+            label = uiString("sceneDetail.overview.cinematicModeOverrideLabel", language),
+            value = scene.cinematicModeOverride?.let { cinematicModeLabel(it, language) }
+                ?: uiString("sceneDetail.overview.cinematicModeFromProject", language)
+        )
+        InfoRow(
+            label = uiString("sceneDetail.overview.moodLabel", language),
+            value = scene.mood?.let { moodLabel(it, language) } ?: uiString("sceneDetail.overview.moodUnset", language)
         )
 
         QuickActionsRow(
@@ -742,7 +758,7 @@ private fun SceneSettingsDialog(
     connectedLocationName: String?,
     onChangeLocationClick: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String?, NarrativeRole, TimeOfDay, Atmosphere, Atmosphere?, String?) -> Unit
+    onSave: (String?, NarrativeRole, TimeOfDay, Atmosphere, Atmosphere?, String?, CinematicMode?, Mood?) -> Unit
 ) {
     var title by remember { mutableStateOf(scene.sceneTitle ?: "") }
     var narrativeRole by remember { mutableStateOf(scene.narrativeRole) }
@@ -750,6 +766,9 @@ private fun SceneSettingsDialog(
     var atmospherePrimary by remember { mutableStateOf(scene.atmospherePrimary) }
     var atmosphereSecondary by remember { mutableStateOf(scene.atmosphereSecondary) }
     var globalVisualStyleOverride by remember { mutableStateOf(scene.globalVisualStyle.override) }
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112).
+    var cinematicModeOverride by remember { mutableStateOf(scene.cinematicModeOverride) }
+    var mood by remember { mutableStateOf(scene.mood) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -835,11 +854,50 @@ private fun SceneSettingsDialog(
                         AssetFormFlatEntries(VisualStyle.entries, { visualStyleLabel(it, language) }) { globalVisualStyleOverride = it.name; onDismissMenu() }
                     }
                 }
+                // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override محلی سطح صحنه‌ی
+                // Cinematic Mode (ADR-106) — null یعنی «پیروی از پروژه»، هم‌الگو
+                // دقیق با globalVisualStyleOverride بالا (فیلد مستقیم + گزینه‌ی
+                // صریح Fallback، نه یک مقدار جای‌گیر).
+                AssetFormEnumDropdownField(
+                    label = uiString("sceneDetail.overview.cinematicModeOverrideLabel", language),
+                    selectedLabel = cinematicModeOverride?.let { cinematicModeLabel(it, language) }
+                        ?: uiString("sceneDetail.overview.cinematicModeFromProject", language),
+                    testTag = "sceneDetail.settings.cinematicModeField"
+                ) { onDismissMenu ->
+                    Column {
+                        DropdownMenuItem(
+                            text = { Text(uiString("sceneDetail.overview.cinematicModeFromProject", language)) },
+                            onClick = { cinematicModeOverride = null; onDismissMenu() }
+                        )
+                        AssetFormFlatEntries(CinematicMode.entries, { cinematicModeLabel(it, language) }) { cinematicModeOverride = it; onDismissMenu() }
+                    }
+                }
+                // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Mood صریح صحنه (ADR-109) —
+                // null یعنی «تعیین‌نشده» (مصرف‌شده در resolveEffectiveCinematicMode
+                // فقط وقتی Beat Sheet شات کاملاً خالی است).
+                AssetFormEnumDropdownField(
+                    label = uiString("sceneDetail.overview.moodLabel", language),
+                    selectedLabel = mood?.let { moodLabel(it, language) } ?: uiString("sceneDetail.overview.moodUnset", language),
+                    testTag = "sceneDetail.settings.moodField"
+                ) { onDismissMenu ->
+                    Column {
+                        DropdownMenuItem(
+                            text = { Text(uiString("sceneDetail.overview.moodUnset", language)) },
+                            onClick = { mood = null; onDismissMenu() }
+                        )
+                        AssetFormFlatEntries(Mood.entries, { moodLabel(it, language) }) { mood = it; onDismissMenu() }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(title.ifBlank { null }, narrativeRole, timeOfDay, atmospherePrimary, atmosphereSecondary, globalVisualStyleOverride) },
+                onClick = {
+                    onSave(
+                        title.ifBlank { null }, narrativeRole, timeOfDay, atmospherePrimary, atmosphereSecondary,
+                        globalVisualStyleOverride, cinematicModeOverride, mood
+                    )
+                },
                 modifier = Modifier.testTag(SCENE_DETAIL_SETTINGS_SAVE_BUTTON_TAG)
             ) {
                 Text(uiString("sceneDetail.settingsSaveButton", language))

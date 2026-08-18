@@ -27,6 +27,19 @@ import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
+import com.operaboys.cinemashotgenerator.domain.scene.LocationType
+import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
+import com.operaboys.cinemashotgenerator.domain.scene.Scene
+import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
+import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
+import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.shot.Shot
+import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
+import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.navigation.BOTTOM_NAV_HOME_TAG
@@ -38,7 +51,10 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaShotGeneratorTheme
 import com.operaboys.cinemashotgenerator.ui.workflow.WorkflowViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -227,4 +243,67 @@ class DnaTabFlowTest {
     }
 
     private fun moodLabelFor(mood: Mood): String = com.operaboys.cinemashotgenerator.ui.story.moodLabel(mood, Language.FA)
+
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112، آخرین قدم کل فیچر): هم‌الگو دقیق با
+    // «selecting a grouped Mood ...» بالا — برای فیلد تازه‌ی globalMode
+    // (ProjectDna.cinematicLanguage.globalMode، سه گزینه‌ی ثابت و غیر-nullable).
+
+    @Test
+    fun `selecting the global Cinematic Mode saves the correct value`() {
+        createProjectAndOpenDnaTab("DNA Cinematic Mode Test")
+
+        composeRule.onNodeWithTag(DNA_CINEMATIC_MODE_FIELD_TAG).clickViaSemantics()
+        val fastCutLabel = cinematicModeLabel(CinematicMode.FAST_CUT, Language.FA)
+        composeRule.onNodeWithText(fastCutLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(fastCutLabel), timeoutMillis = 5_000)
+    }
+
+    /**
+     * تست End-to-End واقعی، طبق الزام صریح دستور کار: اثبات می‌کند کل زنجیره‌ی
+     * ADR-106 تا ADR-112 واقعاً به‌هم وصل است — نه فقط لایه‌های جدا. تنظیم
+     * globalMode از طریق UI واقعی (نه یک `ProjectDna` دستی در تست دامنه) ذخیره
+     * می‌شود؛ سپس همان `ProjectDna` از طریق `ProjectDnaRepository` واقعی
+     * (همان دیتابیس Room این تست) دوباره بارگذاری و مستقیماً به
+     * `resolveEffectiveCinematicMode` (domain.visualidentity) داده می‌شود —
+     * برای یک Scene/Shot خنثی، بدون هیچ Override — تا ثابت شود مقدار انتخاب‌شده
+     * در UI واقعاً به نتیجه‌ی نهایی این تابع دامنه‌ای می‌رسد.
+     */
+    @Test
+    fun `changing the global Cinematic Mode from the DNA tab actually changes resolveEffectiveCinematicMode for a shot with no override`() {
+        createProjectAndOpenDnaTab("DNA Cinematic Mode E2E Test")
+
+        composeRule.onNodeWithTag(DNA_CINEMATIC_MODE_FIELD_TAG).clickViaSemantics()
+        val longTakeLabel = cinematicModeLabel(CinematicMode.LONG_TAKE, Language.FA)
+        composeRule.onNodeWithText(longTakeLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(longTakeLabel), timeoutMillis = 5_000)
+
+        val projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
+        val loadedDna = runBlocking {
+            val projectId = database.projectDao().getAllProjects().first()
+                .first { it.projectName == "DNA Cinematic Mode E2E Test" }.projectId
+            projectDnaRepository.loadProjectDna(projectId).getOrThrow()!!
+        }
+
+        val neutralScene = Scene(
+            sceneId = "scene_e2e",
+            sceneNumber = 1,
+            narrativeRole = NarrativeRole.DEVELOPMENT,
+            location = SceneLocation(LocationType.MIXED, "a neutral location"),
+            timeOfDay = TimeOfDay.AFTERNOON,
+            atmospherePrimary = Atmosphere.CALM
+        )
+        val neutralShot = Shot(
+            shotId = "shot_e2e",
+            sceneId = "scene_e2e",
+            shotNumber = 1,
+            shotDescription = "a neutral shot with no cinematic mode override",
+            shotGoal = ShotGoal.ESTABLISHING,
+            shotType = ShotType.MEDIUM,
+            durationSeconds = 4f,
+            motionLevel = MotionLevel.SUBTLE,
+            soundProfile = SoundProfile(enabled = false)
+        )
+
+        assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(loadedDna, neutralScene, neutralShot))
+    }
 }

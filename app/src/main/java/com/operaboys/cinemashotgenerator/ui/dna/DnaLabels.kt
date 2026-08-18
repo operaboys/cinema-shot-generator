@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyleCategory
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 
 // واحد ۱۶ فاز ۲ — قدم ۳: نگاشت enum های ProjectDna به کلید ترجمه، هم‌الگو با
@@ -170,3 +171,20 @@ fun contrastLevelLabel(level: ContrastLevel, language: Language): String = uiStr
 
 /** [AspectRatio.displayValue] خودش خوانا و مستقل از زبان است (مثل "16:9")؛ نیازی به ترجمه‌ی جدا ندارد. */
 fun aspectRatioLabel(ratio: AspectRatio): String = ratio.displayValue
+
+/**
+ * تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112، آخرین قدم کل فیچر): برچسب سه مقدار
+ * `CinematicMode` — هم‌الگو دقیق با `moodLabel` (تعریف‌شده یک‌بار در
+ * `ui/story/StoryLabels.kt`، بازاستفاده‌شده در `ui/dna/`، `ui/scenes/`،
+ * `ui/shots/` بدون تعریف مجدد) — این تابع اینجا (نه در سه فایل جدا) تعریف
+ * شد تا `SceneDetailScreen.kt`/`ShotComposerScreen.kt` هم آن را از همین
+ * محل واحد Import کنند.
+ */
+fun cinematicModeLabel(mode: CinematicMode, language: Language): String = uiString(
+    when (mode) {
+        CinematicMode.LONG_TAKE -> "cinematicMode.longTake"
+        CinematicMode.FAST_CUT -> "cinematicMode.fastCut"
+        CinematicMode.BALANCED -> "cinematicMode.balanced"
+    },
+    language
+)

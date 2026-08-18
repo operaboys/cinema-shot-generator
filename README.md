@@ -2030,6 +2030,42 @@ Motion + دیالوگ) در زیرقدم ۳ب جداگانه می‌آید. جز
 ۰۳ اکنون وایرند. جزئیات کامل در
 `docs/adr/111-unit03-slow-motion-dialogue-conflict-step3b.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۴ از ۴ (آخرین قدم): UI سه سطح DNA/Scene/Shot؛ **کل فیچر به‌طور کامل و End-to-End بسته شد** (ADR-112)
+
+تا این قدم، زنجیره‌ی کامل دامنه (ADR-106 تا ADR-111) وجود داشت اما کاربر
+هیچ راهی برای دیدن یا تنظیم دستی `CinematicMode`/`Mood` نداشت — فقط
+پیش‌فرض‌های برنامه‌ریزی‌شده اعمال می‌شدند. این قدم UI هر سه سطح را اضافه
+کرد: Dropdown غیر-nullable `globalMode` در تب DNA؛ دو Dropdown nullable
+(`cinematicModeOverride`، `mood`) در فرم تنظیمات صحنه با `InfoRow` نمایش
+مقدار فعلی در Overview؛ و Dropdown nullable `cinematicModeOverride` در
+Shot Composer به‌همراه نمایش زنده‌ی «حالت مؤثر نهایی» واقعی (خروجی
+`resolveEffectiveCinematicMode`، نه فقط مقدار خام Override).
+
+بررسی مستقل دو یافته‌ی واقعی برخلاف پیش‌بریفینگ معمار نشان داد: (۱)
+برخلاف ادعای «هر سه فایل نسخه‌ی خصوصی جدا از `EnumDropdownField` دارند»،
+فقط `DnaTabContent.kt` واقعاً چنین دارد — `SceneDetailScreen.kt` و
+`ShotComposerScreen.kt` هر دو از قبل کامپوننت مشترک بین-فیچر
+`AssetFormEnumDropdownField` (`ui/assets/AssetFormSupport.kt`) را
+بازاستفاده می‌کنند، پس همان کامپوننت مشترک واقعی برای فیلدهای تازه هم
+استفاده شد؛ (۲) هیچ فایلی به نام `SceneDetailFlowTest.kt` وجود ندارد —
+فایل واقعی معادل `ui/scenes/ScenesFlowTest.kt` است. `cinematicModeLabel`
+یک‌بار در `DnaLabels.kt` تعریف و در Scene/Shot Import شد (هم‌الگوی
+پیشینه‌ی `moodLabel`). تصمیم گرفته شد نمایش «حالت مؤثر نهایی» فقط در Shot
+Composer ارزش دارد (نه Scene)، چون منطق هوشمند Hybrid/Mood ذاتاً به
+داده‌ی سطح Shot وابسته است. در حین نوشتن تست، یک باگ واقعی (نه در کد
+Production) پیدا و رفع شد: انتخاب `Mood.MYSTERIOUS` از Dropdown طولانی
+با `.performClick()` خام بی‌صدا شکست می‌خورد (همان کلاس باگ کلیک مبتنی‌بر
+مختصات مستندشده‌ی این پروژه) — رفع با `.clickViaSemantics()`.
+
+۶ تست تازه (۲ DNA + ۲ Scene + ۲ Shot) همگی موفق، شامل یک تست End-to-End
+صریح که تغییر `globalMode` در تب DNA را تا خروجی واقعی
+`resolveEffectiveCinematicMode` برای یک Shot بدون Override دنبال
+می‌کند. **با این قدم، کل فیچر «تکمیل Rule یتیم CinematicLanguage»
+(ADR-106 تا ADR-112) به‌طور کامل و End-to-End بسته شد** — یک کاربر واقعی
+اکنون می‌تواند حالت روایی را در سه سطح (پروژه/صحنه/شات) تنظیم کند و
+واقعاً روی هشدارهای Validation واقعی اثر بگذارد. جزئیات کامل در
+`docs/adr/112-unit03-cinematic-language-step4-ui-feature-closed.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

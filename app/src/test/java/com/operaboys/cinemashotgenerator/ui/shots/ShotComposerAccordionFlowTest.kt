@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -39,9 +40,14 @@ import com.operaboys.cinemashotgenerator.domain.shot.Shot
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
+import com.operaboys.cinemashotgenerator.ui.dna.cinematicModeLabel
+import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
 import com.operaboys.cinemashotgenerator.ui.navigation.studioTabTestTag
@@ -54,6 +60,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -224,4 +231,61 @@ class ShotComposerAccordionFlowTest {
 
     private fun onAllNodesWithTagCount(tag: String): Int =
         composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().size
+
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): این دو تست، سومین و آخرین صفحه‌ی
+    // مورد نیاز قدم ۴ (پس از DnaTabFlowTest و ScenesFlowTest) را پوشش می‌دهند —
+    // فیلد Override محلی سطح شات و نمایش زنده‌ی حالت مؤثر نهایی
+    // (resolveEffectiveCinematicMode). طبق درسِ باگ واقعی پیداشده در تست Mood
+    // (ScenesFlowTest.kt)، همه‌ی کلیک‌های آیتم Dropdown از clickViaSemantics
+    // استفاده می‌کنند، نه performClick خام.
+    @Test
+    fun `selecting a Shot Cinematic Mode override persists it and updates the live effective mode display`() {
+        openShotComposer()
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG).performScrollTo()
+            .assert(hasText(uiString("shotComposer.cinematicModeFromSceneOrProject", Language.FA)))
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val fastCutLabel = cinematicModeLabel(CinematicMode.FAST_CUT, Language.FA)
+        composeRule.waitUntilExactlyOneExists(hasText(fastCutLabel), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(fastCutLabel).clickViaSemantics()
+
+        val effectiveText = uiTemplate("shotComposer.effectiveCinematicModeTemplate", Language.FA, "mode" to fastCutLabel)
+        composeRule.waitUntilExactlyOneExists(hasText(effectiveText), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun `selecting the follow-scene-or-project option resets the Shot Cinematic Mode override to null`() {
+        openShotComposer()
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val longTakeLabel = cinematicModeLabel(CinematicMode.LONG_TAKE, Language.FA)
+        composeRule.waitUntilExactlyOneExists(hasText(longTakeLabel), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(longTakeLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(
+            hasText(uiTemplate("shotComposer.effectiveCinematicModeTemplate", Language.FA, "mode" to longTakeLabel)),
+            timeoutMillis = 5_000
+        )
+
+        composeRule.onNodeWithTag(SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val followLabel = uiString("shotComposer.cinematicModeFromSceneOrProject", Language.FA)
+        composeRule.waitUntilExactlyOneExists(hasText(followLabel), timeoutMillis = 5_000)
+        composeRule.onNodeWithText(followLabel).clickViaSemantics()
+
+        composeRule.waitUntilExactlyOneExists(hasText(followLabel), timeoutMillis = 5_000)
+        val effectiveMode = runBlocking {
+            val dnaRepository = ProjectDnaRepository(database.projectDnaDao())
+            // مثل خودِ ShotComposerViewModel (init، خط ۴۰۷-۴۰۸)، اگر هنوز هیچ ردیف DNA
+            // ذخیره نشده (کاربر هرگز تب DNA را باز نکرده)، defaultProjectDna جایگزین می‌شود.
+            val dna = dnaRepository.loadProjectDna(PROJECT_ID).getOrThrow()
+                ?: defaultProjectDna(PROJECT_ID) { "dna_placeholder" }
+            val savedShot = shotRepository.loadShot("shot_seed").getOrThrow()!!
+            assertEquals(null, savedShot.cinematicModeOverride)
+            resolveEffectiveCinematicMode(dna, seededScene, savedShot)
+        }
+        composeRule.onNodeWithText(
+            uiTemplate("shotComposer.effectiveCinematicModeTemplate", Language.FA, "mode" to cinematicModeLabel(effectiveMode, Language.FA))
+        ).performScrollTo().assertIsDisplayed()
+    }
 }

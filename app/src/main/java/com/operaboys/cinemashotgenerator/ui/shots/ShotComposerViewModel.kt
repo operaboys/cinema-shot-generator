@@ -62,6 +62,8 @@ import com.operaboys.cinemashotgenerator.domain.shot.validateShotDescription
 import com.operaboys.cinemashotgenerator.domain.validation.AggregatedValidationReport
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -169,6 +171,23 @@ class ShotComposerViewModel(
 
     private val _motionLevel = MutableStateFlow(MotionLevel.SUBTLE)
     val motionLevel: StateFlow<MotionLevel> = _motionLevel.asStateFlow()
+
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override محلی سطح شات‌ Cinematic
+    // Mode (ADR-106) — null یعنی «پیروی از صحنه/پروژه». هم‌الگو با
+    // cinematicModeOverride موجود Scene (بدون هیچ فیلد source جدا — همان دلیل
+    // مستندشده‌ی خودِ domain.shot.ShotModels.kt: nullable ساده، نه SourcedSettings).
+    private val _cinematicModeOverride = MutableStateFlow<CinematicMode?>(null)
+    val cinematicModeOverride: StateFlow<CinematicMode?> = _cinematicModeOverride.asStateFlow()
+
+    /**
+     * حالت مؤثر نهایی همین شات (خروجی واقعی resolveEffectiveCinematicMode) —
+     * برای نمایش زنده در فرم، هم‌الگو دقیق با validationSummary موجود:
+     * cachedScene/cachedDna از قبل برای همان محاسبه بارگذاری شده‌اند؛ این
+     * StateFlow هم در همان [refreshValidationSummary] بازمحاسبه می‌شود، بدون
+     * بار I/O یا محاسباتی اضافه (هر دو تابع خالص‌اند).
+     */
+    private val _effectiveCinematicMode = MutableStateFlow<CinematicMode?>(null)
+    val effectiveCinematicMode: StateFlow<CinematicMode?> = _effectiveCinematicMode.asStateFlow()
 
     /** Rule 1 واقعی واحد ۰۵ (ShotValidation.kt) — نمایش زنده، بدون مسدودکردن Auto-Save (طبق تصمیم مستند، جزئیات در ADR-051). */
     val shotDescriptionValidation: StateFlow<ValidationIssue?> = _shotDescription
@@ -335,6 +354,7 @@ class ShotComposerViewModel(
                     _shotType.value = loaded.shotType
                     _durationSecondsText.value = loaded.durationSeconds.toString()
                     _motionLevel.value = loaded.motionLevel
+                    _cinematicModeOverride.value = loaded.cinematicModeOverride
                     _imageReferences.value = loaded.imageReferences
                     _subjectCount.value = loaded.characterIds.size + loaded.objectIds.size
                     _cameraSource.value = loaded.camera.source
@@ -413,6 +433,9 @@ class ShotComposerViewModel(
         _validationSummary.value = aggregateShotValidation(
             shot, scene, dna, cachedCharacterAssets, cachedObjectAssets, cachedLocationAssets
         )
+        // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): همان scene/dna محاسبه‌ی بالا —
+        // بدون بارگذاری/محاسبه‌ی جداگانه.
+        _effectiveCinematicMode.value = resolveEffectiveCinematicMode(dna, scene, shot)
     }
 
     fun setShotTitle(value: String) { _shotTitle.value = value; save() }
@@ -421,6 +444,7 @@ class ShotComposerViewModel(
     fun setShotType(value: ShotType) { _shotType.value = value; save() }
     fun setDurationSecondsText(value: String) { _durationSecondsText.value = value; save() }
     fun setMotionLevel(value: MotionLevel) { _motionLevel.value = value; save() }
+    fun setCinematicModeOverride(value: CinematicMode?) { _cinematicModeOverride.value = value; save() }
 
     fun setCameraSource(value: String) { _cameraSource.value = value; save() }
     fun setCameraAngle(value: CameraAngle) { _cameraAngle.value = value; save() }
@@ -641,7 +665,8 @@ class ShotComposerViewModel(
             characterIds = base?.characterIds ?: emptyList(),
             objectIds = base?.objectIds ?: emptyList(),
             locationIds = base?.locationIds ?: emptyList(),
-            overrideScene = base?.overrideScene ?: false
+            overrideScene = base?.overrideScene ?: false,
+            cinematicModeOverride = _cinematicModeOverride.value
         )
     }
 

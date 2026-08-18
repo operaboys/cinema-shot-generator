@@ -24,6 +24,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
 import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -144,6 +145,14 @@ class DnaViewModel(
     // ترجیح نور — nullable طبق طراحی («بدون ترجیح» یک گزینه‌ی صریح است).
     fun setPreferredLightingStyle(style: LightingStyle?) = updateAndSave {
         it.copy(lightingPreference = it.lightingPreference.copy(preferredStyle = style))
+    }
+
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): زبان سینمایی سراسری پروژه —
+    // غیر-nullable (سه گزینه‌ی ثابت)، هم‌الگو با setRealismLevel/setCoreStyleConsistency
+    // بالا؛ resolveEffectiveCinematicMode (ADR-106/108/109) این مقدار را به‌عنوان
+    // آخرین لایه‌ی Fallback زنجیره‌ی سه‌سطحی مصرف می‌کند.
+    fun setGlobalCinematicMode(mode: CinematicMode) = updateAndSave {
+        it.copy(cinematicLanguage = it.cinematicLanguage.copy(globalMode = mode))
     }
 
     // محدودیت‌های خروجی — این قدم سه فیلد باقی‌مانده‌ی OutputConstraints

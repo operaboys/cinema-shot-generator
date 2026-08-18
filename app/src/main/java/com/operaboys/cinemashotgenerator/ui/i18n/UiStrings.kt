@@ -338,6 +338,10 @@ val faStrings: Map<String, String> = mapOf(
     "dna.outputConstraints.category.weather" to "آب‌وهوا",
     "dna.qualityDirectives.qualityTagsLabel" to "برچسب‌های کیفیت",
     "dna.qualityDirectives.negativePromptLabel" to "پرامپت منفی پیش‌فرض",
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112، آخرین قدم کل فیچر): UI حالت سراسری
+    // Cinematic Language پروژه (ProjectDna.cinematicLanguage.globalMode).
+    "dna.group.cinematicLanguage" to "زبان سینمایی",
+    "dna.cinematicLanguage.globalModeLabel" to "حالت سراسری",
 
     "visualStyleCategory.cinematic" to "سینمایی",
     "visualStyleCategory.animation3d" to "انیمیشن سه‌بعدی",
@@ -422,6 +426,12 @@ val faStrings: Map<String, String> = mapOf(
     "styleConsistency.moderate" to "متوسط",
     "styleConsistency.flexible" to "انعطاف‌پذیر",
 
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): برچسب‌های سه مقدار CinematicMode —
+    // در هر سه فایل UI هدف (DNA/Scene/Shot) بازاستفاده می‌شود.
+    "cinematicMode.longTake" to "نمای بلند (Long-take)",
+    "cinematicMode.fastCut" to "برش سریع (Fast-cut)",
+    "cinematicMode.balanced" to "هوشمند (Hybrid)",
+
     "colorTemperature.warm" to "گرم",
     "colorTemperature.cool" to "سرد",
     "colorTemperature.neutral" to "خنثی",
@@ -468,6 +478,12 @@ val faStrings: Map<String, String> = mapOf(
     "sceneDetail.overview.narrativeRoleLabel" to "نقش روایی",
     "sceneDetail.overview.globalVisualStyleLabel" to "سبک بصری سراسری",
     "sceneDetail.overview.globalVisualStyleFromDna" to "از DNA پروژه",
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override سطح صحنه‌ی Cinematic Mode
+    // (ADR-106) + Mood صحنه (ADR-109) — تا این قدم بدون هیچ UI.
+    "sceneDetail.overview.cinematicModeOverrideLabel" to "حالت سینمایی این صحنه",
+    "sceneDetail.overview.cinematicModeFromProject" to "پیروی از پروژه",
+    "sceneDetail.overview.moodLabel" to "حال‌وهوای صحنه",
+    "sceneDetail.overview.moodUnset" to "تعیین‌نشده",
     "sceneDetail.overview.noLocationConnected" to "هنوز به کتابخانه وصل نشده",
     "sceneDetail.overview.connectLocationButton" to "اتصال به کتابخانه",
     "sceneDetail.locationPicker.title" to "انتخاب مکان از کتابخانه",
@@ -533,6 +549,11 @@ val faStrings: Map<String, String> = mapOf(
     "shotComposer.shotTypeLabel" to "نوع نما",
     "shotComposer.durationLabel" to "مدت (ثانیه)",
     "shotComposer.motionLevelLabel" to "سطح حرکت",
+    // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override سطح شات Cinematic Mode
+    // (ADR-106) + نمایش حالت مؤثر نهایی (خروجی واقعی resolveEffectiveCinematicMode).
+    "shotComposer.cinematicModeOverrideLabel" to "حالت سینمایی این شات",
+    "shotComposer.cinematicModeFromSceneOrProject" to "پیروی از صحنه/پروژه",
+    "shotComposer.effectiveCinematicModeTemplate" to "حالت مؤثر فعلی: {mode}",
     "shotComposer.tab.main" to "اصلی",
     "shotComposer.tab.camera" to "دوربین",
     "shotComposer.tab.lighting" to "نور و محیط",
@@ -1198,6 +1219,8 @@ val enStrings: Map<String, String> = mapOf(
     "dna.outputConstraints.category.weather" to "Weather",
     "dna.qualityDirectives.qualityTagsLabel" to "Quality Tags",
     "dna.qualityDirectives.negativePromptLabel" to "Default Negative Prompt",
+    "dna.group.cinematicLanguage" to "Cinematic Language",
+    "dna.cinematicLanguage.globalModeLabel" to "Global Mode",
 
     "visualStyleCategory.cinematic" to "Cinematic",
     "visualStyleCategory.animation3d" to "3D Animation",
@@ -1282,6 +1305,10 @@ val enStrings: Map<String, String> = mapOf(
     "styleConsistency.moderate" to "Moderate",
     "styleConsistency.flexible" to "Flexible",
 
+    "cinematicMode.longTake" to "Long-take",
+    "cinematicMode.fastCut" to "Fast-cut",
+    "cinematicMode.balanced" to "Balanced (Hybrid)",
+
     "colorTemperature.warm" to "Warm",
     "colorTemperature.cool" to "Cool",
     "colorTemperature.neutral" to "Neutral",
@@ -1328,6 +1355,10 @@ val enStrings: Map<String, String> = mapOf(
     "sceneDetail.overview.narrativeRoleLabel" to "Narrative Role",
     "sceneDetail.overview.globalVisualStyleLabel" to "Global Visual Style",
     "sceneDetail.overview.globalVisualStyleFromDna" to "From project DNA",
+    "sceneDetail.overview.cinematicModeOverrideLabel" to "This Scene's Cinematic Mode",
+    "sceneDetail.overview.cinematicModeFromProject" to "Follow Project",
+    "sceneDetail.overview.moodLabel" to "Scene Mood",
+    "sceneDetail.overview.moodUnset" to "Unset",
     "sceneDetail.overview.noLocationConnected" to "Not connected to the library yet",
     "sceneDetail.overview.connectLocationButton" to "Connect to Library",
     "sceneDetail.locationPicker.title" to "Choose a location from the library",
@@ -1393,6 +1424,9 @@ val enStrings: Map<String, String> = mapOf(
     "shotComposer.shotTypeLabel" to "Shot type",
     "shotComposer.durationLabel" to "Duration (seconds)",
     "shotComposer.motionLevelLabel" to "Motion level",
+    "shotComposer.cinematicModeOverrideLabel" to "This Shot's Cinematic Mode",
+    "shotComposer.cinematicModeFromSceneOrProject" to "Follow Scene/Project",
+    "shotComposer.effectiveCinematicModeTemplate" to "Current effective mode: {mode}",
     "shotComposer.tab.main" to "Main",
     "shotComposer.tab.camera" to "Camera",
     "shotComposer.tab.lighting" to "Lighting & Environment",

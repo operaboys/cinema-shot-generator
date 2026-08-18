@@ -12,11 +12,13 @@ import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
 import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.scene.lockScene as applyLockTransition
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -112,13 +114,24 @@ class SceneDetailViewModel(
      * تازه اضافه شد — null یعنی «پیش‌فرض DNA پروژه» (source همیشه "project_dna"
      * می‌ماند، فقط override عوض می‌شود)، غیر-null یک نام VisualStyle واقعی است.
      */
+    /**
+     * تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): دو پارامتر تازه —
+     * `cinematicModeOverride` (ADR-106: Override محلی سطح صحنه، `null` یعنی
+     * پیروی از پروژه) و `mood` (ADR-109: Mood صریح صحنه، `null` یعنی
+     * تعیین‌نشده — مصرف‌شده در `resolveEffectiveCinematicMode` فقط وقتی
+     * `shot.beats` خالی است). هم‌الگو دقیق با `globalVisualStyleOverride`
+     * بالا — nullable، ذخیره‌شده بدون هیچ Rule اعتبارسنجی اضافه (هر دو در
+     * دامنه هم عمداً بدون محدودیت‌اند).
+     */
     fun saveSceneSettings(
         sceneTitle: String?,
         narrativeRole: NarrativeRole,
         timeOfDay: TimeOfDay,
         atmospherePrimary: Atmosphere,
         atmosphereSecondary: Atmosphere?,
-        globalVisualStyleOverride: String?
+        globalVisualStyleOverride: String?,
+        cinematicModeOverride: CinematicMode?,
+        mood: Mood?
     ) = updateAndSave {
         it.copy(
             sceneTitle = sceneTitle,
@@ -126,7 +139,9 @@ class SceneDetailViewModel(
             timeOfDay = timeOfDay,
             atmospherePrimary = atmospherePrimary,
             atmosphereSecondary = atmosphereSecondary,
-            globalVisualStyle = it.globalVisualStyle.copy(override = globalVisualStyleOverride)
+            globalVisualStyle = it.globalVisualStyle.copy(override = globalVisualStyleOverride),
+            cinematicModeOverride = cinematicModeOverride,
+            mood = mood
         )
     }
 

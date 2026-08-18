@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -65,12 +66,14 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormValidationIssueRow
+import com.operaboys.cinemashotgenerator.ui.dna.cinematicModeLabel
 import com.operaboys.cinemashotgenerator.ui.dna.lightingStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
@@ -94,6 +97,8 @@ const val SHOT_COMPOSER_GOAL_FIELD_TAG = "shotComposer.goalField"
 const val SHOT_COMPOSER_TYPE_FIELD_TAG = "shotComposer.typeField"
 const val SHOT_COMPOSER_DURATION_FIELD_TAG = "shotComposer.durationField"
 const val SHOT_COMPOSER_MOTION_FIELD_TAG = "shotComposer.motionField"
+/** تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override محلی سطح شات Cinematic Mode. */
+const val SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG = "shotComposer.cinematicModeField"
 const val SHOT_COMPOSER_CAMERA_TAB_TAG = "shotComposer.tab.camera"
 const val SHOT_COMPOSER_LIGHTING_TAB_TAG = "shotComposer.tab.lighting"
 const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
@@ -510,6 +515,36 @@ private fun MainFieldsSection(
             testTag = SHOT_COMPOSER_MOTION_FIELD_TAG
         ) { onDismiss ->
             AssetFormFlatEntries(MotionLevel.entries, { motionLevelLabel(it, language) }) { viewModel.setMotionLevel(it); onDismiss() }
+        }
+
+        // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112، آخرین قدم کل فیچر): Override محلی
+        // سطح شات‌ Cinematic Mode (ADR-106) + نمایش زنده‌ی حالت مؤثر نهایی (خروجی
+        // واقعی resolveEffectiveCinematicMode، ADR-108/109) — تا این قدم کاربر هیچ
+        // راهی برای دیدن یا تنظیم دستی این زنجیره نداشت. StateFlow ها مستقیماً از
+        // خودِ viewModel جمع‌آوری می‌شوند (نه پارامتر تازه در امضای این تابع) تا
+        // فراخوان‌های موجود (TABS و ACCORDION، هر دو) بدون تغییر بمانند.
+        val cinematicModeOverride by viewModel.cinematicModeOverride.collectAsStateWithLifecycle()
+        val effectiveCinematicMode by viewModel.effectiveCinematicMode.collectAsStateWithLifecycle()
+        AssetFormEnumDropdownField(
+            label = uiString("shotComposer.cinematicModeOverrideLabel", language),
+            selectedLabel = cinematicModeOverride?.let { cinematicModeLabel(it, language) }
+                ?: uiString("shotComposer.cinematicModeFromSceneOrProject", language),
+            testTag = SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG
+        ) { onDismiss ->
+            Column {
+                DropdownMenuItem(
+                    text = { Text(uiString("shotComposer.cinematicModeFromSceneOrProject", language)) },
+                    onClick = { viewModel.setCinematicModeOverride(null); onDismiss() }
+                )
+                AssetFormFlatEntries(CinematicMode.entries, { cinematicModeLabel(it, language) }) { viewModel.setCinematicModeOverride(it); onDismiss() }
+            }
+        }
+        effectiveCinematicMode?.let { mode ->
+            Text(
+                text = uiTemplate("shotComposer.effectiveCinematicModeTemplate", language, "mode" to cinematicModeLabel(mode, language)),
+                style = MaterialTheme.typography.bodySmall,
+                color = CinemaTheme.extendedColors.fg3
+            )
         }
     }
 }
