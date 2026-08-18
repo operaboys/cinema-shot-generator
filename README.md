@@ -2126,6 +2126,24 @@ ADR-114 رفع شد: `validatePrimaryStyleUpdate` اکنون `VisualStyle?` می
 ناسازگار با هشدار زنده). جزئیات کامل در
 `docs/adr/115-unit03-style-matrix-connection-step3-dna-ui.md`.
 
+### ✅ اتصال کامل Style Matrix — قدم ۴-محتوا از ۸ زیرقدم: promptTokens غنی و واقعی برای هر ۳۴ مقدار VisualStyle (ADR-116)
+
+تا این قدم هیچ `StyleReference` واقعی برای هیچ‌کدام از ۳۴ مقدار
+`VisualStyle` در کل کدبیس ساخته نمی‌شد — `combineStyles` از ابتدا وجود
+داشت اما بدون ورودی واقعی. `VisualStyle.toStyleReference()` تازه یک
+`promptTokens` غنی (متن انگلیسی Keyword-style، مستقیماً قابل‌مصرف در
+پرامپت مدل‌های تولید تصویر/ویدیو) برای هر ۳۴ مقدار برمی‌گرداند —
+**منبع محتوایی این متن‌ها تحقیق مستقل معمار در منابع صنعت prompt
+engineering است، نه حدس**؛ فهرست کامل و مرجع رسمی هر ۳۴ مقدار در
+ADR-116 مستند شده. پیاده‌سازی از `when` بدون `else` استفاده کرد (نه
+`Map`) تا کامل‌بودن در سطح **کامپایلر** تضمین شود — اگر `VisualStyle`
+در آینده مقدار تازه‌ای بگیرد، این تابع دیگر کامپایل نمی‌شود؛ قوی‌تر از
+`checkNotNull` Runtime قدم ۲. `StyleReference.name` (که در `combineStyles`
+اصلاً مصرف نمی‌شود) عمداً از خودِ نام enum مشتق شد، نه ۳۴ رشته‌ی دستی
+جدا. ۶ تست تازه: یک تست رشته‌ی دقیق برای یک نمونه از هرکدام از ۵ دسته،
+به‌علاوه‌ی یک تست کامل‌بودن (۳۴ ورودی، `styleId` یکتا). جزئیات کامل در
+`docs/adr/116-unit03-style-matrix-connection-step4-content-prompt-tokens.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

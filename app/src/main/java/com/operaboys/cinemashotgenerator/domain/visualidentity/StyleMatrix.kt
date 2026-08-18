@@ -16,6 +16,80 @@ fun getInfluenceModifier(influence: StyleInfluence): String = when (influence) {
 
 data class StyleReference(val styleId: String, val name: String, val promptTokens: String)
 
+// اتصال کامل Style Matrix — قدم ۴-محتوا از ۸ زیرقدم (ADR-116): promptTokens
+// غنی و واقعی برای هر ۳۴ مقدار VisualStyle — تا این قدم، هیچ StyleReference
+// واقعی برای هیچ سبکی در کل کدبیس ساخته نمی‌شد (combineStyles از قدم اول
+// وجود داشت، اما ورودی واقعی نداشت). منبع محتوایی این متن‌ها تحقیق مستقل
+// معمار پروژه در منابع صنعت prompt engineering (راهنماهای مدل‌های تولید
+// تصویر/ویدیوی این پروژه طبق docs/blueprints/14-output-delivery-v2.md) و
+// منابع هنر بصری است — نه حدس این پیاده‌سازی؛ فهرست کامل و مرجع رسمی هر
+// ۳۴ مقدار در ADR-116 مستند شده.
+//
+// دو تصمیم فنی من (نه محتوای خودِ متن‌ها، که عیناً کپی شدند):
+// (۱) `when` بدون `else` — نه یک Map: تضمین کامل‌بودن در سطح کامپایلر
+// (نه فقط Runtime مثل `checkNotNull` قدم ۲) — اگر VisualStyle در آینده
+// مقدار تازه‌ای بگیرد، این تابع دیگر کامپایل نمی‌شود تا یک سبک بدون
+// promptTokens بی‌صدا نماند.
+// (۲) `name` (فقط تزئینی/مرجع، در `combineStyles` مصرف نمی‌شود — فقط
+// `promptTokens` مصرف می‌شود) از خودِ نام enum مشتق می‌شود (نه ۳۴ رشته‌ی
+// دستی جدا) — چون هیچ منطقی واقعاً به آن وابسته نیست، نوشتن ۳۴ رشته‌ی
+// دستی فقط ریسک تایپی بدون سود عملکردی اضافه می‌کرد؛ عمداً از
+// `visualStyleLabel` (لایه‌ی UI/i18n) هم استفاده نشد — همان انضباط
+// جداسازی «domain ← UI ممنوع» که در ADR-115 هم رعایت شد.
+private fun VisualStyle.readableName(): String =
+    name.split("_").joinToString(" ") { it.lowercase().replaceFirstChar(Char::uppercaseChar) }
+
+/**
+ * StyleReference واقعی و غنی برای این VisualStyle — `promptTokens` مستقیماً
+ * وارد پرامپت مدل‌های تولید تصویر/ویدیو می‌شود (طبق `combineStyles`)، پس
+ * عبارت‌های کوتاه Comma-separated به‌سبک Keyword‌اند، نه جمله‌ی کامل.
+ */
+fun VisualStyle.toStyleReference(): StyleReference = StyleReference(
+    styleId = name,
+    name = readableName(),
+    promptTokens = when (this) {
+        // سینمایی
+        VisualStyle.CINEMATIC_STYLE -> "cinematic style, professional color grading, shallow depth of field, dramatic composition, film-quality lighting"
+        VisualStyle.PHOTOREALISTIC -> "photorealistic, ultra-realistic, lifelike detail, natural lighting, high-fidelity texture, DSLR quality"
+        VisualStyle.FILM_NOIR -> "film noir cinematography, dramatic chiaroscuro lighting, deep shadows, venetian blind light patterns, high-contrast black and white aesthetic"
+        VisualStyle.VINTAGE_RETRO -> "vintage retro aesthetic, shot on 35mm film with natural grain, period color grading, warm faded tones"
+        VisualStyle.DOCUMENTARY -> "documentary-style handheld camera, natural lighting, authentic unpolished look, observational cinematography"
+        VisualStyle.BLOCKBUSTER -> "epic blockbuster style, dramatic wide shots, dynamic camera movement, rich color grading, theatrical lighting, Hollywood production value"
+        VisualStyle.INDIE_ARTHOUSE -> "indie arthouse aesthetic, naturalistic lighting, muted color palette, intimate handheld framing, contemplative pacing"
+        // انیمیشن ۳D
+        VisualStyle.PIXAR_DISNEY -> "Pixar-style 3D animation, soft rounded character design, oversized expressive eyes, warm bounce lighting, polished rendered surfaces"
+        VisualStyle.DREAMWORKS -> "DreamWorks-style 3D animation, expressive stylized characters, dynamic dramatic lighting, vibrant color palette, polished CGI render"
+        VisualStyle.ILLUMINATION -> "Illumination-style 3D animation, bright saturated colors, exaggerated bouncy character design, playful comedic framing, glossy render"
+        VisualStyle.LOW_POLY -> "low poly 3D art, geometric faceted shapes, minimal polygon count, clean angular aesthetic, flat shaded surfaces"
+        VisualStyle.CLAYMATION -> "claymation stop-motion style, handcrafted plasticine texture, visible fingerprints and imperfections, warm tactile lighting, miniature set feel"
+        VisualStyle.ISOMETRIC -> "isometric 3D illustration, 45-degree angled perspective, no perspective distortion, clean architectural miniature-diorama look"
+        // انیمیشن ۲D
+        VisualStyle.ANIME -> "anime style, bold clean linework, cel shading, expressive stylized eyes, dynamic action framing"
+        VisualStyle.STUDIO_GHIBLI -> "Studio Ghibli style, hand-painted watercolor backgrounds, soft natural color palette, whimsical detailed nature, gentle painterly light"
+        VisualStyle.DISNEY_CLASSIC -> "classic Disney hand-drawn animation, warm expressive character design, soft painterly backgrounds, storybook charm"
+        VisualStyle.CARTOON -> "cartoon style, bold outlines, flat saturated colors, exaggerated proportions, playful simplified shapes"
+        VisualStyle.COMIC_BOOK -> "comic book style, bold ink outlines, Ben-Day dot shading, dynamic panel-style composition, saturated primary colors"
+        VisualStyle.MANGA -> "manga style, high-contrast black and white linework, screentone shading, dramatic speed lines, expressive stylized eyes"
+        // هنری
+        VisualStyle.WATERCOLOR -> "watercolor painting, loose wet-on-wet technique, soft bleeding edges, visible paper texture, delicate translucent washes"
+        VisualStyle.OIL_PAINTING -> "oil painting, visible impasto brushstrokes, rich textured canvas, deep saturated color, classical painterly light"
+        VisualStyle.PENCIL_SKETCH -> "pencil sketch, expressive graphite linework, cross-hatching shading, visible paper grain, monochrome hand-drawn feel"
+        VisualStyle.IMPRESSIONIST -> "impressionist painting, visible loose brushstrokes, dappled natural light, soft dreamy color, emphasis on light over sharp form"
+        VisualStyle.POP_ART -> "pop art style, bold flat colors, Ben-Day dots, high contrast graphic outlines, Warhol-inspired repetition"
+        VisualStyle.ART_NOUVEAU -> "Art Nouveau style, organic flowing lines, ornate nature-inspired motifs, decorative elegant composition"
+        VisualStyle.MINIMALIST -> "minimalist art, vast negative space, clean geometric shapes, limited color palette, deliberate simplicity"
+        // ژانر
+        VisualStyle.EPIC_FANTASY -> "epic fantasy illustration, dramatic wide vista, rich detailed world-building, painterly grandeur, mythic atmosphere"
+        VisualStyle.SCI_FI -> "sci-fi aesthetic, sleek futuristic technology, cool metallic tones, advanced clean design, high-tech atmosphere"
+        VisualStyle.CYBERPUNK -> "cyberpunk aesthetic, neon-lit rain-soaked streets, high-contrast magenta and cyan lighting, dense futuristic urban decay"
+        VisualStyle.STEAMPUNK -> "steampunk style, Victorian-era machinery, brass gears and cogs, warm sepia tones, industrial ornate detail"
+        VisualStyle.GOTHIC -> "gothic aesthetic, dark ornate atmosphere, dramatic deep shadows, moody desaturated palette, medieval architectural grandeur"
+        VisualStyle.HORROR -> "horror atmosphere, desaturated color, unsettling deep shadows, tense unnerving composition, cold harsh lighting"
+        VisualStyle.SURREAL -> "surrealist style, dreamlike impossible scene, uncanny juxtaposition, meticulous hyper-detailed rendering, subconscious symbolism"
+        VisualStyle.DREAMY -> "dreamy atmosphere, soft hazy glow, pastel ethereal color, gentle diffused light, floating weightless quality"
+    }
+)
+
 fun combineStyles(primary: StyleReference, secondary: StyleReference?, influence: StyleInfluence?): String {
     var prompt = primary.promptTokens
     if (secondary != null && influence != null) {

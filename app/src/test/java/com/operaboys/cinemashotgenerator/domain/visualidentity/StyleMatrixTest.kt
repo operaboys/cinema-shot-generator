@@ -175,4 +175,65 @@ class StyleMatrixTest {
         val result = validatePrimaryStyleUpdate(VisualStyle.PHOTOREALISTIC)
         assertTrue(result is StyleUpdateResult.Allowed)
     }
+
+    // --- VisualStyle.toStyleReference — اتصال کامل Style Matrix — قدم ۴-محتوا
+    // از ۸ زیرقدم (ADR-116): یک تست رشته‌ی دقیق برای هرکدام از ۵ دسته + یک تست
+    // کامل‌بودن (۳۴ ورودی). محتوای promptTokens عیناً از منبع رسمی معمار (ADR-116)
+    // کپی شده — این تست‌ها فقط اثبات می‌کنند پیاده‌سازی دقیقاً همان متن را
+    // برمی‌گرداند، نه بازتولید کل فهرست ۳۴تایی.
+
+    @Test
+    fun `toStyleReference for CINEMATIC_STYLE (CINEMATIC category) returns the exact promptTokens`() {
+        val reference = VisualStyle.CINEMATIC_STYLE.toStyleReference()
+        assertEquals("CINEMATIC_STYLE", reference.styleId)
+        assertEquals(
+            "cinematic style, professional color grading, shallow depth of field, dramatic composition, film-quality lighting",
+            reference.promptTokens
+        )
+    }
+
+    @Test
+    fun `toStyleReference for PIXAR_DISNEY (ANIMATION_3D category) returns the exact promptTokens`() {
+        val reference = VisualStyle.PIXAR_DISNEY.toStyleReference()
+        assertEquals(
+            "Pixar-style 3D animation, soft rounded character design, oversized expressive eyes, warm bounce lighting, polished rendered surfaces",
+            reference.promptTokens
+        )
+    }
+
+    @Test
+    fun `toStyleReference for ANIME (ANIMATION_2D category) returns the exact promptTokens`() {
+        val reference = VisualStyle.ANIME.toStyleReference()
+        assertEquals(
+            "anime style, bold clean linework, cel shading, expressive stylized eyes, dynamic action framing",
+            reference.promptTokens
+        )
+    }
+
+    @Test
+    fun `toStyleReference for WATERCOLOR (ARTISTIC category) returns the exact promptTokens`() {
+        val reference = VisualStyle.WATERCOLOR.toStyleReference()
+        assertEquals(
+            "watercolor painting, loose wet-on-wet technique, soft bleeding edges, visible paper texture, delicate translucent washes",
+            reference.promptTokens
+        )
+    }
+
+    @Test
+    fun `toStyleReference for CYBERPUNK (GENRE category) returns the exact promptTokens`() {
+        val reference = VisualStyle.CYBERPUNK.toStyleReference()
+        assertEquals(
+            "cyberpunk aesthetic, neon-lit rain-soaked streets, high-contrast magenta and cyan lighting, dense futuristic urban decay",
+            reference.promptTokens
+        )
+    }
+
+    @Test
+    fun `toStyleReference covers all 34 VisualStyle entries, each with a unique styleId and non-blank promptTokens`() {
+        val references = VisualStyle.entries.map { it.toStyleReference() }
+        assertEquals(34, VisualStyle.entries.size)
+        assertEquals(34, references.size)
+        assertEquals(34, references.map { it.styleId }.toSet().size)
+        references.forEach { assertTrue(it.promptTokens.isNotBlank()) }
+    }
 }
