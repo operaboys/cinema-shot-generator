@@ -325,4 +325,28 @@ class ValidationAggregatorTest {
 
         assertTrue(report.issues.none { it.issue.message.contains("دوربین ثابت") })
     }
+
+    // تکمیل Rule یتیم — قدم ۳ب از ۲ زیرقدم قدم ۳ (ADR-111، آخرین زیرقدم قدم ۳):
+    // checkSlowMotionInDialogue واقعاً در Level 2 وایر شده است.
+
+    @Test
+    fun `slow motion with a dialogue shot goal produces a real Level 2 warning (checkSlowMotionInDialogue)`() {
+        val shot = neutralShot().copy(motionLevel = MotionLevel.STATIC, shotGoal = ShotGoal.DIALOGUE)
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val slowMotionIssue = level2.firstOrNull { it.issue.message.contains("Slow Motion") }
+        assertTrue(slowMotionIssue != null)
+        assertEquals(Severity.WARNING, slowMotionIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `dynamic motion with a dialogue shot goal produces no slow-motion warning`() {
+        val shot = neutralShot().copy(motionLevel = MotionLevel.DYNAMIC, shotGoal = ShotGoal.DIALOGUE)
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("Slow Motion") })
+    }
 }

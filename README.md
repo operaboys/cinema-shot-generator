@@ -2013,6 +2013,23 @@ ADR-108 دست‌نخورده). تشخیص «Beat خالی» با `shot.beats.is
 Motion + دیالوگ) در زیرقدم ۳ب جداگانه می‌آید. جزئیات کامل در
 `docs/adr/110-unit03-camera-motion-conflict-wiring-step3a.md`.
 
+### ✅ تکمیل Rule یتیم CinematicLanguage — قدم ۳ب از ۲ زیرقدم قدم ۳: نوشتن و اتصال Slow Motion + Dialogue؛ **قدم ۳ به‌طور کامل بسته شد** (ADR-111)
+
+سومین و آخرین Rule «تداخل با واحدهای دیگر» بلوپرینت ۰۳ («Slow Motion برای
+دیالوگ غیرمعمول است، مگر برای جلوه‌ی خاص عمدی») از صفر نوشته و وصل شد —
+`checkSlowMotionInDialogue(motionLevel, shotGoal)` تازه در
+`LogicConflictChecker.kt` (بدون تغییر دو تابع موجود). به‌جای
+`domain.camera.SubjectSpeed` (که معنای دقیق‌تری به Slow Motion می‌دهد اما
+کاملاً یتیم است — تأییدشده با `grep`، بدون هیچ فیلدی روی `Shot`)، از
+`Shot.motionLevel` استفاده شد — `STATIC`/`SUBTLE` (دو مقدار پایینی enum
+پنج‌مقداره، با تقارن مستقیم نسبت به `DYNAMIC`/`EXTREME`ِ
+`checkFastMotionLongTake`) معادل «آهسته» گرفته شدند. در **Level 2** وایر
+شد (مقایسه‌ی خالص دو فیلد همین Shot، بدون وابستگی به DNA — برخلاف
+`checkFastMotionLongTake` در Level 3). **با این زیرقدم، قدم ۳ (هر دو
+زیرقدم) به‌طور کامل بسته می‌شود** — هر سه Rule تعارض دوربین/حرکت بلوپرینت
+۰۳ اکنون وایرند. جزئیات کامل در
+`docs/adr/111-unit03-slow-motion-dialogue-conflict-step3b.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.validation
 
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -69,6 +70,51 @@ class LogicConflictCheckerTest {
             cameraMovementType = "tracking",
             shotDescription = "A tense pursuit through the alley"
         )
+
+        assertNull(issue)
+    }
+
+    // --- checkSlowMotionInDialogue (تکمیل Rule یتیم — قدم ۳ب از ۲ زیرقدم قدم ۳، ADR-111) ---
+
+    @Test
+    fun `static motion with dialogue warns`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.STATIC, shotGoal = ShotGoal.DIALOGUE)
+
+        assertNotNull(issue)
+        assertEquals(Severity.WARNING, issue!!.severity)
+    }
+
+    @Test
+    fun `subtle motion with dialogue warns`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.SUBTLE, shotGoal = ShotGoal.DIALOGUE)
+
+        assertNotNull(issue)
+    }
+
+    @Test
+    fun `static motion with a non-dialogue goal has no conflict`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.STATIC, shotGoal = ShotGoal.ACTION)
+
+        assertNull(issue)
+    }
+
+    @Test
+    fun `dynamic motion with dialogue has no conflict`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.DYNAMIC, shotGoal = ShotGoal.DIALOGUE)
+
+        assertNull(issue)
+    }
+
+    @Test
+    fun `extreme motion with dialogue has no conflict`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.EXTREME, shotGoal = ShotGoal.DIALOGUE)
+
+        assertNull(issue)
+    }
+
+    @Test
+    fun `moderate motion with dialogue has no conflict (neutral middle, neither slow nor fast)`() {
+        val issue = checkSlowMotionInDialogue(motionLevel = MotionLevel.MODERATE, shotGoal = ShotGoal.DIALOGUE)
 
         assertNull(issue)
     }

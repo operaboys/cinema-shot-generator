@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.domain.validation
 
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
+import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 
 // واحد ۰۷ — بخش ب: Logic Conflict Checker
@@ -42,6 +43,43 @@ fun checkStaticCameraInChase(cameraMovementType: String, shotDescription: String
             Severity.WARNING,
             message = "صحنه‌ی تعقیب با دوربین ثابت انرژی لازم را ندارد",
             suggestion = "از Tracking Shot یا Handheld استفاده کنید"
+        )
+    }
+    return null
+}
+
+/**
+ * تکمیل Rule یتیم — قدم ۳ب از ۲ زیرقدم قدم ۳ (ADR-111، آخرین زیرقدم):
+ * سومین Rule تداخل بلوپرینت ۰۳ («Slow Motion + دیالوگ»).
+ *
+ * چرا `MotionLevel` به‌جای `domain.camera.SubjectSpeed` (تصمیم صریح معمار،
+ * تأییدشده): `SubjectSpeed`/`SubjectMotion` (domain.camera.MotionIntensityModels.kt)
+ * معنای دقیق‌تری به «Slow Motion» می‌دهند، اما با grep مستقل تأیید شد کاملاً
+ * یتیم‌اند — هیچ فیلدی از این نوع روی `Shot` وجود ندارد و در کل پروژه هیچ
+ * مصرف‌کننده‌ی واقعی دیگری ندارند (فقط خودِ `MotionIntensityValidation.kt`).
+ * استفاده از آن‌ها یعنی وصل‌کردن دو مدل یتیم همزمان در یک Rule کوچک —
+ * `MotionLevel` (که از قبل واقعاً به `Shot.motionLevel` وصل است و همین الان
+ * در `checkFastMotionLongTake` بالا استفاده شده) گزینه‌ی واقع‌گرایانه‌تر بود.
+ *
+ * چرا `STATIC`/`SUBTLE` (نه فقط `STATIC`): طبق ترتیب پنج‌مقداره‌ی موجود
+ * `MotionLevel` (`STATIC, SUBTLE, MODERATE, DYNAMIC, EXTREME`)، `checkFastMotionLongTake`
+ * بالا دو مقدار بالایی (`DYNAMIC`/`EXTREME`) را «سریع» می‌داند — به‌طور
+ * متقارن، دو مقدار پایینی (`STATIC`/`SUBTLE`) معادل منطقی «آهسته/Slow
+ * Motion» هستند، با `MODERATE` به‌عنوان نقطه‌ی خنثای وسط (نه سریع، نه
+ * آهسته) — همان الگوی گروه‌بندی، نه یک تصمیم تازه و بی‌ربط.
+ *
+ * پیام Warning عمداً «غیرمعمول است» می‌گوید (نه «اشتباه است») — دقیقاً
+ * منعکس‌کننده‌ی متن بلوپرینت («... مگر برای جلوه‌ی خاص عمدی»)، چون این
+ * ترکیب می‌تواند کاملاً عمدی باشد (مثلاً یک نمای آهسته‌ی درام برای تأکید بر
+ * یک خط دیالوگ کلیدی).
+ */
+fun checkSlowMotionInDialogue(motionLevel: MotionLevel, shotGoal: ShotGoal): ValidationIssue? {
+    val isSlow = motionLevel == MotionLevel.STATIC || motionLevel == MotionLevel.SUBTLE
+    if (isSlow && shotGoal == ShotGoal.DIALOGUE) {
+        return ValidationIssue(
+            Severity.WARNING,
+            message = "Slow Motion برای دیالوگ غیرمعمول است",
+            suggestion = "اگر این جلوه‌ی خاص عمدی نیست، Motion Level را افزایش دهید"
         )
     }
     return null

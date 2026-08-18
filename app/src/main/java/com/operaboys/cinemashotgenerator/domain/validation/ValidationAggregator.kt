@@ -107,6 +107,14 @@ fun aggregateShotValidation(
 
     // --- Level 2: سازگاری منطقی (ترکیب فیلدهای خودِ همین Shot/Scene با هم) ---
     val subjectCount = shot.characterIds.size + shot.objectIds.size + shot.locationIds.size
+    // تکمیل Rule یتیم — قدم ۳ب از ۲ زیرقدم قدم ۳ (ADR-111، آخرین زیرقدم): تعارض
+    // Slow Motion با دیالوگ. در Level 2 (نه ۳) چون برخلاف checkFastMotionLongTake
+    // بالاتر (که به effectiveCinematicMode چندمنبعی نیاز دارد)، این Rule فقط دو
+    // فیلد خودِ همین Shot را با هم می‌سنجد (motionLevel، shotGoal) — بدون هیچ
+    // وابستگی به DNA/Scene؛ بدون نیاز به گیت camera.overrideValue هم، چون
+    // motionLevel/shotGoal همیشه (غیر-nullable) روی هر Shot موجودند، نه یک مقدار
+    // اختیاری Override-شده.
+    add(l2, checkSlowMotionInDialogue(shot.motionLevel, shot.shotGoal))
     shot.camera.overrideValue?.let { camera ->
         add(l2, checkLensDistanceMismatch(camera.lensType, camera.distance))
         add(l2, checkStaticMovementWithHandheldStabilization(camera.movement, camera.stabilization))
