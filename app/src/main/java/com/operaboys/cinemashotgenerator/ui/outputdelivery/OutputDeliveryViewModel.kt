@@ -12,6 +12,7 @@ import com.operaboys.cinemashotgenerator.data.repository.DeviceExportFileWriter
 import com.operaboys.cinemashotgenerator.data.repository.ExportFileWriter
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.SettingsResolutionRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ALL_MODEL_PROFILES
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.BilingualPrompts
@@ -28,11 +29,17 @@ import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckRes
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.finalizePrompt
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateCompressionRatio
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.validateConflictsResolved
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.sendToAiConnector
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateAiConnectorErrorMessage
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
 import com.operaboys.cinemashotgenerator.domain.workflow.QualityScore
 import com.operaboys.cinemashotgenerator.domain.workflow.evaluatePromptQuality
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -87,6 +94,13 @@ class OutputDeliveryViewModel(
         AudioContextRepository(AppDatabase.getInstance(application).audioContextDao())
     ),
     private val exportFileWriter: ExportFileWriter = DeviceExportFileWriter(application),
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (آخرین
+    // زیرقدم، ADR-120): دو تزریق تازه، عیناً هم‌الگو با G2
+    // (AiStoryBreakdownViewModel.kt) — تا تست‌ها بتوانند SharedPreferences
+    // معمولی/MockEngine جایگزین کنند (بدون AndroidKeyStore واقعی یا تماس
+    // واقعی اینترنت در تست).
+    private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
+    private val httpClientEngine: HttpClientEngine = OkHttp.create(),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -133,6 +147,96 @@ class OutputDeliveryViewModel(
     fun selectProfile(profileId: String) {
         _selectedProfileId.value = profileId
         regenerate()
+    }
+
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (آخرین
+    // زیرقدم، ADR-120): «تحلیل عمیق‌تر با AI»، مسیر ۲/اختیاری این برنامه —
+    // عیناً همان معماری اثبات‌شده‌ی G2 (AiStoryBreakdownViewModel.kt) برای
+    // یک صفحه‌ی دیگر تکرار شده، نه یک معماری موازی تازه. selectedAiConnectorProfileId
+    // (AiConnectorProfile: Claude/OpenAI/...) کاملاً مستقل از selectedProfileId
+    // بالا (ModelProfile: Veo/Kling/...) است — این دو مفهوم کاملاً متفاوتند و
+    // هرگز نباید با هم اشتباه گرفته شوند.
+
+    private val _selectedAiConnectorProfileId = MutableStateFlow(BUILTIN_AI_CONNECTOR_PROFILES.first().profileId)
+    val selectedAiConnectorProfileId: StateFlow<String> = _selectedAiConnectorProfileId.asStateFlow()
+
+    // شرط سخت‌گیرانه‌ی UI (همان ADR-101 G2): دکمه‌ی «تحلیل عمیق‌تر با AI» فقط
+    // وقتی کلید پروفایل انتخاب‌شده واقعاً ذخیره شده باشد enabled است — یک
+    // بررسی پیش‌فعال (پیش از کلیک)، نه فقط واکنش به خطای بعد از کلیک.
+    private val _apiKeySavedForQualityAnalysis = MutableStateFlow(false)
+    val apiKeySavedForQualityAnalysis: StateFlow<Boolean> = _apiKeySavedForQualityAnalysis.asStateFlow()
+
+    private val _qualityAnalysisInProgress = MutableStateFlow(false)
+    val qualityAnalysisInProgress: StateFlow<Boolean> = _qualityAnalysisInProgress.asStateFlow()
+
+    private val _qualityAnalysisResult = MutableStateFlow<String?>(null)
+    val qualityAnalysisResult: StateFlow<String?> = _qualityAnalysisResult.asStateFlow()
+
+    private val _qualityAnalysisError = MutableStateFlow<String?>(null)
+    val qualityAnalysisError: StateFlow<String?> = _qualityAnalysisError.asStateFlow()
+
+    init {
+        ioScope.launch { refreshApiKeySavedForQualityAnalysis(_selectedAiConnectorProfileId.value) }
+    }
+
+    /**
+     * یافته‌ی مستندشده‌ی G2 (هنوز صادق، AiStoryBreakdownViewModel.kt): SecureKeyRepository
+     * پیش‌فرض‌تزریق‌نشده روی Robolectric واقعاً KeyStoreException پرتاب می‌کند؛
+     * چون تست‌های این ViewModel با ioScopeOverride=Dispatchers.Unconfined (Job
+     * معمولی، نه SupervisorJob) اجرا می‌شوند، یک فرزند شکست‌خورده کل Job والد
+     * (شامل زنجیره‌ی regenerate) را لغو می‌کند. runCatching این ریسک را می‌بندد؛
+     * fail-closed به false هم با شرط سخت‌گیرانه‌ی محصولی هم‌راستاست.
+     */
+    private suspend fun refreshApiKeySavedForQualityAnalysis(profileId: String) {
+        _apiKeySavedForQualityAnalysis.value = runCatching { secureKeyRepository.hasApiKey(profileId) }.getOrDefault(false)
+    }
+
+    /** هم‌الگو دقیق با AiStoryBreakdownViewModel.selectProfile — Job چون hasApiKey روی Dispatchers.IO واقعی اجرا می‌شود. */
+    fun selectAiConnectorProfileForQuality(profileId: String): Job {
+        _selectedAiConnectorProfileId.value = profileId
+        return ioScope.launch { refreshApiKeySavedForQualityAnalysis(profileId) }
+    }
+
+    fun clearQualityAnalysisError() {
+        _qualityAnalysisError.value = null
+    }
+
+    fun clearQualityAnalysisResult() {
+        _qualityAnalysisResult.value = null
+    }
+
+    /**
+     * «تحلیل عمیق‌تر با AI» — مسیر ۲/اختیاری این برنامه. برخلاف G2 (که پاسخ
+     * JSON ساختاریافته را با processAiResponse/ChunkCombiner/JsonDoctor پارس
+     * می‌کند)، پاسخ این فیچر یک متن آزاد توضیحی است — نتیجه‌ی خام
+     * sendToAiConnector مستقیماً همان متن قابل‌نمایش است، بدون نیاز به هیچ
+     * Parser تازه. Rule ۴ (validateApiKeyProvided) قبل از هر تلاش واقعی HTTP
+     * اعمال می‌شود — عیناً هم‌الگو با sendPromptAutomatically G2.
+     */
+    fun analyzePromptQualityWithAi(): Job {
+        val currentState = _state.value as? OutputDeliveryState.Ready ?: return Job().apply { complete() }
+        if (_qualityAnalysisInProgress.value) return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedAiConnectorProfileId.value }
+            ?: return Job().apply { complete() }
+        _qualityAnalysisError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _qualityAnalysisError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _qualityAnalysisInProgress.value = true
+            val analysisPrompt = buildQualityAnalysisPrompt(currentState.renderedOutput.formattedPrompt, currentState.qualityScore)
+            val result = sendToAiConnector(profile, apiKey, analysisPrompt, httpClientEngine)
+            _qualityAnalysisInProgress.value = false
+            result.fold(
+                onSuccess = { responseText -> _qualityAnalysisResult.value = responseText },
+                onFailure = {
+                    _qualityAnalysisError.value = validateAiConnectorErrorMessage(result)?.message
+                        ?: "درخواست به AI Connector با خطا مواجه شد"
+                }
+            )
+        }
     }
 
     /**
@@ -257,22 +361,64 @@ class OutputDeliveryViewModel(
     fun profileFor(profileId: String): ModelProfile = ALL_MODEL_PROFILES.first { it.profileId == profileId }
 
     companion object {
+        // رفع G16 (docs/adr/063): تزریق جزئی — هرکدام مستقل با ?: به پیش‌فرض خودش
+        // می‌رسد، نه رفتار همه‌یا‌هیچ. هم‌الگو دقیق با AiStoryBreakdownViewModel.factory.
         fun factory(
             application: Application,
             shotId: String,
             initialModelProfileId: String?,
-            promptGenerationRepository: PromptGenerationRepository? = null
+            promptGenerationRepository: PromptGenerationRepository? = null,
+            secureKeyRepository: SecureKeyRepository? = null,
+            httpClientEngine: HttpClientEngine? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    (
-                        if (promptGenerationRepository != null) {
-                            OutputDeliveryViewModel(application, shotId, initialModelProfileId, promptGenerationRepository)
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val anyInjected = promptGenerationRepository != null || secureKeyRepository != null || httpClientEngine != null
+                    return (
+                        if (anyInjected) {
+                            OutputDeliveryViewModel(
+                                application = application,
+                                shotId = shotId,
+                                initialModelProfileId = initialModelProfileId,
+                                promptGenerationRepository = promptGenerationRepository ?: PromptGenerationRepository(
+                                    AppDatabase.getInstance(application).shotDao(),
+                                    AppDatabase.getInstance(application).sceneDao(),
+                                    ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
+                                    AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                    SettingsResolutionRepository(AppDatabase.getInstance(application).shotDao(), AppDatabase.getInstance(application).sceneDao()),
+                                    AudioContextRepository(AppDatabase.getInstance(application).audioContextDao())
+                                ),
+                                secureKeyRepository = secureKeyRepository ?: SecureKeyRepository(application),
+                                httpClientEngine = httpClientEngine ?: OkHttp.create()
+                            )
                         } else {
                             OutputDeliveryViewModel(application, shotId, initialModelProfileId)
                         }
                     ) as T
+                }
             }
     }
 }
+
+/**
+ * هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (آخرین
+ * زیرقدم، ADR-120): متن پرامپت ارزیابی — محتوای تولیدشده در Runtime (نه
+ * رشته‌ی ثابت UI)، پس عمداً از UiStrings.kt نمی‌آید. زمینه دقیقاً همان دو
+ * چیز موجود در همان لحظه در `regenerate()` است: متن نهایی رندرشده و
+ * QualityScore پنج‌محوره‌ی محاسبه‌شده (ADR-118).
+ */
+private fun buildQualityAnalysisPrompt(formattedPrompt: String, qualityScore: QualityScore): String = """
+You are an expert cinematic AI prompt engineer. Analyze the following image/video generation prompt and its automated quality breakdown (0-20 per axis, 100 total). Explain, in a few clear sentences, its real strengths and weaknesses, and give concrete suggestions to improve it — focus on what a fast, non-precise heuristic score cannot see (semantic coherence, cinematic intent, genuinely vague or generic wording).
+
+Prompt:
+$formattedPrompt
+
+Automated quality breakdown (heuristic, not precise):
+- Subject Clarity: ${qualityScore.subjectClarity}/20
+- Cinematic Clarity (Camera): ${qualityScore.cinematicClarity}/20
+- Visual Specificity (Lighting & Environment): ${qualityScore.visualSpecificity}/20
+- Style Coherence: ${qualityScore.styleCoherence}/20
+- Conciseness: ${qualityScore.conciseness}/20
+- Total: ${qualityScore.total}/100
+""".trimIndent()

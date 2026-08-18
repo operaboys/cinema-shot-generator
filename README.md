@@ -2205,6 +2205,34 @@ ViewModel اتصال End-to-End واقعی را اثبات می‌کند (نه �
 وصل کرد — مسیر ۲/AI اختیاری قدم ۳ این برنامه است. جزئیات کامل در
 `docs/adr/119-unit16-evaluate-prompt-quality-step2-output-delivery-ui.md`.
 
+### ✅ هوشمندسازی evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (پایانی): دکمه‌ی «تحلیل عمیق‌تر با AI» (ADR-120)
+
+**آخرین زیرقدم برنامه‌ی سه‌قدمی evaluatePromptQuality (ADR-118 →
+ADR-119 → این قدم).** روی `PromptQualityCard` (قدم ۲) یک کارت تازه —
+`AiQualityAnalysisCard` — اضافه شد که مسیر ۲/AI اختیاری را وصل می‌کند:
+دکمه‌ی «تحلیل عمیق‌تر با AI» همان پرامپت نهایی و شکست پنج‌محوری
+`QualityScore` را به یکی از سرویس‌های AI Connector موجود
+(Claude/OpenAI/Gemini/DeepSeek/Qwen) می‌فرستد و تحلیل کیفی متنی واقعی
+سرویس را نمایش می‌دهد. این قدم دقیقاً همان معماری امنیتی اثبات‌شده‌ی
+G2 (`AiStoryBreakdownViewModel`/`Screen.kt`، ADR-098–105) را برای این
+صفحه‌ی دوم تکرار می‌کند — نه یک معماری موازی تازه: همان
+`sendToAiConnector`/`SecureKeyRepository`/الگوی
+`refreshApiKeySavedStatus`، و یک StateFlow کاملاً مستقل و بدون هیچ
+هم‌پوشانی با `selectedProfileId` موجود (که مدل‌های رندر Veo/Kling
+است، نه سرویس‌های AI).
+
+**قاعده‌ی امنیتی صریح و تکراری کاربر پروژه (نه پیشنهاد Claude Code)**:
+«تا زمانی که کلید API ذخیره نشده، مسیر AI Connector خاموش است» — دکمه
+از همان اولین رندر (نه فقط پس از کلیک) با
+`enabled = apiKeySavedForQualityAnalysis && !qualityAnalysisInProgress`
+غیرفعال است، و خودِ `analyzePromptQualityWithAi()` هم مستقلاً همین
+بررسی را پیش از هرگونه فراخوانی HTTP انجام می‌دهد. سه تست امنیتی/
+عملکردی تازه این را اثبات می‌کنند — مهم‌ترین‌شان با تزریق مستقیم
+`MockEngine` به ViewModel (نه صرفاً شبیه‌سازی کلیک UI) ثابت می‌کند که
+بدون کلید ذخیره‌شده هیچ درخواست HTTP واقعی هرگز ساخته نمی‌شود. جزئیات
+کامل، ازجمله بخش «End-to-End Verification امنیتی»، در
+`docs/adr/120-unit16-evaluate-prompt-quality-step3-ai-connector.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

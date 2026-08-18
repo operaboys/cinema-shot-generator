@@ -6,22 +6,29 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +47,8 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.RenderedOutput
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ModelProfile
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckResult
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.AiConnectorProfile
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
@@ -66,6 +75,12 @@ const val OUTPUT_DELIVERY_TOGGLE_LANGUAGE_BUTTON_TAG = "outputDelivery.toggleLan
 const val OUTPUT_DELIVERY_TOGGLE_THEME_BUTTON_TAG = "outputDelivery.toggleThemeButton"
 /** هوشمندسازی و اتصال evaluatePromptQuality — قدم ۲ از ۳ زیرقدم (ADR-119). */
 const val OUTPUT_DELIVERY_QUALITY_CARD_TAG = "outputDelivery.qualityCard"
+/** هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (آخرین زیرقدم، ADR-120). */
+const val OUTPUT_DELIVERY_ANALYZE_WITH_AI_BUTTON_TAG = "outputDelivery.analyzeWithAiButton"
+const val OUTPUT_DELIVERY_AI_ANALYSIS_RESULT_TAG = "outputDelivery.aiAnalysisResult"
+const val OUTPUT_DELIVERY_AI_ANALYSIS_ERROR_TAG = "outputDelivery.aiAnalysisError"
+
+fun outputDeliveryAiConnectorProfileChipTag(profileId: String): String = "outputDelivery.aiConnectorProfileChip.$profileId"
 
 fun outputDeliveryModelChipTag(profileId: String): String = "outputDelivery.modelChip.$profileId"
 
@@ -89,6 +104,12 @@ fun OutputDeliveryScreen(
     )
     val selectedProfileId by viewModel.selectedProfileId.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (ADR-120).
+    val selectedAiConnectorProfileId by viewModel.selectedAiConnectorProfileId.collectAsStateWithLifecycle()
+    val apiKeySavedForQualityAnalysis by viewModel.apiKeySavedForQualityAnalysis.collectAsStateWithLifecycle()
+    val qualityAnalysisInProgress by viewModel.qualityAnalysisInProgress.collectAsStateWithLifecycle()
+    val qualityAnalysisResult by viewModel.qualityAnalysisResult.collectAsStateWithLifecycle()
+    val qualityAnalysisError by viewModel.qualityAnalysisError.collectAsStateWithLifecycle()
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
@@ -173,6 +194,19 @@ fun OutputDeliveryScreen(
                     // بلافاصله زیرش بیاید؛ هشدارها (که می‌توانند به دلایل کاملاً متفاوتی
                     // مثل تضاد Validation باشند، نه فقط کیفیت نوشتاری) بعد از آن.
                     PromptQualityCard(score = currentState.qualityScore, language = language)
+                    // بلافاصله زیر کارت شاخص کیفیت — این بخش دقیقاً درباره‌ی تحلیل
+                    // عمیق‌تر همان امتیاز است، نه یک ابزار مستقل جدا.
+                    AiQualityAnalysisCard(
+                        language = language,
+                        selectedProfileId = selectedAiConnectorProfileId,
+                        onSelectProfile = { viewModel.selectAiConnectorProfileForQuality(it) },
+                        apiKeySaved = apiKeySavedForQualityAnalysis,
+                        inProgress = qualityAnalysisInProgress,
+                        result = qualityAnalysisResult,
+                        error = qualityAnalysisError,
+                        onAnalyze = { viewModel.analyzePromptQualityWithAi() },
+                        onDismissError = { viewModel.clearQualityAnalysisError() }
+                    )
                     WarningsSection(warnings = currentState.warnings, language = language)
                 }
             }
@@ -328,6 +362,109 @@ private fun QualityAxisRow(label: String, value: Int) {
     ) {
         Text(text = label, style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
         Text(text = "$value/20", style = MaterialTheme.typography.bodySmall, color = CinemaTheme.extendedColors.fg3)
+    }
+}
+
+/**
+ * هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (آخرین
+ * زیرقدم، ADR-120): «تحلیل عمیق‌تر با AI» — عیناً همان الگوی اثبات‌شده‌ی G2
+ * (GeneratedPromptCard، AiStoryBreakdownScreen.kt) برای این صفحه‌ی دیگر
+ * تکرار شده: چیپ‌های انتخاب پروفایل (اگر بیش از یک پروفایل باشد)، دکمه با
+ * قفل امنیتی پیش‌فعال (enabled فقط وقتی apiKeySaved=true — نه فقط واکنش به
+ * خطای بعد از کلیک)، CircularProgressIndicator هنگام بارگذاری، متن راهنما
+ * وقتی کلید ذخیره نشده، و نمایش نتیجه/خطا. Composable مستقل (نه داخل
+ * PromptQualityCard) چون این یک اقدام کاملاً جدا (فراخوانی واقعی HTTP) است،
+ * نه بخشی از خودِ محاسبه‌ی محلی امتیاز — جداسازی این دو، خوانایی هرکدام را
+ * بالا نگه می‌دارد.
+ */
+@Composable
+private fun AiQualityAnalysisCard(
+    language: Language,
+    selectedProfileId: String,
+    onSelectProfile: (String) -> Unit,
+    apiKeySaved: Boolean,
+    inProgress: Boolean,
+    result: String?,
+    error: String?,
+    onAnalyze: () -> Unit,
+    onDismissError: () -> Unit
+) {
+    val selectedProfile: AiConnectorProfile? = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == selectedProfileId }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (BUILTIN_AI_CONNECTOR_PROFILES.size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BUILTIN_AI_CONNECTOR_PROFILES.forEach { profile ->
+                        OpaqueChip(
+                            label = profile.displayName,
+                            selected = profile.profileId == selectedProfileId,
+                            onClick = { onSelectProfile(profile.profileId) },
+                            testTag = outputDeliveryAiConnectorProfileChipTag(profile.profileId)
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onAnalyze,
+                enabled = apiKeySaved && !inProgress,
+                modifier = Modifier.fillMaxWidth().testTag(OUTPUT_DELIVERY_ANALYZE_WITH_AI_BUTTON_TAG)
+            ) {
+                if (inProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(uiString("outputDelivery.analyzeWithAiButton", language))
+            }
+            if (!apiKeySaved) {
+                Text(
+                    text = uiString("outputDelivery.analyzeWithAiNoKeyHint", language),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+
+            if (result != null) {
+                Text(
+                    text = result,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag(OUTPUT_DELIVERY_AI_ANALYSIS_RESULT_TAG)
+                )
+            }
+
+            if (error != null) {
+                Card(modifier = Modifier.fillMaxWidth().testTag(OUTPUT_DELIVERY_AI_ANALYSIS_ERROR_TAG)) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onDismissError) {
+                            Text(uiString("aiBreakdown.dismissButton", language))
+                        }
+                    }
+                }
+            }
+
+            val selectedName = selectedProfile?.displayName
+            if (selectedName != null) {
+                // یادآوری ظریف اینکه کدام سرویس واقعاً استفاده می‌شود — عمداً یک
+                // برچسب جدا (نه داخل خودِ متن دکمه، طبق تصمیم این قدم: دکمه ثابت
+                // «تحلیل عمیق‌تر با AI» می‌ماند، نه یک قالب هرباره‌ی متفاوت مثل G2).
+                Text(
+                    text = selectedName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+        }
     }
 }
 

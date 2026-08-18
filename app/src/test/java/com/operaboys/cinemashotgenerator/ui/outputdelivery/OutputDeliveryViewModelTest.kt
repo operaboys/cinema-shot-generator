@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.outputdelivery
 
 import android.app.Application
+import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
@@ -10,6 +11,7 @@ import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.PromptGenerationRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.SettingsResolutionRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.camera.BasicMovementType
@@ -26,6 +28,7 @@ import com.operaboys.cinemashotgenerator.data.repository.ExportFileWriter
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ALL_MODEL_PROFILES
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.ExportFile
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.NarrativeRole
@@ -45,8 +48,16 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -168,10 +179,17 @@ class OutputDeliveryViewModelTest {
         // می‌داد — نه یک نشتی حافظه‌ی فراموش‌شده.
     }
 
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (ADR-120):
+    // دو پارامتر تازه، با همان مقادیر پیش‌فرض واقعی خودِ OutputDeliveryViewModel
+    // (SecureKeyRepository(application)/OkHttp.create()) — تست‌های موجود بدون
+    // تغییر رفتار همچنان کار می‌کنند (apiKeySavedForQualityAnalysis فقط false
+    // می‌ماند، بدون Crash، طبق runCatching مستندشده‌ی ViewModel).
     private fun buildViewModel(
         shotId: String,
         initialModelProfileId: String?,
-        exportFileWriter: ExportFileWriter = FakeExportFileWriter()
+        exportFileWriter: ExportFileWriter = FakeExportFileWriter(),
+        secureKeyRepository: SecureKeyRepository = SecureKeyRepository(ApplicationProvider.getApplicationContext()),
+        httpClientEngine: HttpClientEngine = OkHttp.create()
     ): OutputDeliveryViewModel {
         val application = ApplicationProvider.getApplicationContext<Application>()
         return OutputDeliveryViewModel(
@@ -180,8 +198,122 @@ class OutputDeliveryViewModelTest {
             initialModelProfileId = initialModelProfileId,
             promptGenerationRepository = promptGenerationRepository,
             exportFileWriter = exportFileWriter,
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = httpClientEngine,
             ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
         )
+    }
+
+    private fun buildTestSecureKeyRepository(prefsName: String): SecureKeyRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        return SecureKeyRepository(context) { appContext -> appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE) }
+    }
+
+    private fun <T> awaitCondition(flow: StateFlow<T>, timeoutMs: Long = 3000, predicate: (T) -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (!predicate(flow.value) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5)
+        }
+        assertTrue("condition was never met within ${timeoutMs}ms, last value=${flow.value}", predicate(flow.value))
+    }
+
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (ADR-120):
+    // سه تست امنیتی این قدم. هم‌الگو با AiStoryBreakdownViewModelTest.kt
+    // (`sendPromptAutomatically without a saved key...`/`a successful automatic
+    // send...`/`a failed automatic send...`). مهم‌ترین‌شان تست اول است: اثبات
+    // قطعی که بدون کلید ذخیره‌شده، هیچ HTTP واقعی رخ نمی‌دهد — نه فقط این‌که
+    // دکمه در UI غیرفعال به نظر می‌رسد.
+
+    @Test
+    fun `analyzePromptQualityWithAi without a saved key never attempts a real HTTP call and sets a meaningful error`() = runBlocking {
+        val shotId = "${SHOT_ID}_ai_quality_no_key"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val secureKeyRepository = buildTestSecureKeyRepository("ai_quality_vm_test_no_key_prefs")
+        var engineCalled = false
+        val engine = MockEngine {
+            engineCalled = true
+            respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val viewModel = buildViewModel(
+            shotId,
+            initialModelProfileId = "universal_default",
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine
+        )
+        viewModel.regenerate().join()
+        assertFalse(viewModel.apiKeySavedForQualityAnalysis.value)
+
+        viewModel.analyzePromptQualityWithAi().join()
+
+        assertFalse(
+            "بدون کلید ذخیره‌شده نباید هیچ تلاش HTTP واقعی برای تحلیل عمیق‌تر AI انجام شود — این مهم‌ترین تست امنیتی این قدم است",
+            engineCalled
+        )
+        assertNotNull(viewModel.qualityAnalysisError.value)
+        assertEquals(null, viewModel.qualityAnalysisResult.value)
+    }
+
+    @Test
+    fun `analyzePromptQualityWithAi with a saved key and a successful response populates qualityAnalysisResult`() = runBlocking {
+        val shotId = "${SHOT_ID}_ai_quality_success"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val secureKeyRepository = buildTestSecureKeyRepository("ai_quality_vm_test_success_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"content":[{"type":"text","text":"Strong subject clarity, but the lighting description is generic."}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val viewModel = buildViewModel(
+            shotId,
+            initialModelProfileId = "universal_default",
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine
+        )
+        viewModel.regenerate().join()
+        awaitCondition(viewModel.apiKeySavedForQualityAnalysis) { it }
+
+        viewModel.analyzePromptQualityWithAi().join()
+
+        assertEquals(
+            "Strong subject clarity, but the lighting description is generic.",
+            viewModel.qualityAnalysisResult.value
+        )
+        assertEquals(null, viewModel.qualityAnalysisError.value)
+    }
+
+    @Test
+    fun `analyzePromptQualityWithAi with a saved key but a failing HTTP response sets a meaningful qualityAnalysisError`() = runBlocking {
+        val shotId = "${SHOT_ID}_ai_quality_failure"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+
+        val secureKeyRepository = buildTestSecureKeyRepository("ai_quality_vm_test_failure_prefs")
+        secureKeyRepository.saveApiKey(CLAUDE_API_PROFILE.profileId, "sk-ant-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val viewModel = buildViewModel(
+            shotId,
+            initialModelProfileId = "universal_default",
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine
+        )
+        viewModel.regenerate().join()
+        awaitCondition(viewModel.apiKeySavedForQualityAnalysis) { it }
+
+        viewModel.analyzePromptQualityWithAi().join()
+
+        assertEquals(null, viewModel.qualityAnalysisResult.value)
+        assertNotNull(viewModel.qualityAnalysisError.value)
+        assertTrue(viewModel.qualityAnalysisError.value!!.contains("invalid x-api-key"))
     }
 
     @Test

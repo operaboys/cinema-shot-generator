@@ -833,6 +833,9 @@ val faStrings: Map<String, String> = mapOf(
     "outputDelivery.qualityVisualSpecificityLabel" to "دقت بصری (نور و محیط)",
     "outputDelivery.qualityStyleCoherenceLabel" to "همبستگی سبک",
     "outputDelivery.qualityConcisenessLabel" to "ایجاز",
+    // هوشمندسازی و اتصال evaluatePromptQuality — قدم ۳ از ۳ زیرقدم (ADR-120)
+    "outputDelivery.analyzeWithAiButton" to "تحلیل عمیق‌تر با AI",
+    "outputDelivery.analyzeWithAiNoKeyHint" to "ابتدا کلید API را در تنظیمات وارد کنید",
     "outputDelivery.warningsSectionTitle" to "هشدارها",
     "outputDelivery.noWarnings" to "هیچ هشداری برای این خروجی وجود ندارد.",
     "outputDelivery.loadingState" to "در حال بارگذاری...",
@@ -1722,6 +1725,8 @@ val enStrings: Map<String, String> = mapOf(
     "outputDelivery.qualityVisualSpecificityLabel" to "Visual Specificity (Lighting & Environment)",
     "outputDelivery.qualityStyleCoherenceLabel" to "Style Coherence",
     "outputDelivery.qualityConcisenessLabel" to "Conciseness",
+    "outputDelivery.analyzeWithAiButton" to "Deeper Analysis with AI",
+    "outputDelivery.analyzeWithAiNoKeyHint" to "First enter the API key in Settings",
     "outputDelivery.warningsSectionTitle" to "Warnings",
     "outputDelivery.noWarnings" to "No warnings for this output.",
     "outputDelivery.loadingState" to "Loading...",
