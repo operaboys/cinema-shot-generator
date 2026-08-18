@@ -40,6 +40,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 
 // واحد ۱۵ — قدم ۳ (زیرقدم ۱): نگاشت دوطرفه‌ی DTO ↔ نوع واقعی دامنه برای ProjectDna
 // و CharacterAsset/LocationAsset — هم‌الگو با DtoMappers.kt (ADR-018).
@@ -51,7 +52,9 @@ fun ProjectDnaDto.toDomain(): ProjectDna = ProjectDna(
         dominantVisualStyle = VisualStyle.valueOf(coreIdentity.dominantVisualStyle),
         realismLevel = RealismLevel.valueOf(coreIdentity.realismLevel),
         styleConsistency = StyleConsistency.valueOf(coreIdentity.styleConsistency),
-        locked = coreIdentity.locked
+        locked = coreIdentity.locked,
+        secondaryStyle = coreIdentity.secondaryStyle?.let { VisualStyle.valueOf(it) },
+        influence = coreIdentity.influence?.let { StyleInfluence.valueOf(it) }
     ),
     masterPalette = MasterPalette(
         colorTemperature = ColorTemperature.valueOf(masterPalette.colorTemperature),
@@ -91,7 +94,9 @@ fun ProjectDna.toDto(): ProjectDnaDto = ProjectDnaDto(
         dominantVisualStyle = coreIdentity.dominantVisualStyle.name,
         realismLevel = coreIdentity.realismLevel.name,
         styleConsistency = coreIdentity.styleConsistency.name,
-        locked = coreIdentity.locked
+        locked = coreIdentity.locked,
+        secondaryStyle = coreIdentity.secondaryStyle?.name,
+        influence = coreIdentity.influence?.name
     ),
     masterPalette = MasterPaletteDto(
         colorTemperature = masterPalette.colorTemperature.name,

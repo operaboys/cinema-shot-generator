@@ -2066,6 +2066,24 @@ Production) پیدا و رفع شد: انتخاب `Mood.MYSTERIOUS` از Dropdow
 واقعاً روی هشدارهای Validation واقعی اثر بگذارد. جزئیات کامل در
 `docs/adr/112-unit03-cinematic-language-step4-ui-feature-closed.md`.
 
+### ✅ اتصال کامل Style Matrix — قدم ۱الف از ۱۰ زیرقدم: Secondary Style + Influence در CoreIdentity (فقط مدل داده، بدون UI) (ADR-113)
+
+اولین زیرقدم از برنامه‌ی ۱۰ زیرقدمی «اتصال کامل Style Matrix»: دو فیلد
+Nullable تازه به `CoreIdentity` واقعی اضافه شد — `secondaryStyle:
+VisualStyle?` و `influence: StyleInfluence?` (بازاستفاده از enum موجود
+`StyleMatrix.kt`، نه بازتعریف). `setSecondaryVisualStyle(null)` در
+`DnaViewModel.kt` همزمان `influence` را هم `null` می‌کند — دقیقاً همان
+قاعده‌ای که `combineStyles` موجود از قبل رعایت می‌کند (Influence بدون
+Secondary بی‌معناست)، این‌بار در سطح State. بررسی مستقل تأیید کرد
+پیش‌بریفینگ معمار دقیقاً با کد واقعی مطابق بود — بدون هیچ تفاوت. یافته‌ی
+جانبی مهم: ممیزی G14 (ADR-064، تصمیم ۱۱) قبلاً `StyleMatrix.kt` را
+«ماژول منسوخ» اعلام کرده بود؛ بررسی دقیق‌تر تأیید کرد این زیرقدم با آن
+تصمیم در تناقض نیست — مفهوم Style Matrix به مدل واقعی (`CoreIdentity`)
+منتقل می‌شود، نه اینکه ماژول منسوخ دوباره زنده شود (`StyleMatrix.kt`/
+`StyleReference` دست‌نخورده ماندند، طبق دستور صریح). فقط لایه‌ی داده
+(دامنه + DTO + Mapper + ViewModel) — بدون هیچ UI (زیرقدم بعدی). جزئیات
+کامل در `docs/adr/113-unit03-style-matrix-connection-step1a-core-identity-secondary-influence.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

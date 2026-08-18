@@ -2,6 +2,7 @@ package com.operaboys.cinemashotgenerator.domain.dna
 
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicLanguageSettings
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 
 // واحد ۰۲ — DNA Manager (ساختار داده)
 // منبع حقیقت: docs/blueprints/02-dna-manager-v2.md (نسخه ۵)
@@ -185,12 +186,24 @@ enum class AspectRatio(val displayValue: String) {
     SQUARE_1_1("1:1")
 }
 
-/** Core Identity — Soft Lock: همیشه قابل تغییر، حتی پس از locked=true. */
+/**
+ * Core Identity — Soft Lock: همیشه قابل تغییر، حتی پس از locked=true.
+ *
+ * secondaryStyle/influence (اتصال Style Matrix — قدم ۱الف از ۱۰ زیرقدم، ADR-113):
+ * افزودنی‌های تازه، هر دو Nullable و پیش‌فرض null — Breaking-Change-کمینه،
+ * پروژه‌های موجود بدون این دو فیلد صریح هم کار می‌کنند. StyleInfluence همان
+ * enum موجود در domain/visualidentity/StyleMatrix.kt است (بازاستفاده، نه
+ * تعریف مجدد) — این دو فیلد معادل primaryStyle/secondaryStyle/influence
+ * ساختار موازی StyleMatrix.kt هستند، اما روی مدل واقعاً استفاده‌شده
+ * (CoreIdentity) به‌جای ساختار یتیم StyleMatrix.
+ */
 data class CoreIdentity(
     val dominantVisualStyle: VisualStyle,
     val realismLevel: RealismLevel,
     val styleConsistency: StyleConsistency,
-    val locked: Boolean = false
+    val locked: Boolean = false,
+    val secondaryStyle: VisualStyle? = null,
+    val influence: StyleInfluence? = null
 )
 
 data class MasterPalette(

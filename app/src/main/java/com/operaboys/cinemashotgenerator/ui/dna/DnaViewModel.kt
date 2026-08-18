@@ -25,6 +25,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
 import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -145,6 +146,28 @@ class DnaViewModel(
     // ترجیح نور — nullable طبق طراحی («بدون ترجیح» یک گزینه‌ی صریح است).
     fun setPreferredLightingStyle(style: LightingStyle?) = updateAndSave {
         it.copy(lightingPreference = it.lightingPreference.copy(preferredStyle = style))
+    }
+
+    // اتصال Style Matrix — قدم ۱الف از ۱۰ زیرقدم (ADR-113): سبک ثانویه/شدت
+    // تأثیر — هم‌الگوی دقیق setPreferredLightingStyle بالا (nullable، «بدون
+    // انتخاب» یک گزینه‌ی صریح). تصمیم مستقل: وقتی secondaryStyle به null تغییر
+    // کند، influence فعلی هم همزمان باید null شود — چون Influence بدون
+    // Secondary معنای منطقی ندارد؛ دقیقاً همان قاعده‌ای که combineStyles موجود
+    // در StyleMatrix.kt از قبل رعایت می‌کند (secondary=null یعنی influence هم
+    // نادیده گرفته می‌شود) — اینجا همان قاعده در سطح State هم اعمال می‌شود تا
+    // حالت غیرممکن «influence غیر-null بدون secondaryStyle» اصلاً در دامنه رخ
+    // ندهد.
+    fun setSecondaryVisualStyle(style: VisualStyle?) = updateAndSave {
+        it.copy(
+            coreIdentity = it.coreIdentity.copy(
+                secondaryStyle = style,
+                influence = if (style == null) null else it.coreIdentity.influence
+            )
+        )
+    }
+
+    fun setStyleInfluence(influence: StyleInfluence?) = updateAndSave {
+        it.copy(coreIdentity = it.coreIdentity.copy(influence = influence))
     }
 
     // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): زبان سینمایی سراسری پروژه —

@@ -18,12 +18,18 @@ import kotlinx.serialization.Serializable
 //   — نوع Kotlin سمت domain عوض شد (ContrastLevel/AspectRatio/Mood) ولی شکل
 //   ذخیره‌سازی JSON (رشته‌ی نام Enum) تغییری نکرد.
 
+// اتصال Style Matrix — قدم ۱الف از ۱۰ زیرقدم (ADR-113): secondaryStyle/influence
+// تازه، هر دو Nullable — همان دلیل الگوی موجود این فایل (مثلاً
+// LightingPreferenceDto.preferredStyle)، تا dnaDataJson قدیمی بدون این دو کلید
+// بدون خطا Decode شود.
 @Serializable
 data class CoreIdentityDto(
     val dominantVisualStyle: String,
     val realismLevel: String,
     val styleConsistency: String,
-    val locked: Boolean = false
+    val locked: Boolean = false,
+    val secondaryStyle: String? = null,
+    val influence: String? = null
 )
 
 @Serializable

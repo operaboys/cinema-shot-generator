@@ -1,6 +1,19 @@
 package com.operaboys.cinemashotgenerator.data.repository
 
+import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
+import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature as DnaColorTemperature
+import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
+import com.operaboys.cinemashotgenerator.domain.dna.CoreIdentity
+import com.operaboys.cinemashotgenerator.domain.dna.GlobalMoodBase
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.dna.MasterPalette
+import com.operaboys.cinemashotgenerator.domain.dna.Mood
+import com.operaboys.cinemashotgenerator.domain.dna.OutputConstraints
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
+import com.operaboys.cinemashotgenerator.domain.dna.RealismLevel
+import com.operaboys.cinemashotgenerator.domain.dna.SaturationLevel
+import com.operaboys.cinemashotgenerator.domain.dna.StyleConsistency
+import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
@@ -23,6 +36,7 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -159,5 +173,64 @@ class DtoMappersTest {
         assertEquals("BALANCED", decoded.cinematicLanguage.globalMode)
         assertTrue(decoded.cinematicLanguage.sceneOverrides.isEmpty())
         assertEquals("dna_legacy", decoded.dnaId)
+    }
+
+    // اتصال Style Matrix — قدم ۱الف از ۱۰ زیرقدم (ADR-113): هم‌الگو با تست‌های
+    // بالا برای CoreIdentity.secondaryStyle/influence تازه‌اضافه‌شده. CoreIdentity
+    // برخلاف Shot/LightingSettings تابع toDto()/toDomain() مستقل ندارد (نگاشتش
+    // مستقیماً داخل ProjectDna.toDto()/toDomain() نوشته شده — DnaAssetMappers.kt)،
+    // پس Round-Trip از طریق کل ProjectDna تست می‌شود، نه یک تابع جدا روی خودِ
+    // CoreIdentity.
+
+    private fun baseProjectDna(secondaryStyle: VisualStyle?, influence: StyleInfluence?) = ProjectDna(
+        dnaId = "dna_style_matrix_test",
+        projectId = "proj_style_matrix_test",
+        coreIdentity = CoreIdentity(
+            dominantVisualStyle = VisualStyle.CINEMATIC_STYLE,
+            realismLevel = RealismLevel.SEMI_REALISTIC,
+            styleConsistency = StyleConsistency.MODERATE,
+            secondaryStyle = secondaryStyle,
+            influence = influence
+        ),
+        masterPalette = MasterPalette(
+            colorTemperature = DnaColorTemperature.NEUTRAL,
+            globalSaturation = SaturationLevel.MEDIUM,
+            globalContrast = ContrastLevel.MEDIUM,
+            colorGradingPreset = ""
+        ),
+        outputConstraints = OutputConstraints(
+            forbiddenElements = emptyMap(),
+            mandatoryElements = emptyList(),
+            maxShotDurationSeconds = 8,
+            aspectRatio = AspectRatio.LANDSCAPE_16_9
+        ),
+        globalMoodBase = GlobalMoodBase(primaryEmotion = Mood.CALM)
+    )
+
+    @Test
+    fun `CoreIdentity secondaryStyle and influence round-trip via ProjectDna toDto then toDomain, both when set and when null`() {
+        val withBothFields = baseProjectDna(secondaryStyle = VisualStyle.FILM_NOIR, influence = StyleInfluence.STRONG)
+        assertEquals(withBothFields, withBothFields.toDto().toDomain())
+
+        val withNoOptionalFields = baseProjectDna(secondaryStyle = null, influence = null)
+        assertEquals(withNoOptionalFields, withNoOptionalFields.toDto().toDomain())
+    }
+
+    @Test
+    fun `decoding an old CoreIdentityDto without secondaryStyle or influence keys succeeds with null defaults`() {
+        val json = Json { ignoreUnknownKeys = true }
+        val oldJsonWithoutSecondaryStyleOrInfluence = """
+            {
+              "dominantVisualStyle": "CINEMATIC_STYLE",
+              "realismLevel": "SEMI_REALISTIC",
+              "styleConsistency": "MODERATE"
+            }
+        """.trimIndent()
+
+        val decoded = json.decodeFromString(CoreIdentityDto.serializer(), oldJsonWithoutSecondaryStyleOrInfluence)
+
+        assertTrue(decoded.secondaryStyle == null)
+        assertTrue(decoded.influence == null)
+        assertEquals("CINEMATIC_STYLE", decoded.dominantVisualStyle)
     }
 }
