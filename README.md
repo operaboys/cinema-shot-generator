@@ -2105,6 +2105,27 @@ Secondary بی‌معناست)، این‌بار در سطح State. بررسی �
 اثبات می‌کنند Override واقعاً بر Category اولویت دارد. جزئیات کامل در
 `docs/adr/114-unit03-style-matrix-connection-step2a-compatibility-matrix.md`.
 
+### ✅ اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم: UI انتخاب Secondary Style + Influence + نمایش زنده‌ی Warning ناسازگاری در فرم DNA (ADR-115)
+
+دو Dropdown تازه به گروه «هویت اصلی» تب DNA اضافه شد: **Secondary
+Style** (nullable، هم‌الگوی «Lighting Preference» موجود، با گزینه‌ی
+صریح «بدون سبک ثانویه») و **Influence** (فقط وقتی Secondary Style
+انتخاب شده باشد رندر می‌شود — نه فقط غیرفعال، اصلاً در درخت Compose
+نیست، چون Influence بدون Secondary بی‌معناست). زیر این دو فیلد، هشدار
+زنده‌ی ناسازگاری سبک (خروجی واقعی `checkStyleCompatibility` از ADR-114)
+با همان کامپوننت موجود `ValidationIssueRow` نمایش داده می‌شود. تابع
+تبدیل `CompatibilityResult` (خالص، بدون متن) به `ValidationIssue`
+محلی‌سازی‌شده عمداً در لایه‌ی UI تعریف شد، نه در فایل دامنه‌ای
+`StyleMatrix.kt` — تا وابستگی i18n/UI وارد دامنه نشود. یافته‌ی گزارش‌شده‌ی
+ADR-114 رفع شد: `validatePrimaryStyleUpdate` اکنون `VisualStyle?` می‌گیرد،
+نه `StyleReference?` منسوخ. یک باگ واقعی خودم در همین قدم پیدا و رفع شد:
+سه کلید ترجمه‌ی تازه (`styleInfluence.*`) را فقط به نقشه‌ی فارسی اضافه
+کرده بودم — نقشه‌ی انگلیسی را فراموش کرده بودم؛ تست خودکار موجود
+`UiStringsTest` این را بلافاصله تشخیص داد. ۴ تست تازه در
+`DnaTabFlowTest.kt` (شامل اثبات یک جفت سازگار بدون هشدار و یک جفت
+ناسازگار با هشدار زنده). جزئیات کامل در
+`docs/adr/115-unit03-style-matrix-connection-step3-dna-ui.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

@@ -311,6 +311,12 @@ val faStrings: Map<String, String> = mapOf(
     "dna.coreIdentity.visualStyleLabel" to "سبک بصری غالب",
     "dna.coreIdentity.realismLevelLabel" to "سطح واقع‌گرایی",
     "dna.coreIdentity.styleConsistencyLabel" to "میزان یکدستی سبک",
+    // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115)
+    "dna.coreIdentity.secondaryStyleLabel" to "سبک ثانویه",
+    "dna.coreIdentity.secondaryStyleNone" to "بدون سبک ثانویه",
+    "dna.coreIdentity.influenceLabel" to "شدت تأثیر سبک ثانویه",
+    "dna.coreIdentity.influenceUnset" to "هنوز تعیین‌نشده",
+    "dna.coreIdentity.styleCompatibilityWarningTemplate" to "ترکیب «{primary}» و «{secondary}» معمولاً هم‌خوانی بصری کمی دارند.",
     "dna.masterPalette.colorTemperatureLabel" to "دمای رنگ",
     "dna.masterPalette.saturationLabel" to "اشباع رنگ کلی",
     "dna.masterPalette.contrastLabel" to "کنتراست کلی",
@@ -431,6 +437,10 @@ val faStrings: Map<String, String> = mapOf(
     "cinematicMode.longTake" to "نمای بلند (Long-take)",
     "cinematicMode.fastCut" to "برش سریع (Fast-cut)",
     "cinematicMode.balanced" to "هوشمند (Hybrid)",
+    // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115)
+    "styleInfluence.subtle" to "ملایم",
+    "styleInfluence.moderate" to "متوسط",
+    "styleInfluence.strong" to "قوی",
 
     "colorTemperature.warm" to "گرم",
     "colorTemperature.cool" to "سرد",
@@ -1192,6 +1202,12 @@ val enStrings: Map<String, String> = mapOf(
     "dna.coreIdentity.visualStyleLabel" to "Dominant Visual Style",
     "dna.coreIdentity.realismLevelLabel" to "Realism Level",
     "dna.coreIdentity.styleConsistencyLabel" to "Style Consistency",
+    // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115)
+    "dna.coreIdentity.secondaryStyleLabel" to "Secondary Style",
+    "dna.coreIdentity.secondaryStyleNone" to "No secondary style",
+    "dna.coreIdentity.influenceLabel" to "Secondary Style Influence",
+    "dna.coreIdentity.influenceUnset" to "Not set yet",
+    "dna.coreIdentity.styleCompatibilityWarningTemplate" to "The combination of \"{primary}\" and \"{secondary}\" usually has limited visual compatibility.",
     "dna.masterPalette.colorTemperatureLabel" to "Color Temperature",
     "dna.masterPalette.saturationLabel" to "Global Saturation",
     "dna.masterPalette.contrastLabel" to "Global Contrast",
@@ -1308,6 +1324,10 @@ val enStrings: Map<String, String> = mapOf(
     "cinematicMode.longTake" to "Long-take",
     "cinematicMode.fastCut" to "Fast-cut",
     "cinematicMode.balanced" to "Balanced (Hybrid)",
+    // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115)
+    "styleInfluence.subtle" to "Subtle",
+    "styleInfluence.moderate" to "Moderate",
+    "styleInfluence.strong" to "Strong",
 
     "colorTemperature.warm" to "Warm",
     "colorTemperature.cool" to "Cool",

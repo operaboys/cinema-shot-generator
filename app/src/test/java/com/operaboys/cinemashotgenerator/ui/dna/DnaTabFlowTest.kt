@@ -39,9 +39,11 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
 import com.operaboys.cinemashotgenerator.ui.home.CREATE_PROJECT_NAME_FIELD_TAG
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.navigation.BOTTOM_NAV_HOME_TAG
 import com.operaboys.cinemashotgenerator.ui.navigation.MainScaffold
 import com.operaboys.cinemashotgenerator.ui.navigation.StudioTab
@@ -305,5 +307,92 @@ class DnaTabFlowTest {
         )
 
         assertEquals(CinematicMode.LONG_TAKE, resolveEffectiveCinematicMode(loadedDna, neutralScene, neutralShot))
+    }
+
+    // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115): چهار تست تازه —
+    // انتخاب Secondary Style + نمایش/عدم‌نمایش شرطی فیلد Influence، پاک‌شدن
+    // همزمان Influence با انتخاب «بدون سبک ثانویه»، انتخاب Influence، و نمایش
+    // زنده‌ی هشدار ناسازگاری (هم برای یک جفت ناسازگار HIGH→ندارد و یک جفت
+    // LOW→دارد، طبق ماتریس واقعی ADR-114).
+
+    @Test
+    fun `selecting a Secondary Style saves it and reveals the Influence field, which is hidden before any secondary style is chosen`() {
+        createProjectAndOpenDnaTab("Style Matrix Secondary Style Test")
+
+        composeRule.onNodeWithTag(DNA_STYLE_INFLUENCE_FIELD_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(DNA_SECONDARY_STYLE_FIELD_TAG).clickViaSemantics()
+        val filmNoirLabel = visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)
+        composeRule.onNodeWithText(filmNoirLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(filmNoirLabel), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(DNA_STYLE_INFLUENCE_FIELD_TAG).performScrollTo().assertTextContains(
+            uiString("dna.coreIdentity.influenceUnset", Language.FA)
+        )
+    }
+
+    @Test
+    fun `choosing no secondary style clears both secondaryStyle and influence, and hides the Influence field again`() {
+        createProjectAndOpenDnaTab("Style Matrix Clear Secondary Style Test")
+
+        composeRule.onNodeWithTag(DNA_SECONDARY_STYLE_FIELD_TAG).clickViaSemantics()
+        val filmNoirLabel = visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)
+        composeRule.onNodeWithText(filmNoirLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(filmNoirLabel), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(DNA_STYLE_INFLUENCE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val strongLabel = styleInfluenceLabel(StyleInfluence.STRONG, Language.FA)
+        composeRule.onNodeWithText(strongLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(strongLabel), timeoutMillis = 5_000)
+
+        composeRule.onNodeWithTag(DNA_SECONDARY_STYLE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val noneLabel = uiString("dna.coreIdentity.secondaryStyleNone", Language.FA)
+        composeRule.onNodeWithText(noneLabel).clickViaSemantics()
+
+        composeRule.waitUntilExactlyOneExists(hasText(noneLabel), timeoutMillis = 5_000)
+        composeRule.onNodeWithTag(DNA_STYLE_INFLUENCE_FIELD_TAG).assertDoesNotExist()
+
+        val reloaded = runBlocking {
+            val projectDnaRepository = ProjectDnaRepository(database.projectDnaDao())
+            val projectId = database.projectDao().getAllProjects().first()
+                .first { it.projectName == "Style Matrix Clear Secondary Style Test" }.projectId
+            projectDnaRepository.loadProjectDna(projectId).getOrThrow()!!
+        }
+        assertEquals(null, reloaded.coreIdentity.secondaryStyle)
+        assertEquals(null, reloaded.coreIdentity.influence)
+    }
+
+    @Test
+    fun `a HIGH-compatibility secondary style shows no warning, and a LOW-compatibility secondary style shows the live warning`() {
+        createProjectAndOpenDnaTab("Style Matrix Warning Test")
+
+        // پیش‌فرض dominantVisualStyle، CINEMATIC_STYLE است (defaultProjectDna).
+        composeRule.onNodeWithTag(DNA_SECONDARY_STYLE_FIELD_TAG).clickViaSemantics()
+        val filmNoirLabel = visualStyleLabel(VisualStyle.FILM_NOIR, Language.FA)
+        composeRule.onNodeWithText(filmNoirLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(filmNoirLabel), timeoutMillis = 5_000)
+
+        // CINEMATIC_STYLE × FILM_NOIR — هر دو CINEMATIC، طبق ماتریس Category = HIGH → بدون هشدار.
+        val highWarningText = uiTemplate(
+            "dna.coreIdentity.styleCompatibilityWarningTemplate",
+            Language.FA,
+            "primary" to visualStyleLabel(VisualStyle.CINEMATIC_STYLE, Language.FA),
+            "secondary" to filmNoirLabel
+        )
+        composeRule.onNodeWithText(highWarningText).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(DNA_SECONDARY_STYLE_FIELD_TAG).performScrollTo().clickViaSemantics()
+        val mangaLabel = visualStyleLabel(VisualStyle.MANGA, Language.FA)
+        composeRule.onNodeWithText(mangaLabel).clickViaSemantics()
+        composeRule.waitUntilExactlyOneExists(hasText(mangaLabel), timeoutMillis = 5_000)
+
+        // CINEMATIC_STYLE (CINEMATIC) × MANGA (ANIMATION_2D) طبق ماتریس Category = LOW → هشدار زنده.
+        val lowWarningText = uiTemplate(
+            "dna.coreIdentity.styleCompatibilityWarningTemplate",
+            Language.FA,
+            "primary" to visualStyleLabel(VisualStyle.CINEMATIC_STYLE, Language.FA),
+            "secondary" to mangaLabel
+        )
+        composeRule.waitUntilExactlyOneExists(hasText(lowWarningText), timeoutMillis = 5_000)
     }
 }

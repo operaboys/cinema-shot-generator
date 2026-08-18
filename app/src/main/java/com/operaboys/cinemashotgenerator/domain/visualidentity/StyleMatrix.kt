@@ -141,8 +141,14 @@ sealed class StyleUpdateResult {
 /**
  * Rule 3 (Blocking روی تلاش حذف): سبک اصلی قابل حذف نیست، فقط قابل تعویض.
  * newPrimaryStyle مقدار پیشنهادی برای به‌روزرسانی است؛ null یعنی تلاش برای حذف.
+ *
+ * اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115): امضا از
+ * `StyleReference?` به `VisualStyle?` تغییر کرد — یافته‌ی گزارش‌شده در ADR-114:
+ * از قدم ۲ (که `StyleMatrix.primaryStyle` را به `VisualStyle` تغییر داد) به
+ * بعد، این تابع (که منطقاً برای اعتبارسنجی به‌روزرسانی همان فیلد نوشته شده
+ * بود) با نوع واقعی‌اش ناسازگار بود. منطق داخلی (null=Blocked) تغییری نکرد.
  */
-fun validatePrimaryStyleUpdate(newPrimaryStyle: StyleReference?): StyleUpdateResult {
+fun validatePrimaryStyleUpdate(newPrimaryStyle: VisualStyle?): StyleUpdateResult {
     if (newPrimaryStyle == null) {
         return StyleUpdateResult.Blocked("سبک اصلی قابل حذف نیست؛ فقط می‌توانید آن را با سبک دیگری تعویض کنید")
     }

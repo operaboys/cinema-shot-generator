@@ -14,6 +14,7 @@ import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyleCategory
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 
 // واحد ۱۶ فاز ۲ — قدم ۳: نگاشت enum های ProjectDna به کلید ترجمه، هم‌الگو با
@@ -185,6 +186,19 @@ fun cinematicModeLabel(mode: CinematicMode, language: Language): String = uiStri
         CinematicMode.LONG_TAKE -> "cinematicMode.longTake"
         CinematicMode.FAST_CUT -> "cinematicMode.fastCut"
         CinematicMode.BALANCED -> "cinematicMode.balanced"
+    },
+    language
+)
+
+/**
+ * اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115): برچسب سه مقدار
+ * `StyleInfluence` — هم‌الگوی دقیق `cinematicModeLabel` بالا.
+ */
+fun styleInfluenceLabel(influence: StyleInfluence, language: Language): String = uiString(
+    when (influence) {
+        StyleInfluence.SUBTLE -> "styleInfluence.subtle"
+        StyleInfluence.MODERATE -> "styleInfluence.moderate"
+        StyleInfluence.STRONG -> "styleInfluence.strong"
     },
     language
 )

@@ -162,7 +162,7 @@ class StyleMatrixTest {
         assertNull(checkStyleMatrixCompatibility(matrix))
     }
 
-    // --- Rule 3 (Blocking روی تلاش حذف) — validatePrimaryStyleUpdate خارج از Scope این قدم، همچنان روی StyleReference ---
+    // --- Rule 3 (Blocking روی تلاش حذف) — امضا در قدم ۳ (ADR-115) به VisualStyle? تغییر کرد ---
 
     @Test
     fun `rule3 attempting to null primary style is blocked`() {
@@ -172,7 +172,7 @@ class StyleMatrixTest {
 
     @Test
     fun `rule3 replacing primary style with another is allowed`() {
-        val result = validatePrimaryStyleUpdate(photorealistic)
+        val result = validatePrimaryStyleUpdate(VisualStyle.PHOTOREALISTIC)
         assertTrue(result is StyleUpdateResult.Allowed)
     }
 }

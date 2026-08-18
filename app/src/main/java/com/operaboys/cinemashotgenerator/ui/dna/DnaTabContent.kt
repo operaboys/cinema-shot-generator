@@ -66,10 +66,14 @@ import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.dna.validateColorPalette
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
+import com.operaboys.cinemashotgenerator.domain.visualidentity.CompatibilityResult
+import com.operaboys.cinemashotgenerator.domain.visualidentity.StyleInfluence
+import com.operaboys.cinemashotgenerator.domain.visualidentity.checkStyleCompatibility
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.ui.assets.OpaqueChip
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
+import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.story.moodLabel
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
@@ -92,6 +96,9 @@ import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 const val DNA_VISUAL_STYLE_FIELD_TAG = "dna.visualStyleField"
 const val DNA_REALISM_LEVEL_FIELD_TAG = "dna.realismLevelField"
 const val DNA_CORE_STYLE_CONSISTENCY_FIELD_TAG = "dna.coreStyleConsistencyField"
+/** اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115). */
+const val DNA_SECONDARY_STYLE_FIELD_TAG = "dna.secondaryStyleField"
+const val DNA_STYLE_INFLUENCE_FIELD_TAG = "dna.styleInfluenceField"
 const val DNA_COLOR_TEMPERATURE_FIELD_TAG = "dna.colorTemperatureField"
 const val DNA_SATURATION_FIELD_TAG = "dna.saturationField"
 const val DNA_CONTRAST_FIELD_TAG = "dna.contrastField"
@@ -157,7 +164,20 @@ fun DnaTabContent(
     ) {
         SoftLockBanner(language = language)
 
-        DnaGroup(title = uiString("dna.group.coreIdentity", language), fieldCount = 3) {
+        // اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115): تا این قدم کاربر
+        // هیچ راهی برای دیدن یا تنظیم دستی secondaryStyle/influence (ADR-113) یا
+        // برای دیدن هشدار زنده‌ی ناسازگاری (ADR-114) نداشت. secondaryStyleIssue
+        // دقیقاً هم‌الگوی colorPaletteIssue بالا (remember + نمایش با
+        // ValidationIssueRow) — فقط وقتی secondaryStyle واقعاً انتخاب شده باشد
+        // محاسبه می‌شود (Influence بدون Secondary بی‌معناست، طبق تصمیم قدم ۱).
+        val secondaryStyleIssue = remember(dna.coreIdentity.dominantVisualStyle, dna.coreIdentity.secondaryStyle, language) {
+            dna.coreIdentity.secondaryStyle?.let { secondary ->
+                checkStyleCompatibility(dna.coreIdentity.dominantVisualStyle, secondary)
+                    .toValidationIssueOrNull(dna.coreIdentity.dominantVisualStyle, secondary, language)
+            }
+        }
+
+        DnaGroup(title = uiString("dna.group.coreIdentity", language), fieldCount = 5) {
             EnumDropdownField(
                 label = uiString("dna.coreIdentity.visualStyleLabel", language),
                 selectedLabel = visualStyleLabel(dna.coreIdentity.dominantVisualStyle, language),
@@ -185,6 +205,37 @@ fun DnaTabContent(
             ) { onDismiss ->
                 FlatEntries(StyleConsistency.entries, { styleConsistencyLabel(it, language) }) { viewModel.setCoreStyleConsistency(it); onDismiss() }
             }
+            EnumDropdownField(
+                label = uiString("dna.coreIdentity.secondaryStyleLabel", language),
+                selectedLabel = dna.coreIdentity.secondaryStyle?.let { visualStyleLabel(it, language) }
+                    ?: uiString("dna.coreIdentity.secondaryStyleNone", language),
+                testTag = DNA_SECONDARY_STYLE_FIELD_TAG
+            ) { onDismiss ->
+                Column {
+                    DropdownMenuItem(
+                        text = { Text(uiString("dna.coreIdentity.secondaryStyleNone", language)) },
+                        onClick = { viewModel.setSecondaryVisualStyle(null); onDismiss() }
+                    )
+                    GroupedEntries(
+                        entries = VisualStyle.entries,
+                        categoryOf = VisualStyle::category,
+                        categoryLabel = { visualStyleCategoryLabel(it, language) },
+                        itemLabel = { visualStyleLabel(it, language) },
+                        onSelected = { viewModel.setSecondaryVisualStyle(it); onDismiss() }
+                    )
+                }
+            }
+            if (dna.coreIdentity.secondaryStyle != null) {
+                EnumDropdownField(
+                    label = uiString("dna.coreIdentity.influenceLabel", language),
+                    selectedLabel = dna.coreIdentity.influence?.let { styleInfluenceLabel(it, language) }
+                        ?: uiString("dna.coreIdentity.influenceUnset", language),
+                    testTag = DNA_STYLE_INFLUENCE_FIELD_TAG
+                ) { onDismiss ->
+                    FlatEntries(StyleInfluence.entries, { styleInfluenceLabel(it, language) }) { viewModel.setStyleInfluence(it); onDismiss() }
+                }
+            }
+            secondaryStyleIssue?.let { ValidationIssueRow(it) }
         }
 
         DnaGroup(title = uiString("dna.group.masterPalette", language), fieldCount = 5) {
@@ -500,6 +551,33 @@ private fun ColorSwatchField(hex: String, onHexChange: (String) -> Unit, languag
             modifier = Modifier.fillMaxWidth().testTag(testTag)
         )
     }
+}
+
+/**
+ * اتصال کامل Style Matrix — قدم ۳ از ۸ زیرقدم (ADR-115): تبدیل خروجی خالص
+ * دامنه‌ای `CompatibilityResult` (بدون هیچ متن، فقط level/warning) به یک
+ * `ValidationIssue` محلی‌سازی‌شده — عمداً در همین فایل UI (نه به‌عنوان extension
+ * در `domain/visualidentity/StyleMatrix.kt`) چون به `Language`/`uiTemplate`/
+ * `visualStyleLabel` نیاز دارد؛ دامنه نباید به لایه‌ی i18n/UI وابسته شود
+ * (همان انضباط جداسازی که `DnaAssetMappers.kt` هم رعایت می‌کند). فقط وقتی
+ * `warning=true` (یعنی LOW/INCOMPATIBLE) یک نتیجه برمی‌گرداند؛ برای
+ * HIGH/MEDIUM چیزی نمایش داده نمی‌شود (`null`).
+ */
+private fun CompatibilityResult.toValidationIssueOrNull(
+    primary: VisualStyle,
+    secondary: VisualStyle,
+    language: Language
+): ValidationIssue? {
+    if (!warning) return null
+    return ValidationIssue(
+        severity = Severity.WARNING,
+        message = uiTemplate(
+            "dna.coreIdentity.styleCompatibilityWarningTemplate",
+            language,
+            "primary" to visualStyleLabel(primary, language),
+            "secondary" to visualStyleLabel(secondary, language)
+        )
+    )
 }
 
 @Composable
