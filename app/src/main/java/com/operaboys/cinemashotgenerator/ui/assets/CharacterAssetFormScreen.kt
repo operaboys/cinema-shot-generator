@@ -63,6 +63,8 @@ const val CHARACTER_FORM_NAME_FIELD_TAG = "characterForm.nameField"
 const val CHARACTER_FORM_TIER_FIELD_TAG = "characterForm.tierField"
 const val CHARACTER_FORM_AGE_RANGE_FIELD_TAG = "characterForm.ageRangeField"
 const val CHARACTER_FORM_GENDER_FIELD_TAG = "characterForm.genderField"
+/** سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123). */
+const val CHARACTER_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG = "characterForm.descriptionFaPreviewField"
 const val CHARACTER_FORM_SAVE_BUTTON_TAG = "characterForm.saveButton"
 const val CHARACTER_FORM_BACK_BUTTON_TAG = "characterForm.backButton"
 const val CHARACTER_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "characterForm.toggleLanguageButton"
@@ -117,6 +119,7 @@ fun CharacterAssetFormScreen(
     val physicalFeatures by viewModel.physicalFeatures.collectAsStateWithLifecycle()
     val defaultMood by viewModel.defaultMood.collectAsStateWithLifecycle()
     val basePrompt by viewModel.basePrompt.collectAsStateWithLifecycle()
+    val descriptionFaPreview by viewModel.descriptionFaPreview.collectAsStateWithLifecycle()
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
@@ -210,6 +213,11 @@ fun CharacterAssetFormScreen(
             OutlinedTextField(
                 value = basePrompt, onValueChange = viewModel::setBasePrompt,
                 label = { Text(uiString("assetForm.basePromptLabel", language)) }, modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = descriptionFaPreview, onValueChange = viewModel::setDescriptionFaPreview,
+                label = { Text(uiString("assetForm.descriptionFaPreviewLabel", language)) },
+                modifier = Modifier.fillMaxWidth().testTag(CHARACTER_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
             )
 
             OutfitsSection(viewModel = viewModel, language = language, outfits = outfits)

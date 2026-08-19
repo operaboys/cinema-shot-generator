@@ -292,11 +292,16 @@ class AiStoryBreakdownViewModel(
      * دقیقاً همان تابع مشترکی که sendPromptAutomatically (مسیر ۲، پایین‌تر) هم
      * استفاده می‌کند، تا کد Parse/Repair هرگز بین دو مسیر تکرار نشود (طبق دستور
      * صریح G2 قدم ۳).
+     *
+     * سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+     * previewLanguageEnabled واقعی کاربر (StateFlow قدم ۱/ADR-121) اکنون به
+     * processAiResponse می‌رود — تا این قدم همیشه پیش‌فرض false استفاده
+     * می‌شد، حتی وقتی Toggle روشن بود (محدودیت آگاهانه‌ی مستندشده‌ی ADR-122).
      */
     fun processResponse() {
         val allChunks = _chunks.value + listOfNotNull(_currentChunkInput.value.takeIf { it.isNotBlank() })
         _chunksCompleteWarning.value = validateChunksComplete(allChunks)?.message
-        applyProcessAiResponseResult(processAiResponse(allChunks, _targetShotCount.value))
+        applyProcessAiResponseResult(processAiResponse(allChunks, _targetShotCount.value, _previewLanguageEnabled.value))
     }
 
     private fun applyProcessAiResponseResult(result: ProcessAiResponseResult) {
@@ -362,7 +367,7 @@ class AiStoryBreakdownViewModel(
             _autoSendInProgress.value = false
             result.fold(
                 onSuccess = { responseText ->
-                    applyProcessAiResponseResult(processAiResponse(listOf(responseText), _targetShotCount.value))
+                    applyProcessAiResponseResult(processAiResponse(listOf(responseText), _targetShotCount.value, _previewLanguageEnabled.value))
                     if (_phase.value != BreakdownPhase.FINAL_REVIEW) {
                         _currentChunkInput.value = responseText
                         _phase.value = BreakdownPhase.PASTE_RESPONSE

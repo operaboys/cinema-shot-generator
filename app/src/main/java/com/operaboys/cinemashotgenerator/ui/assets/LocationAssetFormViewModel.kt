@@ -77,6 +77,11 @@ class LocationAssetFormViewModel(
     private val _basePrompt = MutableStateFlow("")
     val basePrompt: StateFlow<String> = _basePrompt.asStateFlow()
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // هم‌الگو دقیق با basePrompt بالا.
+    private val _descriptionFaPreview = MutableStateFlow("")
+    val descriptionFaPreview: StateFlow<String> = _descriptionFaPreview.asStateFlow()
+
     /** سطح تداوم LocationAsset فقط یک مقدار دارد (STYLE) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE
 
@@ -117,6 +122,7 @@ class LocationAssetFormViewModel(
         _weatherCompatibility.value = asset.weatherCompatibility
         _keyElements.value = asset.keyElements
         _basePrompt.value = asset.basePrompt.orEmpty()
+        _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
     }
 
     fun setName(value: String) { _name.value = value }
@@ -132,6 +138,7 @@ class LocationAssetFormViewModel(
     fun addKeyElement(tag: String) { _keyElements.value = _keyElements.value + tag }
     fun removeKeyElement(tag: String) { _keyElements.value = _keyElements.value - tag }
     fun setBasePrompt(value: String) { _basePrompt.value = value }
+    fun setDescriptionFaPreview(value: String) { _descriptionFaPreview.value = value }
 
     fun save() {
         if (!canSave.value) return
@@ -145,7 +152,8 @@ class LocationAssetFormViewModel(
             weatherCompatibility = _weatherCompatibility.value,
             keyElements = _keyElements.value,
             basePrompt = _basePrompt.value.ifBlank { null },
-            continuityLockLevel = continuityLockLevel
+            continuityLockLevel = continuityLockLevel,
+            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null }
         )
         ioScope.launch {
             repository.saveLocationAsset(projectId, asset)

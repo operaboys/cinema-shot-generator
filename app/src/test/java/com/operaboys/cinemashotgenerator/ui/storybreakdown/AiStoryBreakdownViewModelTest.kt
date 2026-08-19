@@ -129,6 +129,52 @@ class AiStoryBreakdownViewModelTest {
         assertTrue(viewModel.previewLanguageEnabled.value)
     }
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // اثبات مستقیم اینکه processResponse واقعاً previewLanguageEnabled کاربر
+    // (نه پیش‌فرض false که تا این قدم همیشه استفاده می‌شد، طبق محدودیت
+    // مستندشده‌ی ADR-122) را به processAiResponse می‌دهد — با یک JSON دوزبانه‌ی
+    // واقعی (descriptionEn/descriptionFa)، نه JSON تک‌زبانه‌ی معمول این کلاس.
+
+    private val bilingualChunkForProcessResponse = """
+        {"characters": [{"name": "John", "descriptionEn": "a detective", "descriptionFa": "یک کارآگاه", "role": "main", "gender": "male"}],
+         "locations": [{"name": "Office", "descriptionEn": "a dim office", "descriptionFa": "یک دفتر کم‌نور"}],
+         "objects": [],
+         "shots": [{"sceneName": "Intro", "shotNumber": 1, "descriptionEn": "John enters", "descriptionFa": "جان وارد می‌شود", "characterNames": ["John"], "locationName": "Office", "objectNames": []}]}
+    """.trimIndent()
+
+    @Test
+    fun `processResponse with previewLanguageEnabled=true parses the bilingual schema, proving the real value (not the false default) reaches processAiResponse`() {
+        viewModel.setPreviewLanguageEnabled(true)
+        viewModel.setCurrentChunkInput(bilingualChunkForProcessResponse)
+
+        viewModel.processResponse()
+
+        val result = viewModel.breakdownResult.value
+        assertNotNull(result)
+        assertEquals("یک کارآگاه", result!!.characters.single().descriptionFaPreview)
+        assertEquals("a detective", result.characters.single().basePrompt)
+        assertEquals("جان وارد می‌شود", result.shots.single().shotDescriptionFaPreview)
+    }
+
+    @Test
+    fun `processResponse with previewLanguageEnabled left at its false default fails to decode the same bilingual JSON, proving the flag genuinely controls which schema is expected`() {
+        // بدون setPreviewLanguageEnabled(true) — previewLanguageEnabled کاربر
+        // همچنان false (پیش‌فرض) است؛ چون این JSON کلید description تک‌زبانه
+        // ندارد (فقط descriptionEn/descriptionFa)، SimpleAiResponse.decodeFromString
+        // با خطای Serialization واقعی شکست می‌خورد — دقیقاً اثبات معکوس اینکه
+        // previewLanguageEnabled واقعاً تعیین‌کننده‌ی مسیر Parse است، نه یک
+        // پارامتر بلااثر.
+        viewModel.setCurrentChunkInput(bilingualChunkForProcessResponse)
+
+        val result = runCatching { viewModel.processResponse() }
+
+        assertTrue(
+            "بدون previewLanguageEnabled=true، Decode این JSON دوزبانه باید واقعاً شکست بخورد",
+            result.isFailure
+        )
+        assertNull(viewModel.breakdownResult.value)
+    }
+
     @Test
     fun `setPreviewLanguageEnabled persists the value so a new ViewModel instance for the same project reloads it`() = runBlocking {
         val projectId = "proj_preview_language_persist_test"

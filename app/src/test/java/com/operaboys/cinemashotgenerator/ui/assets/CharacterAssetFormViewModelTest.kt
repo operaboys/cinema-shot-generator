@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.assets
 
 import android.app.Application
+import android.os.Looper
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
@@ -8,14 +9,21 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 // رفع G5 (ADR-067 بخش ه، ADR-095): تست‌های واحد addOutfit/removeOutfit/
@@ -152,4 +160,75 @@ class CharacterAssetFormViewModelTest {
     // فقط مقدار اولیه (emptyList) را برمی‌گرداند، نه محاسبه‌ی واقعی — یک تست اینجا
     // چیزی را واقعاً اثبات نمی‌کرد. Rule ۵ خودش در AssetValidationTest.kt (سطح
     // دامنه) و از طریق آزمون‌های بالا (لیست هرگز خالی نمی‌شود) پوشش داده شده.
+
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // برخلاف تست‌های بالا، این دو تست واقعاً save() (شامل I/O واقعی Room) را
+    // اثبات می‌کنند — پس یک نمونه‌ی جدا با ioScopeOverride=Dispatchers.Unconfined
+    // و idProvider ثابت می‌سازند (نه viewModel کلاسی بالا).
+
+    private fun <T> awaitCondition(flow: StateFlow<T>, timeoutMs: Long = 3000, predicate: (T) -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (!predicate(flow.value) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5)
+        }
+        assertTrue("condition was never met within ${timeoutMs}ms, last value=${flow.value}", predicate(flow.value))
+    }
+
+    // یافته‌ی واقعی دیباگ این دو تست: (۱) canSave از combine(...).stateIn(WhileSubscribed)
+    // ساخته می‌شود — بدون یک Collector واقعی (هم‌الگو با یادداشت بالای این کلاس
+    // درباره‌ی validationIssues)، save() که canSave.value را چک می‌کند همیشه بی‌صدا
+    // no-op می‌ماند؛ یک Collector مصنوعی + shadowOf(Looper.getMainLooper()).idle()
+    // (چون این StateFlow روی viewModelScope واقعی/Dispatchers.Main.immediate است، نه
+    // ioScopeOverride) دقیقاً همان اثری را دارد که UI واقعی (collectAsStateWithLifecycle)
+    // در تولید ایجاد می‌کند. (۲) اولین نوشتن واقعی Room در این کلاس تست (که تا این
+    // قدم فقط کار In-Memory با DAO خام synchronous می‌کرد) هزینه‌ی گرم‌شدن قابل‌توجهی
+    // دارد (مقداردهی اولیه‌ی Thread Pool داخلی Room برای suspend DAO) — با
+    // CoroutineExceptionHandler و لاگ مستقیم تأیید شد ioScope.launch{} واقعاً اجرا
+    // می‌شود و بدون خطا کامل می‌شود، فقط دیرتر از ۳۰۰۰ms پیش‌فرض awaitCondition؛
+    // timeout بزرگ‌تر (۱۰ ثانیه) این هزینه‌ی گرم‌شدنِ یک‌باره را پوشش می‌دهد.
+
+    @Test
+    fun `save persists a non-null descriptionFaPreview exactly as entered`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_fa_preview_test",
+            repository = repository,
+            idProvider = { "char_fa_preview_set" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.setName("Detective John")
+        vm.setAgeRange("30-40")
+        vm.setDescriptionFaPreview("یک کارآگاه بلندقد")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        val loaded = repository.loadCharacterAssets(listOf("char_fa_preview_set")).getOrThrow().single()
+        assertEquals("یک کارآگاه بلندقد", loaded.descriptionFaPreview)
+    }
+
+    @Test
+    fun `save leaves descriptionFaPreview null when the field was never filled in`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_fa_preview_test",
+            repository = repository,
+            idProvider = { "char_fa_preview_null" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.setName("Detective John")
+        vm.setAgeRange("30-40")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        val loaded = repository.loadCharacterAssets(listOf("char_fa_preview_null")).getOrThrow().single()
+        assertNull(loaded.descriptionFaPreview)
+    }
 }

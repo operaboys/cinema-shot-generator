@@ -38,6 +38,8 @@ const val OBJECT_FORM_NAME_FIELD_TAG = "objectForm.nameField"
 const val OBJECT_FORM_SUBTYPE_FIELD_TAG = "objectForm.subtypeField"
 const val OBJECT_FORM_SIZE_FIELD_TAG = "objectForm.sizeField"
 const val OBJECT_FORM_MATERIAL_FIELD_TAG = "objectForm.materialAndColorField"
+/** سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123). */
+const val OBJECT_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG = "objectForm.descriptionFaPreviewField"
 const val OBJECT_FORM_SAVE_BUTTON_TAG = "objectForm.saveButton"
 const val OBJECT_FORM_BACK_BUTTON_TAG = "objectForm.backButton"
 const val OBJECT_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "objectForm.toggleLanguageButton"
@@ -70,6 +72,7 @@ fun ObjectAssetFormScreen(
     val materialAndColor by viewModel.materialAndColor.collectAsStateWithLifecycle()
     val specialTrait by viewModel.specialTrait.collectAsStateWithLifecycle()
     val basePrompt by viewModel.basePrompt.collectAsStateWithLifecycle()
+    val descriptionFaPreview by viewModel.descriptionFaPreview.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
@@ -135,6 +138,11 @@ fun ObjectAssetFormScreen(
             OutlinedTextField(
                 value = basePrompt, onValueChange = viewModel::setBasePrompt,
                 label = { Text(uiString("assetForm.basePromptLabel", language)) }, modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = descriptionFaPreview, onValueChange = viewModel::setDescriptionFaPreview,
+                label = { Text(uiString("assetForm.descriptionFaPreviewLabel", language)) },
+                modifier = Modifier.fillMaxWidth().testTag(OBJECT_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }

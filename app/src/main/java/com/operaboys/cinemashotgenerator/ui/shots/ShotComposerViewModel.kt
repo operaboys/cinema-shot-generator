@@ -160,6 +160,12 @@ class ShotComposerViewModel(
     private val _shotDescription = MutableStateFlow("")
     val shotDescription: StateFlow<String> = _shotDescription.asStateFlow()
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // هم‌الگو دقیق با shotDescription بالا — نام‌گذاری با پیشوند shot، طبق
+    // قرارداد موجود Shot.shotDescriptionFaPreview.
+    private val _shotDescriptionFaPreview = MutableStateFlow("")
+    val shotDescriptionFaPreview: StateFlow<String> = _shotDescriptionFaPreview.asStateFlow()
+
     private val _shotGoal = MutableStateFlow(ShotGoal.ACTION)
     val shotGoal: StateFlow<ShotGoal> = _shotGoal.asStateFlow()
 
@@ -350,6 +356,7 @@ class ShotComposerViewModel(
                     _shotNumber.value = loaded.shotNumber
                     _shotTitle.value = loaded.shotTitle ?: ""
                     _shotDescription.value = loaded.shotDescription
+                    _shotDescriptionFaPreview.value = loaded.shotDescriptionFaPreview ?: ""
                     _shotGoal.value = loaded.shotGoal
                     _shotType.value = loaded.shotType
                     _durationSecondsText.value = loaded.durationSeconds.toString()
@@ -440,6 +447,7 @@ class ShotComposerViewModel(
 
     fun setShotTitle(value: String) { _shotTitle.value = value; save() }
     fun setShotDescription(value: String) { _shotDescription.value = value; save() }
+    fun setShotDescriptionFaPreview(value: String) { _shotDescriptionFaPreview.value = value; save() }
     fun setShotGoal(value: ShotGoal) { _shotGoal.value = value; save() }
     fun setShotType(value: ShotType) { _shotType.value = value; save() }
     fun setDurationSecondsText(value: String) { _durationSecondsText.value = value; save() }
@@ -666,7 +674,8 @@ class ShotComposerViewModel(
             objectIds = base?.objectIds ?: emptyList(),
             locationIds = base?.locationIds ?: emptyList(),
             overrideScene = base?.overrideScene ?: false,
-            cinematicModeOverride = _cinematicModeOverride.value
+            cinematicModeOverride = _cinematicModeOverride.value,
+            shotDescriptionFaPreview = _shotDescriptionFaPreview.value.ifBlank { null }
         )
     }
 

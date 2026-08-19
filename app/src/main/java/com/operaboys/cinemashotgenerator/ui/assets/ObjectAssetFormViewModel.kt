@@ -64,6 +64,11 @@ class ObjectAssetFormViewModel(
     private val _basePrompt = MutableStateFlow("")
     val basePrompt: StateFlow<String> = _basePrompt.asStateFlow()
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // هم‌الگو دقیق با basePrompt بالا.
+    private val _descriptionFaPreview = MutableStateFlow("")
+    val descriptionFaPreview: StateFlow<String> = _descriptionFaPreview.asStateFlow()
+
     /** سطح تداوم ObjectAsset فقط یک مقدار دارد (FORM) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM
 
@@ -76,7 +81,8 @@ class ObjectAssetFormViewModel(
         materialAndColor = _materialAndColor.value,
         specialTrait = _specialTrait.value.ifBlank { null },
         basePrompt = _basePrompt.value.ifBlank { null },
-        continuityLockLevel = continuityLockLevel
+        continuityLockLevel = continuityLockLevel,
+        descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null }
     )
 
     // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): هم‌الگو دقیق با
@@ -114,6 +120,7 @@ class ObjectAssetFormViewModel(
         _materialAndColor.value = asset.materialAndColor
         _specialTrait.value = asset.specialTrait.orEmpty()
         _basePrompt.value = asset.basePrompt.orEmpty()
+        _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
     }
 
     fun setName(value: String) { _name.value = value }
@@ -123,6 +130,7 @@ class ObjectAssetFormViewModel(
     fun setMaterialAndColor(value: String) { _materialAndColor.value = value }
     fun setSpecialTrait(value: String) { _specialTrait.value = value }
     fun setBasePrompt(value: String) { _basePrompt.value = value }
+    fun setDescriptionFaPreview(value: String) { _descriptionFaPreview.value = value }
 
     fun save() {
         if (!canSave.value) return

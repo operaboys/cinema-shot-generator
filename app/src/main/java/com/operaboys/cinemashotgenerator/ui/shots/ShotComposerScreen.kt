@@ -93,6 +93,8 @@ private enum class ShotComposerTab { MAIN, CAMERA, LIGHTING, AUDIO }
 
 const val SHOT_COMPOSER_TITLE_FIELD_TAG = "shotComposer.titleField"
 const val SHOT_COMPOSER_DESCRIPTION_FIELD_TAG = "shotComposer.descriptionField"
+/** سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123). */
+const val SHOT_COMPOSER_DESCRIPTION_FA_PREVIEW_FIELD_TAG = "shotComposer.descriptionFaPreviewField"
 const val SHOT_COMPOSER_GOAL_FIELD_TAG = "shotComposer.goalField"
 const val SHOT_COMPOSER_TYPE_FIELD_TAG = "shotComposer.typeField"
 const val SHOT_COMPOSER_DURATION_FIELD_TAG = "shotComposer.durationField"
@@ -487,6 +489,19 @@ private fun MainFieldsSection(
             modifier = Modifier.fillMaxWidth().testTag(SHOT_COMPOSER_DESCRIPTION_FIELD_TAG)
         )
         descriptionValidation?.let { AssetFormValidationIssueRow(it) }
+
+        // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+        // StateFlow مستقیماً از viewModel جمع‌آوری می‌شود (نه پارامتر تازه در
+        // امضای این تابع) — عیناً همان الگوی cinematicModeOverride/
+        // effectiveCinematicMode پایین‌تر همین تابع، تا فراخوان‌های موجود این
+        // Composable (TABS و ACCORDION، هر دو) بدون تغییر بمانند.
+        val shotDescriptionFaPreview by viewModel.shotDescriptionFaPreview.collectAsStateWithLifecycle()
+        OutlinedTextField(
+            value = shotDescriptionFaPreview,
+            onValueChange = viewModel::setShotDescriptionFaPreview,
+            label = { Text(uiString("shotComposer.shotDescriptionFaPreviewLabel", language)) },
+            modifier = Modifier.fillMaxWidth().testTag(SHOT_COMPOSER_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
+        )
 
         AssetFormEnumDropdownField(
             label = uiString("shotComposer.shotGoalLabel", language),

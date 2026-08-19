@@ -107,6 +107,12 @@ class CharacterAssetFormViewModel(
     private val _basePrompt = MutableStateFlow("")
     val basePrompt: StateFlow<String> = _basePrompt.asStateFlow()
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123):
+    // هم‌الگو دقیق با basePrompt بالا — Preview فارسی قابل‌ویرایش کاربر،
+    // هرگز وارد basePrompt/پرامپت نهایی نمی‌شود.
+    private val _descriptionFaPreview = MutableStateFlow("")
+    val descriptionFaPreview: StateFlow<String> = _descriptionFaPreview.asStateFlow()
+
     // همیشه با دقیقاً یک Outfit پیش‌فرض شروع می‌شود — دقیقاً هم‌رفتار با مقدار
     // پیش‌فرض قدیمی («Default» + توضیح خالی)، تا Rule ۵ (validateDefaultOutfitExists)
     // برای یک Character تازه‌ساز بدون هیچ تعامل کاربر هم برقرار بماند.
@@ -167,6 +173,7 @@ class CharacterAssetFormViewModel(
         _physicalFeatures.value = asset.physicalAppearance.physicalFeatures.orEmpty()
         _defaultMood.value = asset.defaultMood.orEmpty()
         _basePrompt.value = asset.basePrompt.orEmpty()
+        _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
         _outfits.value = asset.outfits
     }
 
@@ -185,6 +192,7 @@ class CharacterAssetFormViewModel(
     fun setPhysicalFeatures(value: String) { _physicalFeatures.value = value }
     fun setDefaultMood(value: String) { _defaultMood.value = value }
     fun setBasePrompt(value: String) { _basePrompt.value = value }
+    fun setDescriptionFaPreview(value: String) { _descriptionFaPreview.value = value }
 
     /** اولین Outfit افزوده‌شده به یک لیست خالی خودکار isDefault=true می‌شود — تنها راهی که لیست می‌تواند از صفر شروع کند و Rule ۵ همچنان برقرار بماند. */
     fun addOutfit(name: String, description: String) {
@@ -285,7 +293,8 @@ class CharacterAssetFormViewModel(
             defaultMood = _defaultMood.value.ifBlank { null },
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityRules = ContinuityRules(),
-            continuityLockLevel = continuityLockLevel.value
+            continuityLockLevel = continuityLockLevel.value,
+            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null }
         )
         ioScope.launch {
             repository.saveCharacterAsset(projectId, asset)

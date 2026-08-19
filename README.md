@@ -2289,6 +2289,42 @@ Nullable با پیش‌فرض `null` — فقط برای مرور کاربر ف�
 واقعی Toggle در `AiStoryBreakdownViewModel.kt` هنوز به قدم ۳ نیاز
 دارد)، در `docs/adr/122-unit01b-bilingual-preview-step2-mapper.md`.
 
+### ✅ سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی: اتصال واقعی Toggle + فیلد فارسی قابل‌ویرایش در فرم‌های Composer (ADR-123)
+
+**آخرین زیرقدم — کل برنامه‌ی سه‌قدمی «سیستم Preview دوزبانه‌ی پرامپت» با این
+قدم بسته می‌شود.** دو نقطه‌ی فراخوانی `processAiResponse` در
+`AiStoryBreakdownViewModel.kt` (`processResponse()`/`sendPromptAutomatically()`)
+که تا قدم ۲ همیشه مقدار پیش‌فرض `false` را پاس می‌دادند، حالا مقدار واقعی
+`_previewLanguageEnabled.value` را می‌فرستند — یعنی Toggle صفحه‌ی AI Story
+Breakdown دیگر فقط UI نیست، واقعاً تعیین می‌کند کدام Schema (تک‌زبانه یا
+دوزبانه) از AI انتظار می‌رود.
+
+هر چهار فرم Composer (`CharacterAssetFormScreen`/`LocationAssetFormScreen`/
+`ObjectAssetFormScreen`/`ShotComposerScreen`) یک `OutlinedTextField` تازه‌ی
+قابل‌ویرایش برای `descriptionFaPreview`/`shotDescriptionFaPreview` گرفتند —
+دقیقاً هم‌الگو با فیلد `basePrompt`/`shotDescription` موجود هر فرم، اما با
+تأیید مستقل که این چهار ViewModel یکسان نیستند: سه فرم Asset با
+`canSave`/Rule 10 Blocking گیت می‌شوند، درحالی‌که `ShotComposerViewModel`
+فوراً روی هر Setter، بدون دکمه‌ی Save، Auto-save می‌کند. یافته‌ی جانبی مفید:
+`ShotComposerScreen.kt` یک Composable مشترک (`MainFieldsSection`) دارد که هم
+لایوت TABS و هم ACCORDION را سرویس می‌دهد؛ فیلد تازه همان‌جا یک‌بار اضافه شد
+و هر دو لایوت را پوشش داد.
+
+یافته‌ی دیباگ کلیدی این قدم: `canSave` (و فرم‌های مشابه) با
+`combine(...).stateIn(viewModelScope, WhileSubscribed(...), false)` ساخته
+می‌شوند — بدون یک Collector واقعی، مقدار هرگز از `false` اولیه به‌روز
+نمی‌شود و `save()` بی‌صدا no-op می‌ماند؛ تست‌ها با یک Collector دستی
+(`vm.canSave.collect {}` روی `Dispatchers.Unconfined`) به‌همراه
+`shadowOf(Looper.getMainLooper()).idle()` این را دور می‌زنند.
+`ShotEntity` هم یک ForeignKey واقعی به `SceneEntity` دارد — تست‌های
+`ShotComposerViewModelTest.kt` باید اول یک Project و Scene واقعی بسازند،
+وگرنه `saveShot` بی‌صدا (به‌خاطر `runCatching`) شکست می‌خورد.
+
+جزئیات کامل، ازجمله بخش «End-to-End Verification» که کل زنجیره از Toggle در
+Story Wizard تا فیلد فارسیِ قابل‌ویرایش در فرم‌های Composer را گام‌به‌گام
+اثبات می‌کند، در
+`docs/adr/123-unit01b-bilingual-preview-step3-viewmodel-ui-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

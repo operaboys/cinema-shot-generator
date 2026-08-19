@@ -42,6 +42,8 @@ const val LOCATION_FORM_LOCATION_TYPE_FIELD_TAG = "locationForm.locationTypeFiel
 const val LOCATION_FORM_TIME_TAG_INPUT_TAG = "locationForm.timeCompatibilityInput"
 const val LOCATION_FORM_WEATHER_TAG_INPUT_TAG = "locationForm.weatherCompatibilityInput"
 const val LOCATION_FORM_KEY_ELEMENT_INPUT_TAG = "locationForm.keyElementsInput"
+/** سیستم Preview دوزبانه‌ی پرامپت — قدم ۳ از ۳ زیرقدم، پایانی (ADR-123). */
+const val LOCATION_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG = "locationForm.descriptionFaPreviewField"
 const val LOCATION_FORM_SAVE_BUTTON_TAG = "locationForm.saveButton"
 const val LOCATION_FORM_BACK_BUTTON_TAG = "locationForm.backButton"
 const val LOCATION_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "locationForm.toggleLanguageButton"
@@ -77,6 +79,7 @@ fun LocationAssetFormScreen(
     val weatherCompatibility by viewModel.weatherCompatibility.collectAsStateWithLifecycle()
     val keyElements by viewModel.keyElements.collectAsStateWithLifecycle()
     val basePrompt by viewModel.basePrompt.collectAsStateWithLifecycle()
+    val descriptionFaPreview by viewModel.descriptionFaPreview.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
@@ -160,6 +163,11 @@ fun LocationAssetFormScreen(
             OutlinedTextField(
                 value = basePrompt, onValueChange = viewModel::setBasePrompt,
                 label = { Text(uiString("assetForm.basePromptLabel", language)) }, modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = descriptionFaPreview, onValueChange = viewModel::setDescriptionFaPreview,
+                label = { Text(uiString("assetForm.descriptionFaPreviewLabel", language)) },
+                modifier = Modifier.fillMaxWidth().testTag(LOCATION_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
