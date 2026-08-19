@@ -48,6 +48,22 @@ android {
             isIncludeAndroidResources = true
         }
     }
+
+    // قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121): اولین
+    // Migration واقعی این پروژه — MigrationTestHelper (androidx.room.testing)
+    // به Schema های JSON صادرشده‌ی هر دو نسخه نیاز دارد (room.schemaLocation
+    // بالا). یافته‌ی واقعی دیباگ: چون این پروژه instrumented/androidTest واقعی
+    // اجرا نمی‌کند (بدون امولاتور/دستگاه — هم‌محدودیت مستندشده‌ی
+    // AppDatabaseDaoTest.kt)، تست‌ها Robolectric-based Unit Test اند؛ Robolectric
+    // با isIncludeAndroidResources=true فقط android_merged_assets (خروجی
+    // mergeDebugAssets، یعنی assets واقعی نسخه‌ی debug) را می‌خواند — نه
+    // sourceSets.test.assets. به همین دلیل schemas به‌عنوان assets نسخه‌ی
+    // debug (نه main — تا در build واقعی release هرگز باندل نشود) اضافه شد.
+    sourceSets {
+        getByName("debug") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
 }
 
 kotlin {

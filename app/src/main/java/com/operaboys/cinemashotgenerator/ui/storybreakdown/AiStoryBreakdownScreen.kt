@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -87,6 +88,8 @@ const val AI_BREAKDOWN_GENERATE_PROMPT_BUTTON_TAG = "aiBreakdown.generatePromptB
 
 /** رفع G14 ممیزی post-Unit16 — کارت خطای واقعی validateTargetShotCountRange (به‌جای کوتاه‌سازی خاموش). */
 const val AI_BREAKDOWN_TARGET_SHOT_COUNT_ERROR_TAG = "aiBreakdown.targetShotCountError"
+/** قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121). */
+const val AI_BREAKDOWN_PREVIEW_LANGUAGE_TOGGLE_TAG = "aiBreakdown.previewLanguageToggle"
 // رفع G14 «کاندید رفع نزدیک»/«قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 1/3/6.
 const val AI_BREAKDOWN_FREEFORM_STORY_ERROR_TAG = "aiBreakdown.freeformStoryError"
 const val AI_BREAKDOWN_HIGH_SHOT_COUNT_WARNING_TAG = "aiBreakdown.highShotCountWarning"
@@ -138,6 +141,7 @@ fun AiStoryBreakdownScreen(
     val targetShotCountError by viewModel.targetShotCountError.collectAsStateWithLifecycle()
     val highShotCountWarning by viewModel.highShotCountWarning.collectAsStateWithLifecycle()
     val defaultShotDurationSeconds by viewModel.defaultShotDurationSeconds.collectAsStateWithLifecycle()
+    val previewLanguageEnabled by viewModel.previewLanguageEnabled.collectAsStateWithLifecycle()
     val generatedPrompt by viewModel.generatedPrompt.collectAsStateWithLifecycle()
     val chunks by viewModel.chunks.collectAsStateWithLifecycle()
     val currentChunkInput by viewModel.currentChunkInput.collectAsStateWithLifecycle()
@@ -188,6 +192,8 @@ fun AiStoryBreakdownScreen(
                     highShotCountWarning = highShotCountWarning,
                     defaultShotDurationSeconds = defaultShotDurationSeconds,
                     onDefaultShotDurationSecondsChange = viewModel::setDefaultShotDurationSeconds,
+                    previewLanguageEnabled = previewLanguageEnabled,
+                    onPreviewLanguageEnabledChange = viewModel::setPreviewLanguageEnabled,
                     generatedPrompt = generatedPrompt,
                     onGeneratePrompt = viewModel::generatePrompt,
                     onProceedToPhase2 = { viewModel.setPhase(BreakdownPhase.PASTE_RESPONSE) },
@@ -347,6 +353,8 @@ private fun Phase1WriteStory(
     highShotCountWarning: String?,
     defaultShotDurationSeconds: Float,
     onDefaultShotDurationSecondsChange: (Float) -> Unit,
+    previewLanguageEnabled: Boolean,
+    onPreviewLanguageEnabledChange: (Boolean) -> Unit,
     generatedPrompt: String?,
     onGeneratePrompt: () -> Unit,
     onProceedToPhase2: () -> Unit,
@@ -440,6 +448,27 @@ private fun Phase1WriteStory(
         onValueChange = onDefaultShotDurationSecondsChange,
         step = 1f
     )
+
+    // قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121) — هم‌الگو
+    // دقیق با SettingsSwitchRow در SettingsScreen.kt. متن برچسب صریحاً می‌گوید
+    // این فقط یک Preview است، نه تغییر زبان پرامپت نهایی که همیشه انگلیسی
+    // می‌ماند (PromptAssembly.kt/Renderer.kt، در این قدم دست‌نخورده).
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = uiString("aiBreakdown.previewLanguageToggleLabel", language),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = previewLanguageEnabled,
+            onCheckedChange = onPreviewLanguageEnabledChange,
+            modifier = Modifier.testTag(AI_BREAKDOWN_PREVIEW_LANGUAGE_TOGGLE_TAG)
+        )
+    }
 
     Button(
         onClick = onGeneratePrompt,

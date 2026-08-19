@@ -71,6 +71,68 @@ class PromptBuilderTest {
         assertTrue(prompt.contains("[CONTINUE]"))
     }
 
+    // --- قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121):
+    // STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION (previewLanguageEnabled=false،
+    // پیش‌فرض) و STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL
+    // (previewLanguageEnabled=true) ---
+
+    @Test
+    fun `STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION (single-language, unchanged) uses a single description field, never descriptionEn or descriptionFa`() {
+        assertTrue(STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION.contains("\"description\": \"...\""))
+        assertTrue(!STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION.contains("descriptionEn"))
+        assertTrue(!STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION.contains("descriptionFa"))
+    }
+
+    @Test
+    fun `STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL requires both descriptionEn and descriptionFa for all four item types`() {
+        val instruction = STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL
+        assertEquals(4, Regex("\"descriptionEn\"").findAll(instruction).count())
+        assertEquals(4, Regex("\"descriptionFa\"").findAll(instruction).count())
+        assertTrue("باید [CONTINUE] هم در نسخه‌ی دوزبانه حفظ شده باشد", instruction.contains("[CONTINUE]"))
+    }
+
+    @Test
+    fun `STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL explicitly instructs the AI that the two fields must never be mixed into one string`() {
+        val instruction = STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL
+        assertTrue(
+            "دستور صریح عدم‌ترکیب دو زبان در یک رشته باید در متن باشد",
+            instruction.contains("قاطی") || instruction.contains("ترکیب نکن")
+        )
+    }
+
+    @Test
+    fun `buildStoryBreakdownPrompt with previewLanguageEnabled=false uses the single-language schema and no bilingual fields`() {
+        val prompt = buildStoryBreakdownPrompt(
+            StoryBreakdownRequest(
+                storyContext = sampleStoryContext(),
+                freeformStory = longStory,
+                targetShotCount = 10,
+                previewLanguageEnabled = false
+            )
+        )
+        assertTrue(prompt.contains("\"description\": \"...\""))
+        assertTrue(!prompt.contains("descriptionEn"))
+        assertTrue(!prompt.contains("descriptionFa"))
+    }
+
+    @Test
+    fun `buildStoryBreakdownPrompt with previewLanguageEnabled=true uses the bilingual schema and explains why to the AI`() {
+        val prompt = buildStoryBreakdownPrompt(
+            StoryBreakdownRequest(
+                storyContext = sampleStoryContext(),
+                freeformStory = longStory,
+                targetShotCount = 10,
+                previewLanguageEnabled = true
+            )
+        )
+        assertTrue(prompt.contains("descriptionEn"))
+        assertTrue(prompt.contains("descriptionFa"))
+        assertTrue(
+            "پرامپت باید توضیح دهد چرا این دو فیلد لازم است (کاربر فارسی‌زبان می‌خواهد محتوا را مرور کند)",
+            prompt.contains("فارسی‌زبان")
+        )
+    }
+
     // --- Rule 1: freeformStory کمتر از ۵۰ کاراکتر ---
 
     @Test

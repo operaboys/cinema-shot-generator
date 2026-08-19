@@ -110,6 +110,12 @@ class AiStoryBreakdownViewModel(
     private val _defaultShotDurationSeconds = MutableStateFlow(4f)
     val defaultShotDurationSeconds: StateFlow<Float> = _defaultShotDurationSeconds.asStateFlow()
 
+    // قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121): هم‌الگو دقیق
+    // با targetShotCount/defaultShotDurationSeconds بالا — پیش‌فرض false (فقط
+    // انگلیسی، رفتار فعلی برای کاربران موجود، بدون تغییر ناگهانی).
+    private val _previewLanguageEnabled = MutableStateFlow(false)
+    val previewLanguageEnabled: StateFlow<Boolean> = _previewLanguageEnabled.asStateFlow()
+
     private val _generatedPrompt = MutableStateFlow<String?>(null)
     val generatedPrompt: StateFlow<String?> = _generatedPrompt.asStateFlow()
 
@@ -168,6 +174,7 @@ class AiStoryBreakdownViewModel(
                 _targetShotCountError.value = validateTargetShotCountRange(session.targetShotCount)?.message
                 _highShotCountWarning.value = validateHighShotCount(session.targetShotCount)?.message
                 _defaultShotDurationSeconds.value = session.defaultShotDurationSeconds
+                _previewLanguageEnabled.value = session.previewLanguageEnabled
             }
         }
         ioScope.launch { refreshApiKeySavedStatus(_selectedProfileId.value) }
@@ -220,11 +227,24 @@ class AiStoryBreakdownViewModel(
         saveSession()
     }
 
+    /**
+     * قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121) — هم‌الگو
+     * دقیق با setDefaultShotDurationSeconds بالا: تغییر فوری + Auto-Save.
+     */
+    fun setPreviewLanguageEnabled(enabled: Boolean) {
+        _previewLanguageEnabled.value = enabled
+        saveSession()
+    }
+
     /** Auto-Save بی‌صدا — همان انضباط StoryViewModel/ADR-045. */
     private fun saveSession() {
         ioScope.launch {
             storyRepository.saveBreakdownSession(
-                projectId, _freeformStory.value, _targetShotCount.value, _defaultShotDurationSeconds.value
+                projectId,
+                _freeformStory.value,
+                _targetShotCount.value,
+                _defaultShotDurationSeconds.value,
+                _previewLanguageEnabled.value
             )
         }
     }
@@ -245,7 +265,8 @@ class AiStoryBreakdownViewModel(
                 storyContext = storyContext,
                 freeformStory = _freeformStory.value,
                 targetShotCount = _targetShotCount.value,
-                defaultShotDurationSeconds = _defaultShotDurationSeconds.value
+                defaultShotDurationSeconds = _defaultShotDurationSeconds.value,
+                previewLanguageEnabled = _previewLanguageEnabled.value
             )
             _generatedPrompt.value = buildStoryBreakdownPrompt(request)
         }

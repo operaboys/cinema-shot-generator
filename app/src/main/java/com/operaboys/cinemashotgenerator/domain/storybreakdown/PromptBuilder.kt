@@ -17,17 +17,27 @@ import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 /**
  * ورودی‌های Prompt Builder — طبق بلوپرینت، علاوه بر ۵ سؤال اصلی Story Wizard
  * (که در storyContext از قبل موجودند)، فقط سه فیلد جدید لازم است.
+ *
+ * previewLanguageEnabled (قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت»،
+ * ADR-121): آیا کاربر می‌خواهد AI بیرونی برای هر description یک نسخه‌ی
+ * فارسی هم فقط برای Preview خودش بفرستد — طبق STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL
+ * پایین. پرامپت نهایی این اپ (PromptAssembly.kt/Renderer.kt) همیشه و بدون
+ * استثنا انگلیسی است و در این قدم دست‌نخورده می‌ماند — این فیلد فقط تعیین
+ * می‌کند از AI بیرونی چه Schema ای درخواست شود، نه زبان پرامپت نهایی.
  */
 data class StoryBreakdownRequest(
     val storyContext: StoryContext,
     val freeformStory: String,
     val targetShotCount: Int,
-    val defaultShotDurationSeconds: Float = 4f
+    val defaultShotDurationSeconds: Float = 4f,
+    val previewLanguageEnabled: Boolean = false
 )
 
 /**
  * دستور فرمت خروجی JSON — عیناً طبق نمونه‌ی بلوپرینت (شامل چهار کلید اصلی
  * characters/locations/objects/shots و دستور [CONTINUE] برای پاسخ‌های چندبخشی).
+ * این نسخه (previewLanguageEnabled=false) بدون تغییر باقی ماند — همان رفتار
+ * قبل از ADR-121.
  */
 const val STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION = """خروجی را دقیقاً در قالب JSON زیر بده، بدون هیچ توضیح اضافه قبل یا بعد از JSON:
 {
@@ -39,6 +49,39 @@ const val STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION = """خروجی را دقیق�
       "sceneName": "...",
       "shotNumber": 1,
       "description": "...",
+      "characterNames": ["..."],
+      "locationName": "...",
+      "objectNames": ["..."]
+    }
+  ]
+}
+
+اگر پاسخ طولانی است و باید در چند بخش بفرستی، هر بخش (به‌جز آخری) را با دقیقاً این عبارت پایان بده: [CONTINUE]"""
+
+/**
+ * نسخه‌ی دوزبانه (قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت»،
+ * ADR-121) — برای previewLanguageEnabled=true. هر description قبلی به دو
+ * فیلد مستقل تبدیل شده: descriptionEn (الزامی، همیشه انگلیسی، همان پایه‌ی
+ * پرامپت نهایی که در قدم‌های بعدی این برنامه به StoryToDomainMapper وصل
+ * می‌شود) و descriptionFa (الزامی در این حالت، فارسی، فقط برای Preview
+ * دائمی خودِ کاربر — هرگز به پرامپت نهایی که به مدل تصویر/ویدیو می‌رود
+ * نمی‌رود). دستور صریح تأکید می‌کند این دو فیلد باید کاملاً مستقل و
+ * ترجمه‌ی یکدیگر باشند، هرگز در یک رشته قاطی/ترکیب نشوند.
+ */
+const val STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL = """خروجی را دقیقاً در قالب JSON زیر بده، بدون هیچ توضیح اضافه قبل یا بعد از JSON. توجه: هر آیتم به‌جای یک description واحد، دو فیلد جداگانه دارد:
+- descriptionEn: توضیح کامل و دقیق، همیشه به زبان انگلیسی (این فیلد الزامی است و پایه‌ی پرامپت نهایی خواهد بود).
+- descriptionFa: همان توضیح، ترجمه‌ی دقیق و کامل به زبان فارسی (این فیلد هم الزامی است، فقط برای مرور کاربر فارسی‌زبان پیش از استفاده، هرگز بخشی از پرامپت نهایی نمی‌شود).
+این دو فیلد باید کاملاً مستقل و ترجمه‌ی دقیق یکدیگر باشند — هرگز دو زبان را در یک رشته قاطی/ترکیب نکن و هرگز هیچ‌کدام را خالی نگذار.
+{
+  "characters": [ { "name": "...", "descriptionEn": "...", "descriptionFa": "...", "role": "main | secondary | background", "gender": "female | male | other" } ],
+  "locations": [ { "name": "...", "descriptionEn": "...", "descriptionFa": "..." } ],
+  "objects": [ { "name": "...", "descriptionEn": "...", "descriptionFa": "..." } ],
+  "shots": [
+    {
+      "sceneName": "...",
+      "shotNumber": 1,
+      "descriptionEn": "...",
+      "descriptionFa": "...",
       "characterNames": ["..."],
       "locationName": "...",
       "objectNames": ["..."]
@@ -73,7 +116,20 @@ fun buildStoryBreakdownPrompt(request: StoryBreakdownRequest): String {
         appendLine("داستان:")
         appendLine(request.freeformStory)
         appendLine()
-        append(STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION)
+        // قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121): این جمله
+        // فقط وقتی اضافه می‌شود که کاربر Preview فارسی را روشن کرده — به AI
+        // بیرونی توضیح می‌دهد چرا دو فیلد جدا لازم است، نه صرفاً یک درخواست فرمت
+        // خام بدون دلیل.
+        if (request.previewLanguageEnabled) {
+            appendLine(
+                "کاربر این متن فارسی‌زبان است و می‌خواهد پیش از استفاده‌ی نهایی، محتوای هر بخش را به فارسی هم مرور کند — " +
+                    "به همین دلیل برای هر توضیح، هم نسخه‌ی انگلیسی و هم نسخه‌ی فارسی را طبق فرمت زیر بفرست."
+            )
+            appendLine()
+            append(STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL)
+        } else {
+            append(STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION)
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
+import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.StoryRepository
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.CLAUDE_API_PROFILE
@@ -108,6 +109,72 @@ class AiStoryBreakdownViewModelTest {
             "generatePrompt باید قبل از هرگونه تولید متن، به‌خاطر خطای Rule 2، بی‌اثر برگردد",
             viewModel.generatedPrompt.value
         )
+    }
+
+    // قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت» (ADR-121):
+    // previewLanguageEnabled — هم‌الگو دقیق با targetShotCount/
+    // defaultShotDurationSeconds بالا (تغییر فوری StateFlow + Auto-Save بی‌صدا).
+    // برای اثبات ذخیره/بارگذاری واقعی (نه فقط تغییر محلی StateFlow)، این دو تست
+    // مستقیماً یک ViewModel با ioScopeOverride=Dispatchers.Unconfined می‌سازند
+    // (نه viewModel کلاسی بالا که ioScope واقعی viewModelScope دارد) — هم‌دلیل
+    // مستندشده‌ی awaitCondition پایین‌تر: loadBreakdownSession/saveBreakdownSession
+    // واقعاً روی Dispatcher حقیقی Room اجرا می‌شوند، نه صرفاً هم‌زمان با Unconfined.
+
+    @Test
+    fun `previewLanguageEnabled defaults to false and setPreviewLanguageEnabled(true) updates the StateFlow immediately`() {
+        assertFalse(viewModel.previewLanguageEnabled.value)
+
+        viewModel.setPreviewLanguageEnabled(true)
+
+        assertTrue(viewModel.previewLanguageEnabled.value)
+    }
+
+    @Test
+    fun `setPreviewLanguageEnabled persists the value so a new ViewModel instance for the same project reloads it`() = runBlocking {
+        val projectId = "proj_preview_language_persist_test"
+        // یافته‌ی واقعی دیباگ این تست: story_breakdown_session یک ForeignKey واقعی
+        // به projects دارد (StoryBreakdownSessionEntity.kt) — بدون ساخت واقعی یک
+        // Project اول، saveBreakdownSession بی‌صدا با SQLiteConstraintException
+        // شکست می‌خورد (runCatching آن را می‌بلعد)، دقیقاً همان علت مستندشده‌ی
+        // مشابه در AppDatabaseDaoTest.kt/OutputDeliveryViewModelTest.kt.
+        ProjectRepository(injectedDatabase.projectDao(), idProvider = { projectId }).createProject("Preview Language Test").getOrThrow()
+        val storyRepository = StoryRepository(injectedDatabase.storyDao(), injectedDatabase.storyBreakdownSessionDao())
+        val vm1 = AiStoryBreakdownViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = projectId,
+            storyRepository = storyRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        assertFalse(vm1.previewLanguageEnabled.value)
+
+        vm1.setPreviewLanguageEnabled(true)
+
+        // یافته‌ی واقعی دیباگ این تست: setPreviewLanguageEnabled (هم‌الگو با
+        // setDefaultShotDurationSeconds) هیچ Job برنمی‌گرداند — saveSession()
+        // داخلی حتی با Dispatchers.Unconfined هم واقعاً به Executor حقیقی Room
+        // سوییچ می‌کند (یک نقطه‌ی تعلیق واقعی)، پس بلافاصله بعد از فراخوانی هنوز
+        // ممکن است در دیتابیس ننشسته باشد — یک انتظار محدود لازم است (هم‌دلیل
+        // awaitCondition پایین‌تر، اما اینجا روی نتیجه‌ی suspend مستقیم Repository،
+        // نه یک StateFlow).
+        var savedSession = storyRepository.loadBreakdownSession(projectId).getOrNull()
+        val deadline = System.currentTimeMillis() + 3000
+        while (savedSession?.previewLanguageEnabled != true && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5)
+            savedSession = storyRepository.loadBreakdownSession(projectId).getOrNull()
+        }
+        assertNotNull(savedSession)
+        assertTrue(
+            "StoryRepository باید previewLanguageEnabled=true را واقعاً در Room ذخیره کرده باشد",
+            savedSession!!.previewLanguageEnabled
+        )
+
+        val vm2 = AiStoryBreakdownViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = projectId,
+            storyRepository = storyRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        awaitCondition(vm2.previewLanguageEnabled) { it }
     }
 
     // رفع G14 «کاندید قدم بعدی» (ADR-064 تصمیم ۱۲، ADR-092): Rule 1

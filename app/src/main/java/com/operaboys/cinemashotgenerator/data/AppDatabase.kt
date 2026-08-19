@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.operaboys.cinemashotgenerator.data.dao.AssetDao
 import com.operaboys.cinemashotgenerator.data.dao.AudioContextDao
 import com.operaboys.cinemashotgenerator.data.dao.DependencyEdgeDao
@@ -55,6 +57,22 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
 // StoryBreakdownSessionEntity (واحد ۱۶ فاز ۲، قدم ۲): پیش‌نویس در‌حال‌کار AI Story
 // Breakdown (واحد ۰۱ب فاز ۱) — جزئیات در
 // docs/adr/046-unit16-phase2-step2-ai-story-breakdown.md.
+//
+// نسخه ۲ (قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت»، ADR-121): اولین
+// Migration واقعی این پروژه. برخلاف Entity های دیگر (JSON خام در یک ستون Blob،
+// افزودن فیلد بدون Migration رسمی مشکلی ایجاد نمی‌کند)، StoryBreakdownSessionEntity
+// ستون‌های تفکیک‌شده‌ی واقعی دارد — افزودن previewLanguageEnabled بدون افزایش
+// version و بدون Migration صریح، اپ را برای هر کاربری که از قبل پروژه‌ی
+// ذخیره‌شده دارد Crash می‌کند (پیش‌فرض سخت‌گیرانه‌ی Room). MIGRATION_1_2 داده‌ی
+// موجود کاربر را حفظ می‌کند (ALTER TABLE ADD COLUMN با مقدار پیش‌فرض 0/false —
+// یعنی رفتار فعلی/فقط‌انگلیسی برای کاربران موجود، بدون تغییر ناگهانی رفتار)؛
+// fallbackToDestructiveMigration عمداً استفاده نشد چون داده‌ی کاربر را پاک
+// می‌کند — غیرقابل‌قبول برای اپ تولید محتوای واقعی.
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE story_breakdown_session ADD COLUMN previewLanguageEnabled INTEGER NOT NULL DEFAULT 0")
+    }
+}
 
 @Database(
     entities = [
@@ -73,7 +91,7 @@ import com.operaboys.cinemashotgenerator.data.entity.VersionEntity
         StoryContextEntity::class,
         StoryBreakdownSessionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -105,7 +123,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
             }
         }
     }

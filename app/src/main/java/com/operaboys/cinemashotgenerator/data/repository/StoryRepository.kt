@@ -17,7 +17,8 @@ import com.operaboys.cinemashotgenerator.domain.story.StoryContext
 data class StoryBreakdownSession(
     val freeformStory: String,
     val targetShotCount: Int,
-    val defaultShotDurationSeconds: Float
+    val defaultShotDurationSeconds: Float,
+    val previewLanguageEnabled: Boolean = false
 )
 
 class StoryRepository(
@@ -36,21 +37,23 @@ class StoryRepository(
         projectId: String,
         freeformStory: String,
         targetShotCount: Int,
-        defaultShotDurationSeconds: Float
+        defaultShotDurationSeconds: Float,
+        previewLanguageEnabled: Boolean = false
     ): Result<Unit> = runCatching {
         storyBreakdownSessionDao.saveSession(
             StoryBreakdownSessionEntity(
                 projectId = projectId,
                 freeformStory = freeformStory,
                 targetShotCount = targetShotCount,
-                defaultShotDurationSeconds = defaultShotDurationSeconds
+                defaultShotDurationSeconds = defaultShotDurationSeconds,
+                previewLanguageEnabled = previewLanguageEnabled
             )
         )
     }
 
     suspend fun loadBreakdownSession(projectId: String): Result<StoryBreakdownSession?> = runCatching {
         storyBreakdownSessionDao.loadSessionForProject(projectId)?.let {
-            StoryBreakdownSession(it.freeformStory, it.targetShotCount, it.defaultShotDurationSeconds)
+            StoryBreakdownSession(it.freeformStory, it.targetShotCount, it.defaultShotDurationSeconds, it.previewLanguageEnabled)
         }
     }
 }

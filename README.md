@@ -2233,6 +2233,37 @@ G2 (`AiStoryBreakdownViewModel`/`Screen.kt`، ADR-098–105) را برای ای�
 کامل، ازجمله بخش «End-to-End Verification امنیتی»، در
 `docs/adr/120-unit16-evaluate-prompt-quality-step3-ai-connector.md`.
 
+### ✅ سیستم Preview دوزبانه‌ی پرامپت — قدم ۱ از ۳ زیرقدم: Migration دیتابیس + مدل داده + Prompt Builder دوزبانه + Toggle UI (ADR-121)
+
+**اولین زیرقدم از یک برنامه‌ی تازه‌ی سه‌قدمی.** هدف: یک Toggle («همراه با
+Preview فارسی») روی صفحه‌ی AI Story Breakdown که به کاربر فارسی‌زبان
+اجازه می‌دهد از AI بیرونی بخواهد علاوه بر توضیح انگلیسی (همیشه پایه‌ی
+پرامپت نهایی)، یک نسخه‌ی فارسی هم فقط برای مرور خودش بفرستد — پرامپت
+نهایی این اپ همیشه و بدون استثنا انگلیسی می‌ماند.
+
+**اولین Migration واقعی این پروژه.** برخلاف Entity های دیگر (JSON خام در
+یک ستون Blob)، `StoryBreakdownSessionEntity` ستون‌های تفکیک‌شده‌ی واقعی
+دارد؛ افزودن فیلد `previewLanguageEnabled` بدون یک Migration رسمی، اپ را
+برای کاربران دارای پروژه‌ی از‌قبل‌ذخیره‌شده Crash می‌کرد. `AppDatabase`
+از نسخه‌ی ۱ به ۲ رفت، همراه با یک `Migration(1, 2)` واقعی
+(`ALTER TABLE ... ADD COLUMN ... DEFAULT 0`) که داده‌ی موجود کاربر را
+کامل حفظ می‌کند — نه `fallbackToDestructiveMigration` که داده را پاک
+می‌کرد.
+
+`STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION` موجود بدون تغییر باقی ماند؛ یک
+نسخه‌ی تازه‌ی دوزبانه (`STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL`)
+اضافه شد که هر `description` را به `descriptionEn`/`descriptionFa` مستقل
+تبدیل می‌کند، با دستور صریح به AI که این دو فیلد هرگز نباید در یک رشته
+ترکیب شوند. `AiStoryBreakdownViewModel`/`Screen` هم‌الگوی دقیق فیلدهای
+موجود (`targetShotCount`/`defaultShotDurationSeconds`) گسترش یافتند.
+
+یافته‌ی جانبی مفید برای Migration های آینده: `MigrationTestHelper` زیر
+Robolectric فقط assets نسخه‌ی **debug** را می‌خواند (نه `sourceSets.test`)
+— Schema های صادرشده به `src/debug/assets` وصل شدند تا هرگز در بیلد
+واقعی release باندل نشوند. جزئیات کامل، ازجمله محدودیت آگاهانه‌ی این قدم
+(`StoryToDomainMapper` هنوز به قدم ۲ نیاز دارد)، در
+`docs/adr/121-unit01b-bilingual-preview-step1-migration-and-prompt-builder.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

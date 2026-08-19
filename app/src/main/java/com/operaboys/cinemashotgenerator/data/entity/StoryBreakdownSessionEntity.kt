@@ -14,6 +14,12 @@ import androidx.room.PrimaryKey
 // `StoryBreakdownRequest` (واحد ۰۱ب) است — ترکیب‌شان در یک جدول یعنی دو مفهوم
 // نامرتبط را مصنوعاً به هم می‌چسباند. `projectId` مستقیماً PrimaryKey است (همان
 // دلیل StoryContextEntity: رابطه یک‌به‌یک، بدون شناسه‌ی مصنوعی بی‌دلیل).
+//
+// previewLanguageEnabled (قدم ۱ از ۳ زیرقدم «سیستم Preview دوزبانه‌ی پرامپت»،
+// ADR-121): آیا کاربر می‌خواهد AI بیرونی علاوه بر description انگلیسی
+// (همیشه پایه‌ی پرامپت نهایی)، یک نسخه‌ی فارسی هم فقط برای Preview خودش
+// بفرستد. این ستون واقعی (نه JSON خام) است — افزودنش نیازمند AppDatabase
+// MIGRATION_1_2 بود (جزئیات کامل در AppDatabase.kt/ADR-121).
 
 @Entity(
     tableName = "story_breakdown_session",
@@ -27,5 +33,6 @@ data class StoryBreakdownSessionEntity(
     @PrimaryKey val projectId: String,
     val freeformStory: String,
     val targetShotCount: Int,
-    val defaultShotDurationSeconds: Float
+    val defaultShotDurationSeconds: Float,
+    val previewLanguageEnabled: Boolean = false
 )
