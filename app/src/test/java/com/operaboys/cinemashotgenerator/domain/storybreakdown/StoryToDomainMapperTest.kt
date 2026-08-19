@@ -68,6 +68,26 @@ class StoryToDomainMapperTest {
         assertEquals("a tall detective", asset.physicalAppearance.physicalFeatures)
     }
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122):
+    // descriptionFaPreview باید از SimpleCharacterFromAi.descriptionFa بیاید،
+    // basePrompt/physicalFeatures همچنان همان description انگلیسی بمانند —
+    // نه فارسی، نه ترکیبی.
+
+    @Test
+    fun `mapAiCharacterToAsset carries descriptionFa into descriptionFaPreview, leaving basePrompt English`() {
+        val asset = mapAiCharacterToAsset(
+            SimpleCharacterFromAi(name = "John", description = "a tall detective", role = "main", descriptionFa = "یک کارآگاه بلندقد")
+        )
+        assertEquals("a tall detective", asset.basePrompt)
+        assertEquals("یک کارآگاه بلندقد", asset.descriptionFaPreview)
+    }
+
+    @Test
+    fun `mapAiCharacterToAsset leaves descriptionFaPreview null when descriptionFa is absent`() {
+        val asset = mapAiCharacterToAsset(SimpleCharacterFromAi(name = "John", description = "a tall detective", role = "main"))
+        assertNull(asset.descriptionFaPreview)
+    }
+
     // --- mapAiLocationToAsset / mapAiObjectToAsset ---
 
     @Test
@@ -79,10 +99,30 @@ class StoryToDomainMapperTest {
     }
 
     @Test
+    fun `mapAiLocationToAsset carries descriptionFa into descriptionFaPreview, leaving description and basePrompt English`() {
+        val asset = mapAiLocationToAsset(
+            SimpleLocationFromAi(name = "Office", description = "a dim office", descriptionFa = "یک دفتر کم‌نور")
+        )
+        assertEquals("a dim office", asset.description)
+        assertEquals("a dim office", asset.basePrompt)
+        assertEquals("یک دفتر کم‌نور", asset.descriptionFaPreview)
+    }
+
+    @Test
     fun `mapAiObjectToAsset defaults to GENERAL_PROP subtype`() {
         val asset = mapAiObjectToAsset(SimpleObjectFromAi(name = "Gun", description = "a revolver"))
         assertEquals(ObjectSubtype.GENERAL_PROP, asset.subtype)
         assertEquals("a revolver", asset.basePrompt)
+    }
+
+    @Test
+    fun `mapAiObjectToAsset carries descriptionFa into descriptionFaPreview, leaving description and basePrompt English`() {
+        val asset = mapAiObjectToAsset(
+            SimpleObjectFromAi(name = "Gun", description = "a revolver", descriptionFa = "یک هفت‌تیر")
+        )
+        assertEquals("a revolver", asset.description)
+        assertEquals("a revolver", asset.basePrompt)
+        assertEquals("یک هفت‌تیر", asset.descriptionFaPreview)
     }
 
     // --- groupAiShotsIntoScenes ---
@@ -157,6 +197,22 @@ class StoryToDomainMapperTest {
         assertTrue(mapping.shot.characterIds.isEmpty())
         assertTrue(mapping.shot.locationIds.isEmpty())
         assertTrue(mapping.shot.objectIds.isEmpty())
+    }
+
+    @Test
+    fun `mapAiShotToShot carries descriptionFa into shotDescriptionFaPreview, leaving shotDescription English`() {
+        val aiShot = SimpleShotFromAi(
+            sceneName = "Intro", shotNumber = 1, description = "John enters",
+            locationName = "Office", descriptionFa = "جان وارد می‌شود"
+        )
+
+        val mapping = mapAiShotToShot(
+            aiShot, sceneId = "scene_001",
+            characterAssetsByName = emptyMap(), locationAssetsByName = emptyMap(), objectAssetsByName = emptyMap()
+        )
+
+        assertEquals("John enters", mapping.shot.shotDescription)
+        assertEquals("جان وارد می‌شود", mapping.shot.shotDescriptionFaPreview)
     }
 
     // --- Rule 9 ---
@@ -237,5 +293,56 @@ class StoryToDomainMapperTest {
         val missingShotsJson = """{"characters": [], "locations": []}"""
         val result = processAiResponse(listOf(missingShotsJson), targetShotCount = 1)
         assertTrue(result is ProcessAiResponseResult.MissingRequiredKeys)
+    }
+
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122):
+    // previewLanguageEnabled پیش‌فرض false دارد — تست‌های end-to-end بالا
+    // (بدون هیچ تغییری، همین امضای قدیمی processAiResponse(chunks, targetShotCount)
+    // را صدا می‌زنند) دقیقاً همان اثبات رگرسیون صفر مطلوب دستور کار هستند:
+    // اگر previewLanguageEnabled به یک مقدار پیش‌فرض اشتباه (مثلاً true) تغییر
+    // کرده بود، این تست‌ها روی JSON تک‌زبانه‌ی موجودشان با خطای Decode شکست
+    // می‌خوردند.
+
+    private val bilingualAiJson = """
+        {"characters": [{"name": "John", "descriptionEn": "a detective", "descriptionFa": "یک کارآگاه", "role": "main", "gender": "male"}],
+         "locations": [{"name": "Office", "descriptionEn": "a dim office", "descriptionFa": "یک دفتر کم‌نور"}],
+         "objects": [{"name": "Gun", "descriptionEn": "a revolver", "descriptionFa": "یک هفت‌تیر"}],
+         "shots": [{"sceneName": "Intro", "shotNumber": 1, "descriptionEn": "John enters", "descriptionFa": "جان وارد می‌شود", "characterNames": ["John"], "locationName": "Office", "objectNames": ["Gun"]}]}
+    """.trimIndent()
+
+    @Test
+    fun `processAiResponse with previewLanguageEnabled=true parses the bilingual schema, keeping English as the real field and Farsi as descriptionFaPreview`() {
+        val result = processAiResponse(listOf(bilingualAiJson), targetShotCount = 1, previewLanguageEnabled = true)
+        assertTrue(result is ProcessAiResponseResult.Success)
+        val breakdown = (result as ProcessAiResponseResult.Success).result
+
+        val character = breakdown.characters.single()
+        assertEquals("a detective", character.basePrompt)
+        assertEquals("یک کارآگاه", character.descriptionFaPreview)
+
+        val location = breakdown.locations.single()
+        assertEquals("a dim office", location.description)
+        assertEquals("a dim office", location.basePrompt)
+        assertEquals("یک دفتر کم‌نور", location.descriptionFaPreview)
+
+        val obj = breakdown.objects.single()
+        assertEquals("a revolver", obj.description)
+        assertEquals("a revolver", obj.basePrompt)
+        assertEquals("یک هفت‌تیر", obj.descriptionFaPreview)
+
+        val shot = breakdown.shots.single()
+        assertEquals("John enters", shot.shotDescription)
+        assertEquals("جان وارد می‌شود", shot.shotDescriptionFaPreview)
+    }
+
+    @Test
+    fun `processAiResponse with previewLanguageEnabled=false (default) still succeeds on the existing single-language JSON, proving zero regression`() {
+        val result = processAiResponse(listOf(validAiJson), targetShotCount = 1)
+        assertTrue(result is ProcessAiResponseResult.Success)
+        val breakdown = (result as ProcessAiResponseResult.Success).result
+        assertNull(breakdown.characters.single().descriptionFaPreview)
+        assertNull(breakdown.locations.single().descriptionFaPreview)
+        assertNull(breakdown.objects.single().descriptionFaPreview)
+        assertNull(breakdown.shots.single().shotDescriptionFaPreview)
     }
 }

@@ -92,5 +92,8 @@ data class ShotDto(
     // تکمیل Rule یتیم — قدم ۱ از ۴ (ADR-106): nullable با پیش‌فرض null، هم‌الگو
     // دقیق با negativePromptOverride بالا (بدون Migration رسمی Room — shotDataJson
     // صرفاً یک Blob است).
-    val cinematicModeOverride: String? = null
+    val cinematicModeOverride: String? = null,
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
+    // دقیق با negativePromptOverride/cinematicModeOverride بالا.
+    val shotDescriptionFaPreview: String? = null
 )

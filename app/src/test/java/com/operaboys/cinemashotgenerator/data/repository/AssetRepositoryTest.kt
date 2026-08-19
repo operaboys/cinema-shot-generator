@@ -140,6 +140,40 @@ class AssetRepositoryTest {
         assertEquals(listOf(fullObject), loaded.getOrThrow())
     }
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122):
+    // descriptionFaPreview تازه‌اضافه‌شده. تست‌های بالا (fullCharacter/
+    // fullLocation/fullObject، بدون مقداردهی این فیلد) از قبل حالت null را
+    // ضمنی اثبات می‌کنند (چون equals روی کل data class است و بدون رفع درست
+    // null→null در Mapper، همان تست‌ها شکست می‌خوردند)؛ این سه تست تازه حالت
+    // «مقدار واقعی فارسی» را هم اثبات می‌کنند.
+
+    @Test
+    fun `saveCharacterAsset then loadCharacterAssets round-trips a non-null descriptionFaPreview exactly`() = runBlocking {
+        val withPreview = fullCharacter.copy(assetId = "char_fa_preview", descriptionFaPreview = "کارآگاه جان، یک مرد بلندقد")
+        repository.saveCharacterAsset("proj_001", withPreview)
+
+        val loaded = repository.loadCharacterAssets(listOf("char_fa_preview"))
+        assertEquals(listOf(withPreview), loaded.getOrThrow())
+    }
+
+    @Test
+    fun `saveLocationAsset then loadLocationAssets round-trips a non-null descriptionFaPreview exactly`() = runBlocking {
+        val withPreview = fullLocation.copy(assetId = "loc_fa_preview", descriptionFaPreview = "دفتری کم‌نور با پنجره‌های خیس از باران")
+        repository.saveLocationAsset("proj_001", withPreview)
+
+        val loaded = repository.loadLocationAssets(listOf("loc_fa_preview"))
+        assertEquals(listOf(withPreview), loaded.getOrThrow())
+    }
+
+    @Test
+    fun `saveObjectAsset then loadObjectAssets round-trips a non-null descriptionFaPreview exactly`() = runBlocking {
+        val withPreview = fullObject.copy(assetId = "obj_fa_preview", descriptionFaPreview = "یک هفت‌تیر کهنه‌ی سرویسی")
+        repository.saveObjectAsset("proj_001", withPreview)
+
+        val loaded = repository.loadObjectAssets(listOf("obj_fa_preview"))
+        assertEquals(listOf(withPreview), loaded.getOrThrow())
+    }
+
     @Test
     fun `loadLocationAssets skips ids that are not locations, such as an object`() = runBlocking {
         repository.saveObjectAsset("proj_001", fullObject)

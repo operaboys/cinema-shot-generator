@@ -190,7 +190,13 @@ data class CharacterAsset(
     val basePrompt: String? = null,
     val continuityRules: ContinuityRules = ContinuityRules(),
     val continuityLockLevel: CharacterContinuityLevel = defaultLockLevelForTier(characterTier),
-    val referenceImages: List<ReferenceImage> = emptyList()
+    val referenceImages: List<ReferenceImage> = emptyList(),
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): نسخه‌ی
+    // فارسی basePrompt، فقط برای مرور کاربر فارسی‌زبان — هرگز به پرامپت
+    // نهایی (PromptAssembly.kt/Renderer.kt که فقط basePrompt انگلیسی
+    // بالا را می‌خوانند) راه پیدا نمی‌کند. null یعنی Preview فارسی برای
+    // این Asset تولید/ذخیره نشده.
+    val descriptionFaPreview: String? = null
 )
 
 data class Environment(
@@ -235,7 +241,10 @@ data class LocationAsset(
     val weatherCompatibility: List<String> = emptyList(),
     val keyElements: List<String> = emptyList(),
     val basePrompt: String? = null,
-    val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE
+    val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE,
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
+    // دقیق با CharacterAsset.descriptionFaPreview بالا.
+    val descriptionFaPreview: String? = null
 )
 
 /** طبق فرم واقعی «Add New Asset» — سه زیرگروه Object. */
@@ -256,5 +265,8 @@ data class ObjectAsset(
     val materialAndColor: String,
     val specialTrait: String? = null,
     val basePrompt: String? = null,
-    val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM
+    val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM,
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
+    // دقیق با CharacterAsset.descriptionFaPreview بالا.
+    val descriptionFaPreview: String? = null
 )

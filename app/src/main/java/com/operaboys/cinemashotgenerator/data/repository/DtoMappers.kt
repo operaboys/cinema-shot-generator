@@ -154,7 +154,8 @@ fun ShotDto.toDomain(): Shot = Shot(
     objectIds = objectIds,
     locationIds = locationIds,
     overrideScene = overrideScene,
-    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) }
+    cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) },
+    shotDescriptionFaPreview = shotDescriptionFaPreview
 )
 
 fun Shot.toDto(): ShotDto = ShotDto(
@@ -184,5 +185,6 @@ fun Shot.toDto(): ShotDto = ShotDto(
     objectIds = objectIds,
     locationIds = locationIds,
     overrideScene = overrideScene,
-    cinematicModeOverride = cinematicModeOverride?.name
+    cinematicModeOverride = cinematicModeOverride?.name,
+    shotDescriptionFaPreview = shotDescriptionFaPreview
 )

@@ -113,6 +113,19 @@ class DtoMappersTest {
         assertEquals(withoutOverride, withoutOverride.toDto().toDomain())
     }
 
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
+    // دقیق با تست‌های cinematicModeOverride بالا برای shotDescriptionFaPreview
+    // تازه‌اضافه‌شده.
+
+    @Test
+    fun `Shot toDto then toDomain round-trips shotDescriptionFaPreview exactly, both when set and when null`() {
+        val withPreview = baseShot(cinematicModeOverride = null).copy(shotDescriptionFaPreview = "جان وارد می‌شود")
+        assertEquals(withPreview, withPreview.toDto().toDomain())
+
+        val withoutPreview = baseShot(cinematicModeOverride = null).copy(shotDescriptionFaPreview = null)
+        assertEquals(withoutPreview, withoutPreview.toDto().toDomain())
+    }
+
     @Test
     fun `decoding an old ShotDataJson without the cinematicModeOverride key succeeds with a null default`() {
         val json = Json { ignoreUnknownKeys = true }

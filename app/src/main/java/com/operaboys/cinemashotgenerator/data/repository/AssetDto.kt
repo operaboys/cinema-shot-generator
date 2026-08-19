@@ -105,7 +105,12 @@ data class CharacterAssetDto(
     val basePrompt: String? = null,
     val continuityRules: ContinuityRulesDto = ContinuityRulesDto(),
     val continuityLockLevel: String? = null,
-    val referenceImages: List<ReferenceImageDto> = emptyList()
+    val referenceImages: List<ReferenceImageDto> = emptyList(),
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌شکل
+    // مستقیم با domain/asset/AssetModels.kt — Nullable با پیش‌فرض null،
+    // بدون نیاز به Room Migration (این DTO فقط در AssetEntity.assetDataJson
+    // به‌صورت JSON خام ذخیره می‌شود، نه ستون تفکیک‌شده‌ی Room).
+    val descriptionFaPreview: String? = null
 )
 
 @Serializable
@@ -123,7 +128,9 @@ data class LocationAssetDto(
     val weatherCompatibility: List<String> = emptyList(),
     val keyElements: List<String> = emptyList(),
     val basePrompt: String? = null,
-    val continuityLockLevel: String = "STYLE"
+    val continuityLockLevel: String = "STYLE",
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
+    val descriptionFaPreview: String? = null
 )
 
 /** جدید (Option A): معادل مستقل ObjectAssetDto برای AssetType.OBJECT. */
@@ -137,5 +144,7 @@ data class ObjectAssetDto(
     val materialAndColor: String,
     val specialTrait: String? = null,
     val basePrompt: String? = null,
-    val continuityLockLevel: String = "FORM"
+    val continuityLockLevel: String = "FORM",
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
+    val descriptionFaPreview: String? = null
 )

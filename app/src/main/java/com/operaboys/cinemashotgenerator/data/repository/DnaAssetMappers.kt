@@ -162,7 +162,8 @@ fun CharacterAssetDto.toDomain(): CharacterAsset {
             allowedOverrides = continuityRules.allowedOverrides
         ),
         continuityLockLevel = continuityLockLevel?.let { CharacterContinuityLevel.valueOf(it) } ?: defaultLockLevelForTier(tier),
-        referenceImages = referenceImages.map { ReferenceImage(it.localFilePath, it.description) }
+        referenceImages = referenceImages.map { ReferenceImage(it.localFilePath, it.description) },
+        descriptionFaPreview = descriptionFaPreview
     )
 }
 
@@ -193,7 +194,8 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
         allowedOverrides = continuityRules.allowedOverrides
     ),
     continuityLockLevel = continuityLockLevel.name,
-    referenceImages = referenceImages.map { ReferenceImageDto(it.localFilePath, it.description) }
+    referenceImages = referenceImages.map { ReferenceImageDto(it.localFilePath, it.description) },
+    descriptionFaPreview = descriptionFaPreview
 )
 
 private fun OutfitConditionDto.toDomain(): OutfitCondition = OutfitCondition(weather, timeOfDay, locationType)
@@ -209,7 +211,8 @@ fun LocationAssetDto.toDomain(): LocationAsset = LocationAsset(
     weatherCompatibility = weatherCompatibility,
     keyElements = keyElements,
     basePrompt = basePrompt,
-    continuityLockLevel = LocationContinuityLevel.valueOf(continuityLockLevel)
+    continuityLockLevel = LocationContinuityLevel.valueOf(continuityLockLevel),
+    descriptionFaPreview = descriptionFaPreview
 )
 
 fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
@@ -222,7 +225,8 @@ fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
     weatherCompatibility = weatherCompatibility,
     keyElements = keyElements,
     basePrompt = basePrompt,
-    continuityLockLevel = continuityLockLevel.name
+    continuityLockLevel = continuityLockLevel.name,
+    descriptionFaPreview = descriptionFaPreview
 )
 
 fun ObjectAssetDto.toDomain(): ObjectAsset = ObjectAsset(
@@ -234,7 +238,8 @@ fun ObjectAssetDto.toDomain(): ObjectAsset = ObjectAsset(
     materialAndColor = materialAndColor,
     specialTrait = specialTrait,
     basePrompt = basePrompt,
-    continuityLockLevel = PropContinuityLevel.valueOf(continuityLockLevel)
+    continuityLockLevel = PropContinuityLevel.valueOf(continuityLockLevel),
+    descriptionFaPreview = descriptionFaPreview
 )
 
 fun ObjectAsset.toDto(): ObjectAssetDto = ObjectAssetDto(
@@ -246,5 +251,6 @@ fun ObjectAsset.toDto(): ObjectAssetDto = ObjectAssetDto(
     materialAndColor = materialAndColor,
     specialTrait = specialTrait,
     basePrompt = basePrompt,
-    continuityLockLevel = continuityLockLevel.name
+    continuityLockLevel = continuityLockLevel.name,
+    descriptionFaPreview = descriptionFaPreview
 )

@@ -2264,6 +2264,31 @@ Robolectric فقط assets نسخه‌ی **debug** را می‌خواند (نه `
 (`StoryToDomainMapper` هنوز به قدم ۲ نیاز دارد)، در
 `docs/adr/121-unit01b-bilingual-preview-step1-migration-and-prompt-builder.md`.
 
+### ✅ سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم: descriptionFaPreview روی Asset/Shot + اتصال StoryToDomainMapper (ADR-122)
+
+`CharacterAsset`/`LocationAsset`/`ObjectAsset`/`Shot` هرکدام یک فیلد
+تازه گرفتند — `descriptionFaPreview`/`shotDescriptionFaPreview`،
+Nullable با پیش‌فرض `null` — فقط برای مرور کاربر فارسی‌زبان، هرگز به
+پرامپت نهایی (`PromptAssembly.kt`/`Renderer.kt`، دست‌نخورده) راه پیدا
+نمی‌کند. برخلاف قدم ۱ (که یک ستون Room تفکیک‌شده داشت)، این‌جا نیازی
+به Migration نبود — `AssetEntity`/`ShotEntity` هر دو JSON خام
+(`assetDataJson`/`shotDataJson`) ذخیره می‌کنند.
+
+**اتصال واقعی `StoryToDomainMapper.kt`**: `processAiResponse` یک
+پارامتر تازه گرفت — `previewLanguageEnabled: Boolean = false`. تصمیم
+فنی کلیدی: چهار data class خصوصی تازه
+(`BilingualCharacterFromAi`/...) فقط مسئول Parse شکل خام JSON دوزبانه
+(`descriptionEn`/`descriptionFa` مجزا، طبق
+`STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL` قدم ۱) هستند و
+بلافاصله به همان `SimpleCharacterFromAi`/... موجود تبدیل می‌شوند — از
+آن نقطه به بعد، منطق واقعی نگاشت (Tier/Gender/گروه‌بندی صحنه/تطبیق
+نام) کاملاً یکسان برای هر دو حالت اجرا می‌شود، بدون تکرار کد.
+تست‌های end-to-end موجود (بدون هیچ تغییری، با امضای قدیمی
+`processAiResponse(chunks, targetShotCount)`) خودشان اثبات رگرسیون صفر
+شدند. جزئیات کامل تصمیم فنی، ازجمله محدودیت آگاهانه‌ی این قدم (اتصال
+واقعی Toggle در `AiStoryBreakdownViewModel.kt` هنوز به قدم ۳ نیاز
+دارد)، در `docs/adr/122-unit01b-bilingual-preview-step2-mapper.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

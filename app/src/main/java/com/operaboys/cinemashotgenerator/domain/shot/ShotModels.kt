@@ -112,5 +112,10 @@ data class Shot(
     // domain.visualidentity.CinematicLanguage.kt) — بالاترین اولویت در زنجیره‌ی
     // سه‌سطحی بلوپرینت ۰۳ بخش ب («allow_shot_override همیشه true است»). هم‌الگو
     // دقیق با negativePromptOverride بالا.
-    val cinematicModeOverride: CinematicMode? = null
+    val cinematicModeOverride: CinematicMode? = null,
+    // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): نسخه‌ی
+    // فارسی shotDescription، فقط برای مرور کاربر فارسی‌زبان — هرگز به
+    // پرامپت نهایی راه پیدا نمی‌کند. نام‌گذاری هم‌الگو با shotDescription
+    // بالا (پیشوند shot)، نه descriptionFaPreview خام مثل AssetModels.kt.
+    val shotDescriptionFaPreview: String? = null
 )

@@ -45,19 +45,29 @@ import kotlin.math.abs
 // کار)، بدون یک DTO میانی جداگانه در data/repository/ که در این قدم هنوز معنا ندارد
 // (چون هیچ Repository ای این داده را ذخیره نمی‌کند — مستقیم به Mapper می‌رود).
 
+/**
+ * سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122):
+ * descriptionFa جدید (پیش‌فرض null، Backward Compatible با تمام فراخوان‌های
+ * موجود). description همیشه همان معنای قبلی (انگلیسی، پایه‌ی Asset واقعی)
+ * را دارد. تصمیم فنی صریح (نه معماری Sealed جدا برای این چهار نوع): این
+ * data class ها ثابت می‌مانند و JSON تک/دوزبانه هر دو به همین شکل نگاشت
+ * می‌شوند — تفاوت واقعی فقط در نحوه‌ی *Parse کردن* JSON خام است (پایین‌تر،
+ * Bilingual*FromAi/BilingualAiResponse)، نه در شکل نهایی این چهار نوع.
+ */
 @Serializable
 data class SimpleCharacterFromAi(
     val name: String,
     val description: String,
     val role: String,
-    val gender: String? = null
+    val gender: String? = null,
+    val descriptionFa: String? = null
 )
 
 @Serializable
-data class SimpleLocationFromAi(val name: String, val description: String)
+data class SimpleLocationFromAi(val name: String, val description: String, val descriptionFa: String? = null)
 
 @Serializable
-data class SimpleObjectFromAi(val name: String, val description: String)
+data class SimpleObjectFromAi(val name: String, val description: String, val descriptionFa: String? = null)
 
 @Serializable
 data class SimpleShotFromAi(
@@ -66,7 +76,8 @@ data class SimpleShotFromAi(
     val description: String,
     val characterNames: List<String> = emptyList(),
     val locationName: String,
-    val objectNames: List<String> = emptyList()
+    val objectNames: List<String> = emptyList(),
+    val descriptionFa: String? = null
 )
 
 @Serializable
@@ -76,6 +87,65 @@ private data class SimpleAiResponse(
     val objects: List<SimpleObjectFromAi> = emptyList(),
     val shots: List<SimpleShotFromAi> = emptyList()
 )
+
+/**
+ * سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): شکل خام JSON
+ * وقتی previewLanguageEnabled=true است (طبق
+ * STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL در PromptBuilder.kt، قدم
+ * ۱/ADR-121) واقعاً متفاوت از حالت تک‌زبانه است — descriptionEn/descriptionFa
+ * جدا، نه یک description واحد. این چهار نوع خصوصی *فقط* لایه‌ی Parse این
+ * شکل خام‌اند؛ بلافاصله با toSimple() به همان SimpleCharacterFromAi/... بالا
+ * تبدیل می‌شوند تا بقیه‌ی این فایل (mapAiCharacterToAsset و ...) هیچ تغییری
+ * نیاز نداشته باشد جز خواندن descriptionFa تازه.
+ */
+@Serializable
+private data class BilingualCharacterFromAi(
+    val name: String,
+    val descriptionEn: String,
+    val descriptionFa: String,
+    val role: String,
+    val gender: String? = null
+) {
+    fun toSimple() = SimpleCharacterFromAi(name, descriptionEn, role, gender, descriptionFa)
+}
+
+@Serializable
+private data class BilingualLocationFromAi(val name: String, val descriptionEn: String, val descriptionFa: String) {
+    fun toSimple() = SimpleLocationFromAi(name, descriptionEn, descriptionFa)
+}
+
+@Serializable
+private data class BilingualObjectFromAi(val name: String, val descriptionEn: String, val descriptionFa: String) {
+    fun toSimple() = SimpleObjectFromAi(name, descriptionEn, descriptionFa)
+}
+
+@Serializable
+private data class BilingualShotFromAi(
+    val sceneName: String,
+    val shotNumber: Int,
+    val descriptionEn: String,
+    val descriptionFa: String,
+    val characterNames: List<String> = emptyList(),
+    val locationName: String,
+    val objectNames: List<String> = emptyList()
+) {
+    fun toSimple() = SimpleShotFromAi(sceneName, shotNumber, descriptionEn, characterNames, locationName, objectNames, descriptionFa)
+}
+
+@Serializable
+private data class BilingualAiResponse(
+    val characters: List<BilingualCharacterFromAi> = emptyList(),
+    val locations: List<BilingualLocationFromAi> = emptyList(),
+    val objects: List<BilingualObjectFromAi> = emptyList(),
+    val shots: List<BilingualShotFromAi> = emptyList()
+) {
+    fun toSimple() = SimpleAiResponse(
+        characters = characters.map { it.toSimple() },
+        locations = locations.map { it.toSimple() },
+        objects = objects.map { it.toSimple() },
+        shots = shots.map { it.toSimple() }
+    )
+}
 
 /** internal (نه private) — AiConnector.kt هم از همین مولد شناسه‌ی مشترک استفاده می‌کند. */
 internal fun generateId(prefix: String): String = "${prefix}_" + UUID.randomUUID().toString().replace("-", "").take(12)
@@ -143,7 +213,8 @@ fun mapAiCharacterToAsset(aiChar: SimpleCharacterFromAi): CharacterAsset {
         ),
         outfits = listOf(defaultOutfitPlaceholder()),
         basePrompt = aiChar.description,
-        continuityRules = ContinuityRules()
+        continuityRules = ContinuityRules(),
+        descriptionFaPreview = aiChar.descriptionFa
     )
 }
 
@@ -153,7 +224,8 @@ fun mapAiLocationToAsset(aiLoc: SimpleLocationFromAi): LocationAsset = LocationA
     name = aiLoc.name,
     description = aiLoc.description,
     environment = deriveEnvironmentPlaceholder(),
-    basePrompt = aiLoc.description
+    basePrompt = aiLoc.description,
+    descriptionFaPreview = aiLoc.descriptionFa
 )
 
 /**
@@ -168,7 +240,8 @@ fun mapAiObjectToAsset(aiObj: SimpleObjectFromAi): ObjectAsset = ObjectAsset(
     subtype = ObjectSubtype.GENERAL_PROP,
     size = "medium",
     materialAndColor = "نامشخص — نیاز به بررسی کاربر",
-    basePrompt = aiObj.description
+    basePrompt = aiObj.description,
+    descriptionFaPreview = aiObj.descriptionFa
 )
 
 /**
@@ -233,7 +306,8 @@ fun mapAiShotToShot(
         soundProfile = SoundProfile(enabled = true),
         characterIds = matchedCharacterIds,
         objectIds = matchedObjectIds,
-        locationIds = matchedLocation?.let { listOf(it.assetId) } ?: emptyList()
+        locationIds = matchedLocation?.let { listOf(it.assetId) } ?: emptyList(),
+        shotDescriptionFaPreview = aiShot.descriptionFa
     )
     return ShotMappingResult(shot, unmatchedCharacterNames + unmatchedObjectNames + unmatchedLocationNames)
 }
@@ -289,8 +363,20 @@ private val aiResponseJson = Json { ignoreUnknownKeys = true }
  * بررسی کلیدهای الزامی (Rule 8) → Parse به Simple*FromAi → سه Mapper (کاراکتر/مکان/شیء)
  * → groupAiShotsIntoScenes → mapAiShotToShot برای هر شات → StoryBreakdownResult نهایی
  * (شامل هشدارهای Rule 9/10).
+ *
+ * previewLanguageEnabled (سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم،
+ * ADR-122، پیش‌فرض false برای رگرسیون صفر): شکل خام JSON که از AI بیرونی
+ * انتظار می‌رود را تعیین می‌کند — طبق PromptBuilder.kt (قدم ۱/ADR-121)، وقتی
+ * این پرچم true باشد، AI با STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL
+ * درخواست شده و descriptionEn/descriptionFa مجزا برمی‌گرداند، نه یک
+ * description واحد؛ پس این پرچم تعیین می‌کند کدام DTO خصوصی
+ * (SimpleAiResponse یا BilingualAiResponse) برای Decode استفاده شود.
+ * BilingualAiResponse.toSimple() بلافاصله به همان SimpleAiResponse تبدیل
+ * می‌شود — از این نقطه به بعد، بقیه‌ی تابع کاملاً یکسان برای هر دو حالت
+ * اجرا می‌شود (description همیشه انگلیسی معتبر، descriptionFa یا مقدار
+ * فارسی یا null).
  */
-fun processAiResponse(chunks: List<String>, targetShotCount: Int): ProcessAiResponseResult {
+fun processAiResponse(chunks: List<String>, targetShotCount: Int, previewLanguageEnabled: Boolean = false): ProcessAiResponseResult {
     val combined = smartCombineChunks(chunks)
 
     val repairedJson = when (val repairResult = repairJson(combined)) {
@@ -300,7 +386,11 @@ fun processAiResponse(chunks: List<String>, targetShotCount: Int): ProcessAiResp
 
     validateRequiredKeysPresent(repairedJson)?.let { return ProcessAiResponseResult.MissingRequiredKeys(it) }
 
-    val aiResponse = aiResponseJson.decodeFromString<SimpleAiResponse>(repairedJson)
+    val aiResponse = if (previewLanguageEnabled) {
+        aiResponseJson.decodeFromString<BilingualAiResponse>(repairedJson).toSimple()
+    } else {
+        aiResponseJson.decodeFromString<SimpleAiResponse>(repairedJson)
+    }
 
     val characters = aiResponse.characters.map { mapAiCharacterToAsset(it) }
     val locations = aiResponse.locations.map { mapAiLocationToAsset(it) }
