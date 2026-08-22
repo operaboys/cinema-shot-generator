@@ -2,6 +2,7 @@ package com.operaboys.cinemashotgenerator.ui.outputdelivery
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
@@ -69,6 +70,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 
 // واحد ۱۶ — رفع یافته‌ی 🔴 G17 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md):
 // تست مستقیم OutputDeliveryViewModel (نه از طریق کل Compose Navigation Tree مثل
@@ -459,6 +461,77 @@ class OutputDeliveryViewModelTest {
 
         viewModel.clearExportedFiles()
         assertEquals(null, viewModel.exportedFiles.value)
+    }
+
+    // اتصال واقعی Rule یتیم validateProfileAvailability (ADR-126) — سه تست،
+    // هم‌الگو با WorkflowViewModelTest.kt (ShadowLog، قدم قبلی/ADR-125): رفتار
+    // ظاهری (Fallback به ALL_MODEL_PROFILES.first()) عمداً بدون تغییر می‌ماند؛
+    // این سه تست فقط اثبات می‌کنند که (۱) یک profileId معتبر هیچ هشداری
+    // تولید نمی‌کند، (۲) یک profileId نامعتبر همچنان Fallback می‌کند *و* یک
+    // هشدار واقعی Log می‌شود، (۳) initialModelProfileId=null رفتار قبلی
+    // (بدون هیچ Rule/Log) را دقیقاً حفظ می‌کند.
+
+    @Test
+    fun `a valid initialModelProfileId selects that profile and never logs a warning`() = runBlocking {
+        val shotId = "${SHOT_ID}_valid_profile_id"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+        ShadowLog.clear()
+
+        val viewModel = buildViewModel(shotId, initialModelProfileId = "veo_3_1")
+
+        assertEquals("veo_3_1", viewModel.selectedProfileId.value)
+        val warningLogged = ShadowLog.getLogs().any { it.tag == "OutputDeliveryViewModel" && it.type == Log.WARN }
+        assertFalse("یک profileId معتبر نباید هیچ هشداری تولید کند", warningLogged)
+    }
+
+    /**
+     * یافته‌ی واقعی (انحراف آگاهانه از فرض اولیه‌ی دستور کار این قدم، مستندشده
+     * طبق قانون افشای انحراف): ALL_MODEL_PROFILES یک لیست ثابت Kotlin است که
+     * همیشه universalDefaultProfile را دارد (تأییدشده مستقل، ModelProfiles.kt
+     * خط ۳۱۰) — پس validateProfileAvailability(هر رشته، ALL_MODEL_PROFILES)
+     * همیشه null برمی‌گرداند (hasUniversalFallback همیشه true است)، حتی برای
+     * یک profileId کاملاً جعلی. این دقیقاً همان تحلیل فنی صریح خودِ دستور کار
+     * این قدم بود («عملاً یک سناریوی فاجعه‌بار که فعلاً هرگز رخ نمی‌دهد»)؛ اما
+     * فهرست تست‌های الزامی همان دستور کار انتظار «یک Log هشدار واقعاً ثبت
+     * می‌شود» را برای همین سناریو داشت — یک ناسازگاری داخلی بین تحلیل و فهرست
+     * تست خودِ دستور کار. این تست اصلاح شد تا با رفتار واقعی/صحیح کد هم‌خوان
+     * باشد (بدون هشدار)؛ اثبات این‌که خودِ Rule وقتی واقعاً universal_default
+     * هم موجود نباشد کار می‌کند، از قبل در ModelProfileLibraryTest.kt
+     * («validateProfileAvailability is blocking when nothing is available at
+     * all») پوشش داده شده — تکرارش اینجا با یک profiles list ساختگی چیز
+     * تازه‌ای اثبات نمی‌کرد.
+     */
+    @Test
+    fun `an invalid initialModelProfileId still falls back to the first profile - unchanged behavior - and produces no warning because universal_default is always present in ALL_MODEL_PROFILES`() = runBlocking {
+        val shotId = "${SHOT_ID}_invalid_profile_id"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+        ShadowLog.clear()
+
+        val viewModel = buildViewModel(shotId, initialModelProfileId = "fake_nonexistent_profile_xyz")
+
+        assertEquals(
+            "رفتار ظاهری برای کاربر نباید تغییر کند — مقدار نامعتبر همچنان به ALL_MODEL_PROFILES.first() Fallback می‌شود",
+            ALL_MODEL_PROFILES.first().profileId,
+            viewModel.selectedProfileId.value
+        )
+        val warningLogged = ShadowLog.getLogs().any { it.tag == "OutputDeliveryViewModel" && it.type == Log.WARN }
+        assertFalse(
+            "چون ALL_MODEL_PROFILES همیشه universal_default را دارد، validateProfileAvailability همیشه null برمی‌گرداند — این سناریو فعلاً هرگز واقعاً هشدار تولید نمی‌کند",
+            warningLogged
+        )
+    }
+
+    @Test
+    fun `a null initialModelProfileId selects the first profile exactly as before, with no warning`() = runBlocking {
+        val shotId = "${SHOT_ID}_null_profile_id"
+        shotRepository.saveShot(buildShot(shotId, "A calm establishing shot of the courtyard.")).getOrThrow()
+        ShadowLog.clear()
+
+        val viewModel = buildViewModel(shotId, initialModelProfileId = null)
+
+        assertEquals(ALL_MODEL_PROFILES.first().profileId, viewModel.selectedProfileId.value)
+        val warningLogged = ShadowLog.getLogs().any { it.tag == "OutputDeliveryViewModel" && it.type == Log.WARN }
+        assertFalse("null یک حالت معتبر و شناخته‌شده است، نه یک مقدار نامعتبر — نباید هیچ هشداری تولید کند", warningLogged)
     }
 }
 

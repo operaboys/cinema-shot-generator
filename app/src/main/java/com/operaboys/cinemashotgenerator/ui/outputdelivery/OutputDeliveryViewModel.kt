@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.outputdelivery
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -23,6 +24,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.composeOutput
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.render
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.renderBlueprintToText
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.validatePromptLength
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.validateProfileAvailability
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.validateUnsupportedFeatureUsage
 import com.operaboys.cinemashotgenerator.domain.promptengine.assemblePromptBlueprint
 import com.operaboys.cinemashotgenerator.domain.promptfinalization.TokenCheckResult
@@ -124,10 +126,7 @@ class OutputDeliveryViewModel(
         _exportedFiles.value = exportFileWriter.writeExportFiles(currentState.outputPackage.exportFiles)
     }
 
-    private val _selectedProfileId = MutableStateFlow(
-        ALL_MODEL_PROFILES.firstOrNull { it.profileId == initialModelProfileId }?.profileId
-            ?: ALL_MODEL_PROFILES.first().profileId
-    )
+    private val _selectedProfileId = MutableStateFlow(resolveInitialProfileId(initialModelProfileId))
     val selectedProfileId: StateFlow<String> = _selectedProfileId.asStateFlow()
 
     private val _state = MutableStateFlow<OutputDeliveryState>(OutputDeliveryState.Loading)
@@ -399,6 +398,44 @@ class OutputDeliveryViewModel(
                 }
             }
     }
+}
+
+/**
+ * اتصال واقعی Rule یتیم validateProfileAvailability (domain/outputdelivery/
+ * ModelProfileLibrary.kt، ADR-126) — تنها نقطه‌ی واقعی کل کدبیس که یک
+ * profileId خارجی (initialModelProfileId، از Navigation/State قدیمی) به یک
+ * ModelProfile واقعی موجود در ALL_MODEL_PROFILES تبدیل می‌شود.
+ *
+ * نکته‌ی معماری مهم: این Rule پارامتر اولش targetPlatform است (مثل "veo")،
+ * نه profileId (مثل "veo_3_1") — دو مفهوم متفاوت (تأییدشده با بررسی مستقل
+ * ModelProfiles.kt). اینجا فقط وقتی initialModelProfileId غیر-null است ولی
+ * هیچ پروفایلی با آن profileId پیدا نشد، Rule صدا زده می‌شود — با همان
+ * رشته‌ی نامعتبر به‌عنوان "targetPlatform". چون شرط اول تابع
+ * (hasExactMatch با platform) در این حالت همیشه false است (این رشته اصلاً
+ * یک platform واقعی نیست)، عملاً فقط شرط دوم (hasUniversalFallback) معنا
+ * دارد — یعنی این استفاده در واقع فقط یک چیز را واقعاً می‌سنجد: آیا
+ * universal_default همچنان در ALL_MODEL_PROFILES هست تا Fallback فعلی امن
+ * باشد. چون ALL_MODEL_PROFILES یک لیست ثابت Kotlin است که همیشه
+ * universalDefaultProfile را دارد (خط ۳۱۰، ModelProfiles.kt)، این Rule در
+ * عمل فعلاً همیشه null برمی‌گرداند — یک محافظ برای سناریوی فاجعه‌بار
+ * («حتی universal_default هم نیست»)، نه تشخیص هر profileId نامعتبر
+ * به‌تنهایی (که خودِ resolveInitialProfileId، بدون کمک این Rule، هرحال
+ * تشخیص می‌دهد و Log می‌کند).
+ *
+ * رفتار ظاهری عمداً بدون تغییر می‌ماند — Fallback به
+ * ALL_MODEL_PROFILES.first() دقیقاً همان‌طور که قبلاً بود باقی می‌ماند؛
+ * فقط این حالت اکنون با Log.w قابل‌ردیابی است (هم‌الگو دقیق با
+ * resolveInitialLanguage در ui/workflow/WorkflowViewModel.kt، ADR-125).
+ */
+private fun resolveInitialProfileId(initialModelProfileId: String?): String {
+    val matched = ALL_MODEL_PROFILES.firstOrNull { it.profileId == initialModelProfileId }
+    if (matched != null) return matched.profileId
+    if (initialModelProfileId != null) {
+        validateProfileAvailability(initialModelProfileId, ALL_MODEL_PROFILES)?.let { issue ->
+            Log.w("OutputDeliveryViewModel", "persisted model profile '$initialModelProfileId' is invalid, falling back: ${issue.message}")
+        }
+    }
+    return ALL_MODEL_PROFILES.first().profileId
 }
 
 /**

@@ -2374,6 +2374,29 @@ Framework ای نداشت).
 کامل). جزئیات کامل، ازجمله راستی‌آزمایی تجربی دسترسی فایل‌سیستم از تست JVM،
 در `docs/adr/125-orphan-translation-rules-wiring.md`.
 
+### ✅ اتصال Rule یتیم validateProfileAvailability در OutputDeliveryViewModel (ADR-126)
+
+`domain/outputdelivery/ModelProfileLibrary.kt` یک Rule یتیم دیگر داشت —
+`validateProfileAvailability`، هم‌الگو با ADR-125. اکنون در
+`OutputDeliveryViewModel` (تنها نقطه‌ی واقعی کدبیس که یک `profileId` خارجی
+— `initialModelProfileId` — به یک `ModelProfile` واقعی تبدیل می‌شود) وصل
+شد: مقدار نامعتبر همچنان بی‌صدا به `ALL_MODEL_PROFILES.first()` Fallback
+می‌شود (رفتار ظاهری بدون تغییر)، با همان الگوی `Log.w` قدم قبلی.
+
+یافته‌ی معماری مهم (توضیح‌داده‌شده کامل در ADR): این Rule پارامتر اولش
+`platform` است (مثل `"veo"`)، نه `profileId` (مثل `"veo_3_1"`) — دو مفهوم
+متفاوت. چون `ALL_MODEL_PROFILES` یک لیست ثابت Kotlin است که همیشه
+`universal_default` را دارد، این Rule در پیکربندی فعلی همیشه `null`
+برمی‌گرداند — یک محافظ ساختاری برای سناریوی فاجعه‌بار «حتی universal_default
+هم نیست»، نه ابزار تشخیص هر `profileId` نامعتبر به‌تنهایی. طبق تصمیم صریح
+معمار، مهاجرت این کتابخانه از `val` های ثابت Kotlin به یک فایل JSON
+خارجی/قابل‌ویرایش (که بلوپرینت ۱۴ اصلی وعده داده بود) در این قدم و فعلاً
+در دستور کار نیست — بدهی مستندشده از قبل در ADR-021، نه نادیده‌گرفتن.
+
+جزئیات کامل، ازجمله یک ناسازگاری واقعی که بین تحلیل فنی و فهرست تست‌های
+الزامی خودِ دستور کار این قدم پیدا و اصلاح شد، در
+`docs/adr/126-orphan-model-profile-availability-rule-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
