@@ -85,21 +85,6 @@ fun validateShotDuration(durationSeconds: Int, dna: ProjectDna): ValidationIssue
 }
 
 /**
- * Rule 4 (Blocking): نقض technical_constraints — عدم تطابق aspect_ratio.
- * Breaking Change این قدم: aspectRatio اکنون AspectRatio enum است، نه String آزاد.
- */
-fun validateShotAspectRatio(aspectRatio: AspectRatio, dna: ProjectDna): ValidationIssue? {
-    val required = dna.outputConstraints.aspectRatio
-    if (aspectRatio != required) {
-        return ValidationIssue(
-            Severity.BLOCKING,
-            message = "نسبت تصویر ('${aspectRatio.displayValue}') با نسبت الزامی DNA این پروژه ('${required.displayValue}') مطابقت ندارد"
-        )
-    }
-    return null
-}
-
-/**
  * Rule 3 (Warning) — تابع کمکی مستقل: عدم وجود عنصر در mandatory_elements هنگام Finalize شات.
  *
  * خارج از Scope این قدم: اتصال واقعی به «Finalize شدن یک Shot» متعلق به واحد ۰۵

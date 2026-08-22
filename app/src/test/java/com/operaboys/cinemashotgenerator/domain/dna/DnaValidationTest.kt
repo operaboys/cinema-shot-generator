@@ -124,20 +124,6 @@ class DnaValidationTest {
         assertEquals(Severity.BLOCKING, result!!.severity)
     }
 
-    @Test
-    fun `validateShotAspectRatio matching is valid`() {
-        val result = validateShotAspectRatio(AspectRatio.ANAMORPHIC_2_39, sampleDna(aspectRatio = AspectRatio.ANAMORPHIC_2_39))
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `validateShotAspectRatio mismatch blocks`() {
-        val result = validateShotAspectRatio(AspectRatio.LANDSCAPE_16_9, sampleDna(aspectRatio = AspectRatio.ANAMORPHIC_2_39))
-
-        assertEquals(Severity.BLOCKING, result!!.severity)
-    }
-
     // --- Rule 3 (Warning helper): mandatory_elements ---
 
     @Test

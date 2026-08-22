@@ -2397,6 +2397,27 @@ Framework ای نداشت).
 الزامی خودِ دستور کار این قدم پیدا و اصلاح شد، در
 `docs/adr/126-orphan-model-profile-availability-rule-wiring.md`.
 
+### ✅ حذف Rule یتیم و بی‌معنای معماری validateShotAspectRatio (ADR-127)
+
+برخلاف ADR-125/۱۲۶ (اتصال Rule های یتیم به یک نقطه‌ی واقعی)، این قدم
+`validateShotAspectRatio` (`domain/dna/DnaValidation.kt`) را **کامل حذف**
+کرد — نه وصل. دلیل معماری: `Shot` هرگز فیلد `aspectRatio` مستقلی نداشته و
+طبق تصمیم صریح کاربر پروژه هرگز نباید داشته باشد — نسبت تصویر همیشه و
+فقط یک مقدار سراسری سطح پروژه است
+(`ProjectDna.outputConstraints.aspectRatio`). چون هیچ‌جای ساختار داده
+چیزی برای «مقایسه با DNA» وجود ندارد، این Rule از نظر ساختاری هرگز
+نمی‌توانست در یک سناریوی واقعی معنادار فراخوانی شود — یک محافظ بی‌فایده،
+نه یک Rule ناقص.
+
+یافته‌ی مهم: این یتیمی قبلاً هم مستقل بررسی شده بود
+(`docs/adr/064-g14-orphaned-rules-decisions.md`، تصمیم ۱۰) — همان تحلیل
+معماری، با تصمیم وقت «بدون اقدام مگر اگر آینده per-Shot aspect ratio
+override اضافه کند». این قدم آن شرط را قطعی می‌بندد: چنین Override‌ای
+طبق طراحی صریح پروژه هرگز اضافه نخواهد شد. `AspectRatio` enum و
+`ProjectDna.outputConstraints.aspectRatio` (فرم DNA سطح پروژه) کاملاً
+دست‌نخورده ماندند. جزئیات کامل در
+`docs/adr/127-remove-validate-shot-aspect-ratio.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
