@@ -42,7 +42,9 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
+import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.scenes.sceneLocationTypeLabel
@@ -120,6 +122,9 @@ fun CharacterAssetFormScreen(
     val defaultMood by viewModel.defaultMood.collectAsStateWithLifecycle()
     val basePrompt by viewModel.basePrompt.collectAsStateWithLifecycle()
     val descriptionFaPreview by viewModel.descriptionFaPreview.collectAsStateWithLifecycle()
+    val selectedTranslationProfileId by viewModel.selectedTranslationProfileId.collectAsStateWithLifecycle()
+    val apiKeySavedForTranslationProfile by viewModel.apiKeySavedForTranslationProfile.collectAsStateWithLifecycle()
+    val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
@@ -218,6 +223,15 @@ fun CharacterAssetFormScreen(
                 value = descriptionFaPreview, onValueChange = viewModel::setDescriptionFaPreview,
                 label = { Text(uiString("assetForm.descriptionFaPreviewLabel", language)) },
                 modifier = Modifier.fillMaxWidth().testTag(CHARACTER_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
+            )
+            RetranslateButton(
+                profiles = BUILTIN_AI_CONNECTOR_PROFILES,
+                selectedProfileId = selectedTranslationProfileId,
+                onSelectProfile = viewModel::selectTranslationProfile,
+                apiKeySaved = apiKeySavedForTranslationProfile,
+                inProgress = translationInProgress,
+                onRetranslate = viewModel::retranslate,
+                language = language
             )
 
             OutfitsSection(viewModel = viewModel, language = language, outfits = outfits)

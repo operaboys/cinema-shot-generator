@@ -66,6 +66,7 @@ import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
@@ -73,6 +74,7 @@ import com.operaboys.cinemashotgenerator.ui.assets.AssetFormEnumDropdownField
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormFlatEntries
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormHeader
 import com.operaboys.cinemashotgenerator.ui.assets.AssetFormValidationIssueRow
+import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
 import com.operaboys.cinemashotgenerator.ui.dna.cinematicModeLabel
 import com.operaboys.cinemashotgenerator.ui.dna.lightingStyleLabel
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -501,6 +503,23 @@ private fun MainFieldsSection(
             onValueChange = viewModel::setShotDescriptionFaPreview,
             label = { Text(uiString("shotComposer.shotDescriptionFaPreviewLabel", language)) },
             modifier = Modifier.fillMaxWidth().testTag(SHOT_COMPOSER_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
+        )
+
+        // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+        // shotDescriptionFaPreview بالا: StateFlow های تازه مستقیماً از viewModel
+        // جمع‌آوری می‌شوند (نه پارامتر تازه در امضای این تابع)، تا هر دو فراخوان
+        // این Composable (TABS و ACCORDION) بدون تغییر بمانند.
+        val selectedTranslationProfileId by viewModel.selectedTranslationProfileId.collectAsStateWithLifecycle()
+        val apiKeySavedForTranslationProfile by viewModel.apiKeySavedForTranslationProfile.collectAsStateWithLifecycle()
+        val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
+        RetranslateButton(
+            profiles = BUILTIN_AI_CONNECTOR_PROFILES,
+            selectedProfileId = selectedTranslationProfileId,
+            onSelectProfile = viewModel::selectTranslationProfile,
+            apiKeySaved = apiKeySavedForTranslationProfile,
+            inProgress = translationInProgress,
+            onRetranslate = viewModel::retranslate,
+            language = language
         )
 
         AssetFormEnumDropdownField(

@@ -551,4 +551,51 @@ class AiConnectorTest {
         assertEquals(Severity.BLOCKING, issue!!.severity)
         assertFalse(issue.message.isBlank())
     }
+
+    // --- translateToFarsi (فیچر مستقل «ترجمه‌ی مجدد با AI»، ADR-124) ---
+    //
+    // این تابع خودش هیچ HTTP/Rule تازه‌ای ندارد — فقط یک پرامپت می‌سازد و
+    // sendToAiConnector موجود (که بالای همین فایل کامل تست شده) را صدا می‌زند؛
+    // پس فقط دو چیز اینجا واقعاً تست‌شدنی/معنادار است: (۱) پرامپت واقعاً متن
+    // انگلیسی ورودی را در خود دارد و به‌درستی به sendToAiConnector می‌رسد
+    // (تأییدشده با گرفتن بدنه‌ی واقعی Request در MockEngine)، (۲) نتیجه‌ی
+    // موفق/ناموفق دقیقاً همان Result سازگار بالا را برمی‌گرداند.
+
+    @Test
+    fun `translateToFarsi sends a prompt that contains the source English text and returns the AI's translation on success`() = runBlocking {
+        var capturedBody: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+            respond(
+                content = """{"content":[{"type":"text","text":"یک کارآگاه کهنه‌کار"}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = translateToFarsi("a grizzled veteran detective", CLAUDE_API_PROFILE, apiKey = "sk-test", engine = engine)
+
+        assertTrue(result.isSuccess)
+        assertEquals("یک کارآگاه کهنه‌کار", result.getOrNull())
+        assertTrue(
+            "پرامپت ارسالی باید خودِ متن انگلیسی منبع را در خود داشته باشد",
+            capturedBody!!.contains("a grizzled veteran detective")
+        )
+    }
+
+    @Test
+    fun `translateToFarsi propagates a meaningful failure when the HTTP call fails`() = runBlocking {
+        val engine = MockEngine {
+            respond(
+                content = """{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val result = translateToFarsi("a quiet courtyard", CLAUDE_API_PROFILE, apiKey = "sk-bad", engine = engine)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()!!.message!!.contains("invalid x-api-key"))
+    }
 }

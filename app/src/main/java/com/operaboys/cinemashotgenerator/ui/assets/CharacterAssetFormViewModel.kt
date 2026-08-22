@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
@@ -24,8 +25,15 @@ import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExist
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +65,11 @@ class CharacterAssetFormViewModel(
     // دقیق با ShotComposerViewModel.existingShotId — null یعنی «Asset جدید»
     // (رفتار قبلی، بدون تغییر)، غیر-null یعنی بارگذاری و ویرایش Asset موجود.
     private val existingAssetId: String? = null,
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // AiStoryBreakdownViewModel/OutputDeliveryViewModel: تزریق‌پذیر تا تست‌ها
+    // SharedPreferences معمولی/MockEngine جایگزین کنند.
+    private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
+    private val httpClientEngine: HttpClientEngine = OkHttp.create(),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -113,6 +126,24 @@ class CharacterAssetFormViewModel(
     private val _descriptionFaPreview = MutableStateFlow("")
     val descriptionFaPreview: StateFlow<String> = _descriptionFaPreview.asStateFlow()
 
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // AiStoryBreakdownViewModel.selectedProfileId/apiKeySavedForSelectedProfile:
+    // شرط سخت‌گیرانه‌ی UI (بررسی پیش‌فعال hasApiKey، نه فقط واکنش به خطای بعد از
+    // کلیک). پیش‌فرض Gemini چون تنها پروفایل با یک لایه‌ی رایگان دائمی است
+    // (تحقیق کامل در ADR-124) — نه انحصار، کاربر هر پروفایل ذخیره‌شده را می‌تواند
+    // انتخاب کند.
+    private val _selectedTranslationProfileId = MutableStateFlow(GEMINI_API_PROFILE.profileId)
+    val selectedTranslationProfileId: StateFlow<String> = _selectedTranslationProfileId.asStateFlow()
+
+    private val _apiKeySavedForTranslationProfile = MutableStateFlow(false)
+    val apiKeySavedForTranslationProfile: StateFlow<Boolean> = _apiKeySavedForTranslationProfile.asStateFlow()
+
+    private val _translationInProgress = MutableStateFlow(false)
+    val translationInProgress: StateFlow<Boolean> = _translationInProgress.asStateFlow()
+
+    private val _translationError = MutableStateFlow<String?>(null)
+    val translationError: StateFlow<String?> = _translationError.asStateFlow()
+
     // همیشه با دقیقاً یک Outfit پیش‌فرض شروع می‌شود — دقیقاً هم‌رفتار با مقدار
     // پیش‌فرض قدیمی («Default» + توضیح خالی)، تا Rule ۵ (validateDefaultOutfitExists)
     // برای یک Character تازه‌ساز بدون هیچ تعامل کاربر هم برقرار بماند.
@@ -154,6 +185,58 @@ class CharacterAssetFormViewModel(
             ioScope.launch {
                 repository.loadCharacterAssets(listOf(id)).getOrNull()?.firstOrNull()?.let { asset -> applyLoadedAsset(asset) }
             }
+        }
+        ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+    }
+
+    /**
+     * یافته‌ی مستندشده‌ی G2 (هنوز صادق، AiStoryBreakdownViewModel.kt/
+     * OutputDeliveryViewModel.kt): SecureKeyRepository پیش‌فرض‌تزریق‌نشده روی
+     * Robolectric واقعاً KeyStoreException پرتاب می‌کند؛ runCatching این ریسک را
+     * می‌بندد — fail-closed به false هم با شرط سخت‌گیرانه‌ی محصولی هم‌راستاست.
+     */
+    private suspend fun refreshApiKeySavedForTranslation(profileId: String) {
+        _apiKeySavedForTranslationProfile.value = runCatching { secureKeyRepository.hasApiKey(profileId) }.getOrDefault(false)
+    }
+
+    /** هم‌الگو دقیق با AiStoryBreakdownViewModel.selectProfile — Job چون hasApiKey روی Dispatchers.IO واقعی اجرا می‌شود. */
+    fun selectTranslationProfile(profileId: String): Job {
+        _selectedTranslationProfileId.value = profileId
+        return ioScope.launch { refreshApiKeySavedForTranslation(profileId) }
+    }
+
+    /**
+     * دکمه‌ی «ترجمه‌ی مجدد با AI» — basePrompt (متن انگلیسی منبع) به
+     * translateToFarsi داده می‌شود؛ نتیجه‌ی موفق مستقیم جایگزین
+     * descriptionFaPreview می‌شود. طبق بررسی مستقل این ViewModel (برخلاف
+     * ShotComposerViewModel): هیچ Setter دیگری اینجا (setBasePrompt/
+     * setDescriptionFaPreview/...) خودکار save() را صدا نمی‌زند — فقط دکمه‌ی
+     * صریح «ذخیره»/canSave این کار را می‌کند؛ پس این‌جا هم فقط StateFlow را
+     * به‌روز می‌کند، هم‌الگو دقیق با بقیه‌ی Setter های این ViewModel، بدون
+     * صدازدن save() مستقیم. Rule ۴ (validateApiKeyProvided) قبل از هر تلاش
+     * واقعی HTTP اعمال می‌شود — عیناً هم‌الگو با sendPromptAutomatically/
+     * analyzePromptQualityWithAi.
+     */
+    fun retranslate(): Job {
+        if (_translationInProgress.value) return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _translationError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _translationError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _translationInProgress.value = true
+            val result = translateToFarsi(_basePrompt.value, profile, apiKey, httpClientEngine)
+            _translationInProgress.value = false
+            result.fold(
+                onSuccess = { translated -> _descriptionFaPreview.value = translated },
+                onFailure = {
+                    _translationError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد"
+                }
+            )
         }
     }
 

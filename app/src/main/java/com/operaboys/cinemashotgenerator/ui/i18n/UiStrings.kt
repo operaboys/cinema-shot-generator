@@ -218,6 +218,14 @@ val faStrings: Map<String, String> = mapOf(
     "assetForm.descriptionLabel" to "توضیح",
     "assetForm.basePromptLabel" to "پرامپت پایه (اختیاری)",
     "assetForm.descriptionFaPreviewLabel" to "Preview فارسی (اختیاری — فقط برای مرور شما، وارد پرامپت نهایی نمی‌شود)",
+
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — مشترک بین چهار فرم
+    // (Character/Location/Object/Shot Composer)، اولین کامپوننت UI مشترک این
+    // پروژه (ui/common/RetranslateButton.kt).
+    "retranslate.buttonLabel" to "ترجمه‌ی مجدد با AI",
+    "retranslate.freeLabel" to "رایگان",
+    "retranslate.noKeyHint" to "ابتدا کلید API را در تنظیمات وارد کنید",
+
     "assetForm.saveButton" to "ذخیره",
     "assetForm.addTagButton" to "افزودن",
     "assetForm.continuityLockLevelFixedTemplate" to "سطح قفل تداوم (ثابت): {level}",
@@ -1125,6 +1133,10 @@ val enStrings: Map<String, String> = mapOf(
     "assetForm.descriptionLabel" to "Description",
     "assetForm.basePromptLabel" to "Base prompt (optional)",
     "assetForm.descriptionFaPreviewLabel" to "Persian preview (optional — for your review only, never enters the final prompt)",
+
+    "retranslate.buttonLabel" to "Retranslate with AI",
+    "retranslate.freeLabel" to "Free",
+    "retranslate.noKeyHint" to "First enter the API key in Settings",
     "assetForm.saveButton" to "Save",
     "assetForm.addTagButton" to "Add",
     "assetForm.continuityLockLevelFixedTemplate" to "Continuity lock level (fixed): {level}",

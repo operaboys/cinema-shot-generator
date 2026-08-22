@@ -25,7 +25,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
+import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 
@@ -80,6 +82,9 @@ fun LocationAssetFormScreen(
     val keyElements by viewModel.keyElements.collectAsStateWithLifecycle()
     val basePrompt by viewModel.basePrompt.collectAsStateWithLifecycle()
     val descriptionFaPreview by viewModel.descriptionFaPreview.collectAsStateWithLifecycle()
+    val selectedTranslationProfileId by viewModel.selectedTranslationProfileId.collectAsStateWithLifecycle()
+    val apiKeySavedForTranslationProfile by viewModel.apiKeySavedForTranslationProfile.collectAsStateWithLifecycle()
+    val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
@@ -168,6 +173,15 @@ fun LocationAssetFormScreen(
                 value = descriptionFaPreview, onValueChange = viewModel::setDescriptionFaPreview,
                 label = { Text(uiString("assetForm.descriptionFaPreviewLabel", language)) },
                 modifier = Modifier.fillMaxWidth().testTag(LOCATION_FORM_DESCRIPTION_FA_PREVIEW_FIELD_TAG)
+            )
+            RetranslateButton(
+                profiles = BUILTIN_AI_CONNECTOR_PROFILES,
+                selectedProfileId = selectedTranslationProfileId,
+                onSelectProfile = viewModel::selectTranslationProfile,
+                apiKeySaved = apiKeySavedForTranslationProfile,
+                inProgress = translationInProgress,
+                onRetranslate = viewModel::retranslate,
+                language = language
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }

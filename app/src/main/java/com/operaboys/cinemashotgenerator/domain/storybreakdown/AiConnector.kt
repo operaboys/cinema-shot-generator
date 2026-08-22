@@ -414,6 +414,24 @@ suspend fun sendToAiConnector(
     }
 }
 
+/**
+ * فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124، جدا از برنامه‌ی سه‌قدمی Preview
+ * دوزبانه‌ی ADR-121 تا ۱۲۳) — یک استفاده‌ی تازه‌ی sendToAiConnector موجود، بدون
+ * هیچ تغییری در خودِ آن تابع: فقط یک پرامپت ساده‌ی ترجمه می‌سازد و همان مسیر
+ * HTTP واقعی/MockEngine-پذیر بالا را صدا می‌زند — هر پنج پروفایل موجود
+ * (BUILTIN_AI_CONNECTOR_PROFILES) را همان‌قدر پشتیبانی می‌کند، بدون قید به
+ * Gemini (که فقط پیش‌فرض UI است، نه محدودیت این تابع).
+ */
+suspend fun translateToFarsi(
+    englishText: String,
+    profile: AiConnectorProfile,
+    apiKey: String,
+    engine: HttpClientEngine = OkHttp.create()
+): Result<String> {
+    val prompt = "این متن را دقیق و روان به فارسی ترجمه کن، فقط خودِ ترجمه را برگردان، بدون توضیح اضافه: $englishText"
+    return sendToAiConnector(profile, apiKey, prompt, engine)
+}
+
 /** Rule 4 (Blocking): مسیر ۲ (AI Connector) انتخاب شده ولی apiKey خالی است. */
 fun validateApiKeyProvided(apiKey: String): ValidationIssue? {
     if (apiKey.isBlank()) {

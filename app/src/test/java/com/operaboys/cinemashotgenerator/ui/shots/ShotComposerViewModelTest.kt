@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.shots
 
 import android.app.Application
+import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
@@ -8,6 +9,7 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
@@ -16,12 +18,22 @@ import com.operaboys.cinemashotgenerator.domain.scene.Scene
 import com.operaboys.cinemashotgenerator.domain.scene.SceneLocation
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -78,7 +90,11 @@ class ShotComposerViewModelTest {
         injectedDatabase.close()
     }
 
-    private fun buildViewModel(shotId: String?): ShotComposerViewModel = ShotComposerViewModel(
+    private fun buildViewModel(
+        shotId: String?,
+        secureKeyRepository: SecureKeyRepository? = null,
+        httpClientEngine: HttpClientEngine? = null
+    ): ShotComposerViewModel = ShotComposerViewModel(
         application = ApplicationProvider.getApplicationContext(),
         projectId = projectId,
         sceneId = sceneId,
@@ -88,8 +104,15 @@ class ShotComposerViewModelTest {
         projectDnaRepository = ProjectDnaRepository(injectedDatabase.projectDnaDao()),
         assetRepository = AssetRepository(injectedDatabase.assetDao()),
         idProvider = { shotId ?: "shot_fa_preview_generated" },
+        secureKeyRepository = secureKeyRepository ?: SecureKeyRepository(ApplicationProvider.getApplicationContext()),
+        httpClientEngine = httpClientEngine ?: OkHttp.create(),
         ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
     )
+
+    private fun buildTestSecureKeyRepository(prefsName: String): SecureKeyRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        return SecureKeyRepository(context) { appContext -> appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE) }
+    }
 
     private fun <T> awaitCondition(flow: StateFlow<T>, timeoutMs: Long = 3000, predicate: (T) -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -166,5 +189,81 @@ class ShotComposerViewModelTest {
         awaitCondition(secondVm.isReady) { it }
 
         assertEquals("جان وارد می‌شود", secondVm.shotDescriptionFaPreview.value)
+    }
+
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — سه تست امنیتی، هم‌الگو با
+    // CharacterAssetFormViewModelTest.kt، اما اینجا (برخلاف آن) موفقیت باید
+    // واقعاً Persist شود چون retranslate() در این ViewModel بلافاصله save()
+    // را صدا می‌زند (تأییدشده با بررسی مستقل خودِ این کلاس، نه فرض یکسان‌بودن
+    // با فرم‌های Asset).
+
+    @Test
+    fun `retranslate without a saved key never attempts a real HTTP call and sets a meaningful error`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("shot_retranslate_test_no_key_prefs")
+        var engineCalled = false
+        val engine = MockEngine {
+            engineCalled = true
+            respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val vm = buildViewModel("shot_retranslate_no_key", secureKeyRepository = secureKeyRepository, httpClientEngine = engine)
+        awaitCondition(vm.isReady) { it }
+        vm.setShotDescription("John enters the dim office")
+
+        vm.retranslate().join()
+
+        assertFalse(
+            "بدون کلید ذخیره‌شده نباید هیچ تلاش HTTP واقعی برای ترجمه‌ی مجدد انجام شود — مهم‌ترین تست امنیتی این فیچر",
+            engineCalled
+        )
+        assertNotNull(vm.translationError.value)
+        assertEquals("", vm.shotDescriptionFaPreview.value)
+    }
+
+    @Test
+    fun `retranslate with a saved key and a successful response replaces and persists shotDescriptionFaPreview`() = runBlocking {
+        val repository = ShotRepository(injectedDatabase.shotDao())
+        val secureKeyRepository = buildTestSecureKeyRepository("shot_retranslate_test_success_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"جان وارد دفتر کم‌نور می‌شود"}]}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildViewModel("shot_retranslate_success", secureKeyRepository = secureKeyRepository, httpClientEngine = engine)
+        awaitCondition(vm.isReady) { it }
+        vm.setShotDescription("John enters the dim office")
+        awaitCondition(vm.apiKeySavedForTranslationProfile) { it }
+
+        vm.retranslate().join()
+
+        assertEquals("جان وارد دفتر کم‌نور می‌شود", vm.shotDescriptionFaPreview.value)
+        assertNull(vm.translationError.value)
+        val loaded = awaitLoadedShot(repository, "shot_retranslate_success") { it?.shotDescriptionFaPreview != null }
+        assertEquals("جان وارد دفتر کم‌نور می‌شود", loaded?.shotDescriptionFaPreview)
+    }
+
+    @Test
+    fun `retranslate with a saved key but a failing HTTP response sets a meaningful translationError and leaves shotDescriptionFaPreview untouched`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("shot_retranslate_test_failure_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"error":{"message":"invalid API key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = buildViewModel("shot_retranslate_failure", secureKeyRepository = secureKeyRepository, httpClientEngine = engine)
+        awaitCondition(vm.isReady) { it }
+        vm.setShotDescription("John enters the dim office")
+        awaitCondition(vm.apiKeySavedForTranslationProfile) { it }
+
+        vm.retranslate().join()
+
+        assertEquals("", vm.shotDescriptionFaPreview.value)
+        assertNotNull(vm.translationError.value)
+        assertTrue(vm.translationError.value!!.contains("invalid API key"))
     }
 }

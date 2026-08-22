@@ -2325,6 +2325,36 @@ Story Wizard تا فیلد فارسیِ قابل‌ویرایش در فرم‌ه
 اثبات می‌کند، در
 `docs/adr/123-unit01b-bilingual-preview-step3-viewmodel-ui-wiring.md`.
 
+### ✅ دکمه‌ی «ترجمه‌ی مجدد با AI» روی فیلد Preview فارسی (ADR-124)
+
+**فیچر مستقل — بخشی از برنامه‌ی سه‌قدمی Preview دوزبانه‌ی بالا (ADR-121 تا
+۱۲۳) نیست.** هر چهار فرم (Character/Location/Object/Shot Composer) یک دکمه‌ی
+«ترجمه‌ی مجدد با AI» گرفتند — متن انگلیسی همان فرم (`basePrompt`/
+`description`/`shotDescription`) را با یک فراخوان AI مستقل به فارسی ترجمه
+می‌کند و فیلد Preview فارسی را جایگزین می‌کند؛ مفید برای Asset/Shot هایی که
+از مسیر Story Breakdown نیامده‌اند.
+
+دکمه محدود به یک سرویس نیست — کاربر هر پروفایلی که کلیدش را در تنظیمات ذخیره
+کرده می‌تواند انتخاب کند (چیپ‌های انتخاب، هم‌الگو با `GeneratedPromptCard`ی
+صفحه‌ی AI Story Breakdown). Gemini پیش‌فرض انتخاب‌شده است، با یک برچسب کوچک
+«رایگان» فقط کنار چیپ Gemini — چون طبق تحقیق معمار، Gemini تنها پروفایل این
+پنج‌تایی با یک لایه‌ی رایگان دائمی است (نه فقط یک اعتبار اولیه‌ی یک‌بارمصرف).
+
+منطق واقعی ترجمه فقط یک‌بار نوشته شد: `translateToFarsi` در
+`domain/storybreakdown/AiConnector.kt`، یک پرامپت ساده می‌سازد و
+`sendToAiConnector` موجود (بدون هیچ تغییری) را صدا می‌زند — هر پنج پروفایل
+AI Connector از این فیچر پشتیبانی می‌کنند. `ui/common/RetranslateButton.kt`
+**اولین کامپوننت UI مشترک این پروژه** است (تأییدشده با grep: تا این قدم هیچ
+پوشه‌ی `ui.common` وجود نداشت) — یک Composable عمومی که هر دو پکیج
+`ui.assets`/`ui.shots` صدا می‌زنند.
+
+یافته‌ی رفتاری تأییدشده با بررسی مستقل: سه ViewModel فرم Asset فقط StateFlow
+را به‌روز می‌کنند (ذخیره‌ی واقعی کار دکمه‌ی صریح «ذخیره»/`canSave` است)،
+درحالی‌که `ShotComposerViewModel` هم‌الگو با بقیه‌ی Setterهایش بلافاصله
+`save()` را هم صدا می‌زند. `PromptAssembly.kt`/`Renderer.kt` دست‌نخورده
+ماندند — این فیچر فقط فیلد Preview فارسی را پر می‌کند، پرامپت نهایی همیشه
+انگلیسی می‌ماند. جزئیات کامل در `docs/adr/124-retranslate-with-ai-button.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

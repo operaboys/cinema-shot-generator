@@ -1,14 +1,22 @@
 package com.operaboys.cinemashotgenerator.ui.assets
 
 import android.app.Application
+import android.content.Context
 import android.os.Looper
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -230,5 +239,109 @@ class CharacterAssetFormViewModelTest {
 
         val loaded = repository.loadCharacterAssets(listOf("char_fa_preview_null")).getOrThrow().single()
         assertNull(loaded.descriptionFaPreview)
+    }
+
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124، جدا از برنامه‌ی Preview دوزبانه‌ی
+    // ADR-121 تا ۱۲۳) — سه تست امنیتی، هم‌الگو دقیق با
+    // AiStoryBreakdownViewModelTest.kt/OutputDeliveryViewModelTest.kt (بدون
+    // کلید → هیچ HTTP واقعی؛ با کلید و پاسخ موفق → descriptionFaPreview واقعاً
+    // جایگزین می‌شود؛ با کلید و پاسخ ناموفق → پیام خطای معنادار). این کلاس
+    // نماینده‌ی الگوی «سه ViewModel فرم Asset» است (تأییدشده با بررسی مستقل:
+    // LocationAssetFormViewModel/ObjectAssetFormViewModel هم retranslate()
+    // کاملاً هم‌ساختار دارند، فقط فیلد متن منبع فرق می‌کند)؛ تکرار کامل این سه
+    // تست برای هر چهار ViewModel چیز تازه‌ای اثبات نمی‌کرد — طبق دستور صریح
+    // این قدم برای تصمیم‌گیری مستقل درباره‌ی محدوده‌ی تست.
+
+    private fun buildTestSecureKeyRepository(prefsName: String): SecureKeyRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        return SecureKeyRepository(context) { appContext -> appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE) }
+    }
+
+    @Test
+    fun `retranslate without a saved key never attempts a real HTTP call and sets a meaningful error`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("character_retranslate_test_no_key_prefs")
+        var engineCalled = false
+        val engine = MockEngine {
+            engineCalled = true
+            respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_retranslate_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            idProvider = { "char_retranslate_no_key" },
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        vm.setBasePrompt("a grizzled veteran detective")
+
+        vm.retranslate().join()
+
+        assertFalse(
+            "بدون کلید ذخیره‌شده نباید هیچ تلاش HTTP واقعی برای ترجمه‌ی مجدد انجام شود — مهم‌ترین تست امنیتی این فیچر",
+            engineCalled
+        )
+        assertNotNull(vm.translationError.value)
+        assertEquals("", vm.descriptionFaPreview.value)
+    }
+
+    @Test
+    fun `retranslate with a saved key and a successful response replaces descriptionFaPreview with the AI's translation`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("character_retranslate_test_success_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"یک کارآگاه کهنه‌کار"}]}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_retranslate_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            idProvider = { "char_retranslate_success" },
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        vm.setBasePrompt("a grizzled veteran detective")
+        awaitCondition(vm.apiKeySavedForTranslationProfile) { it }
+
+        vm.retranslate().join()
+
+        assertEquals("یک کارآگاه کهنه‌کار", vm.descriptionFaPreview.value)
+        assertNull(vm.translationError.value)
+    }
+
+    @Test
+    fun `retranslate with a saved key but a failing HTTP response sets a meaningful translationError and leaves descriptionFaPreview untouched`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("character_retranslate_test_failure_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"error":{"message":"invalid API key"}}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_retranslate_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            idProvider = { "char_retranslate_failure" },
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        vm.setBasePrompt("a grizzled veteran detective")
+        awaitCondition(vm.apiKeySavedForTranslationProfile) { it }
+
+        vm.retranslate().join()
+
+        assertEquals("", vm.descriptionFaPreview.value)
+        assertNotNull(vm.translationError.value)
+        assertTrue(vm.translationError.value!!.contains("invalid API key"))
     }
 }

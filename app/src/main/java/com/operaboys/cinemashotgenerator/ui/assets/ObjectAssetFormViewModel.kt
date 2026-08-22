@@ -7,15 +7,23 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +47,10 @@ class ObjectAssetFormViewModel(
     // رفع G7 ممیزی post-Unit16 (docs/audit/post-unit16-full-audit.md): هم‌الگو
     // دقیق با CharacterAssetFormViewModel.existingAssetId.
     private val existingAssetId: String? = null,
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.
+    private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
+    private val httpClientEngine: HttpClientEngine = OkHttp.create(),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -68,6 +80,20 @@ class ObjectAssetFormViewModel(
     // هم‌الگو دقیق با basePrompt بالا.
     private val _descriptionFaPreview = MutableStateFlow("")
     val descriptionFaPreview: StateFlow<String> = _descriptionFaPreview.asStateFlow()
+
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.
+    private val _selectedTranslationProfileId = MutableStateFlow(GEMINI_API_PROFILE.profileId)
+    val selectedTranslationProfileId: StateFlow<String> = _selectedTranslationProfileId.asStateFlow()
+
+    private val _apiKeySavedForTranslationProfile = MutableStateFlow(false)
+    val apiKeySavedForTranslationProfile: StateFlow<Boolean> = _apiKeySavedForTranslationProfile.asStateFlow()
+
+    private val _translationInProgress = MutableStateFlow(false)
+    val translationInProgress: StateFlow<Boolean> = _translationInProgress.asStateFlow()
+
+    private val _translationError = MutableStateFlow<String?>(null)
+    val translationError: StateFlow<String?> = _translationError.asStateFlow()
 
     /** سطح تداوم ObjectAsset فقط یک مقدار دارد (FORM) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM
@@ -109,6 +135,38 @@ class ObjectAssetFormViewModel(
             ioScope.launch {
                 repository.loadObjectAssets(listOf(id)).getOrNull()?.firstOrNull()?.let { asset -> applyLoadedAsset(asset) }
             }
+        }
+        ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+    }
+
+    private suspend fun refreshApiKeySavedForTranslation(profileId: String) {
+        _apiKeySavedForTranslationProfile.value = runCatching { secureKeyRepository.hasApiKey(profileId) }.getOrDefault(false)
+    }
+
+    fun selectTranslationProfile(profileId: String): Job {
+        _selectedTranslationProfileId.value = profileId
+        return ioScope.launch { refreshApiKeySavedForTranslation(profileId) }
+    }
+
+    /** description (متن انگلیسی منبع) به translateToFarsi داده می‌شود — هم‌الگو دقیق با CharacterAssetFormViewModel.retranslate. */
+    fun retranslate(): Job {
+        if (_translationInProgress.value) return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _translationError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _translationError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _translationInProgress.value = true
+            val result = translateToFarsi(_description.value, profile, apiKey, httpClientEngine)
+            _translationInProgress.value = false
+            result.fold(
+                onSuccess = { translated -> _descriptionFaPreview.value = translated },
+                onFailure = { _translationError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
+            )
         }
     }
 

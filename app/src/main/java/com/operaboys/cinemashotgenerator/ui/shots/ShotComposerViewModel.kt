@@ -9,6 +9,7 @@ import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
+import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
@@ -59,13 +60,20 @@ import com.operaboys.cinemashotgenerator.domain.shot.ShotType
 import com.operaboys.cinemashotgenerator.domain.shot.SoundProfile
 import com.operaboys.cinemashotgenerator.domain.shot.SourcedSettings
 import com.operaboys.cinemashotgenerator.domain.shot.validateShotDescription
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
+import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.AggregatedValidationReport
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.aggregateShotValidation
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
 import com.operaboys.cinemashotgenerator.domain.visualidentity.resolveEffectiveCinematicMode
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -124,6 +132,10 @@ class ShotComposerViewModel(
     private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
     private val idProvider: () -> String = ::generateShotId,
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.
+    private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
+    private val httpClientEngine: HttpClientEngine = OkHttp.create(),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -165,6 +177,20 @@ class ShotComposerViewModel(
     // قرارداد موجود Shot.shotDescriptionFaPreview.
     private val _shotDescriptionFaPreview = MutableStateFlow("")
     val shotDescriptionFaPreview: StateFlow<String> = _shotDescriptionFaPreview.asStateFlow()
+
+    // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
+    // CharacterAssetFormViewModel.
+    private val _selectedTranslationProfileId = MutableStateFlow(GEMINI_API_PROFILE.profileId)
+    val selectedTranslationProfileId: StateFlow<String> = _selectedTranslationProfileId.asStateFlow()
+
+    private val _apiKeySavedForTranslationProfile = MutableStateFlow(false)
+    val apiKeySavedForTranslationProfile: StateFlow<Boolean> = _apiKeySavedForTranslationProfile.asStateFlow()
+
+    private val _translationInProgress = MutableStateFlow(false)
+    val translationInProgress: StateFlow<Boolean> = _translationInProgress.asStateFlow()
+
+    private val _translationError = MutableStateFlow<String?>(null)
+    val translationError: StateFlow<String?> = _translationError.asStateFlow()
 
     private val _shotGoal = MutableStateFlow(ShotGoal.ACTION)
     val shotGoal: StateFlow<ShotGoal> = _shotGoal.asStateFlow()
@@ -422,6 +448,48 @@ class ShotComposerViewModel(
 
             _isReady.value = true
             refreshValidationSummary()
+        }
+        ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+    }
+
+    private suspend fun refreshApiKeySavedForTranslation(profileId: String) {
+        _apiKeySavedForTranslationProfile.value = runCatching { secureKeyRepository.hasApiKey(profileId) }.getOrDefault(false)
+    }
+
+    fun selectTranslationProfile(profileId: String): Job {
+        _selectedTranslationProfileId.value = profileId
+        return ioScope.launch { refreshApiKeySavedForTranslation(profileId) }
+    }
+
+    /**
+     * shotDescription (متن انگلیسی منبع) به translateToFarsi داده می‌شود. برخلاف
+     * سه ViewModel فرم Asset (که فقط StateFlow را به‌روز می‌کنند، ذخیره‌ی واقعی
+     * کار دکمه‌ی «ذخیره»/canSave است): این ViewModel با هر Setter بلافاصله
+     * save() فراخوانی می‌کند (تأییدشده با بررسی مستقل خودِ این فایل) — پس اینجا
+     * هم، هم‌الگو دقیق با setShotDescriptionFaPreview، بلافاصله save() صدا زده
+     * می‌شود.
+     */
+    fun retranslate(): Job {
+        if (_translationInProgress.value) return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _translationError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _translationError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _translationInProgress.value = true
+            val result = translateToFarsi(_shotDescription.value, profile, apiKey, httpClientEngine)
+            _translationInProgress.value = false
+            result.fold(
+                onSuccess = { translated ->
+                    _shotDescriptionFaPreview.value = translated
+                    save()
+                },
+                onFailure = { _translationError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
+            )
         }
     }
 
