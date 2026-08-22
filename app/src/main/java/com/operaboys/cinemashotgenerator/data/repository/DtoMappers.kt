@@ -71,7 +71,8 @@ fun CameraSettingsDto.toDomain(): CameraSettings = CameraSettings(
     depthOfField = DepthOfField.valueOf(depthOfField),
     focusMode = FocusMode.valueOf(focusMode),
     stabilization = Stabilization.valueOf(stabilization),
-    framing = Framing.valueOf(framing)
+    framing = Framing.valueOf(framing),
+    movementDurationSeconds = movementDurationSeconds
 )
 
 fun CameraSettings.toDto(): CameraSettingsDto = CameraSettingsDto(
@@ -82,7 +83,8 @@ fun CameraSettings.toDto(): CameraSettingsDto = CameraSettingsDto(
     depthOfField = depthOfField.name,
     focusMode = focusMode.name,
     stabilization = stabilization.name,
-    framing = framing.name
+    framing = framing.name,
+    movementDurationSeconds = movementDurationSeconds
 )
 
 fun LightingSettingsDto.toDomain(): LightingSettings = LightingSettings(

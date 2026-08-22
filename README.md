@@ -2441,6 +2441,32 @@ Migration، پروژه‌های موجود کاربر بدون خطا بارگذ
 ابهام‌های قدیمی ADR-055/ADR-064 را رسماً می‌بندد. جزئیات کامل در
 `docs/adr/128-remove-mandatory-elements-concept.md`.
 
+### ✅ اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129)
+
+`domain/camera/CameraValidation.kt` یک Rule یتیم دیگر داشت —
+`validateCameraMovementDuration`. برخلاف ADR-127/۱۲۸ (حذف)، این قدم مانند
+ADR-125/۱۲۶ آن را **وصل** کرد، چون این‌بار یک نیاز از پیش پیش‌بینی‌شده و
+مستند بود: `docs/adr/008-unit09-camera-motion-deviations.md` (تصمیم ۱) از
+ابتدا گفته بود اگر روزی واحدهای بالاتر واقعاً «مدت حرکت دوربین» را
+محاسبه کنند، افزودن یک فیلد duration دوباره مطرح می‌شود — این قدم دقیقاً
+همان آینده است.
+
+فیلد تازه `CameraSettings.movementDurationSeconds: Float? = null` — نه در
+داخل هیچ‌کدام از شش Variant سِیل‌کلاس `CameraMovement`، چون این مفهوم
+مستقل از نوع خاص حرکت است و افزودنش به هر Variant یعنی تکرار بی‌فایده در
+شش جا. `Nullable` با پیش‌فرض `null` یعنی پروژه‌ها/شات‌های موجود کاربر
+بدون تغییر رفتار باقی می‌مانند؛ Rule فقط وقتی مقدار واقعی وارد شده باشد
+در `ValidationAggregator.kt` صدا زده می‌شود (سطح Logical Consistency،
+Severity: در صورت عبور از مدت شات، Blocking). فیلد معادل در
+`CameraSettingsDto`/`DtoMappers.kt` هم اضافه شد — `Json { ignoreUnknownKeys
+= true }` موجود یعنی بدون Migration. فیلد UI تازه در `CameraTabContent.kt`
+(`MovementSection`) مستقل از نوع Variant انتخابی رندر می‌شود.
+
+این فقط **قدم ۱ از ۲** است. قدم ۲ (اتصال `validateSpeedIntensity`/
+`validateMotionBlur` مربوط به `SubjectMotion`) یک وابستگی داده‌ی متفاوت
+دارد (`SubjectMotion` هیچ معادلی در `Shot` ندارد) و هنوز آغاز نشده است.
+جزئیات کامل در `docs/adr/129-connect-camera-movement-duration-rule.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

@@ -23,6 +23,13 @@ sealed class CameraMovement {
     data class Compound(val primary: String, val secondary: String, val sync: String) : CameraMovement()
 }
 
+// اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129):
+// movementDurationSeconds مستقل از نوع Variant خاص CameraMovement است (برای
+// هر شش نوع حرکت یکسان معنا دارد)، پس به سطح CameraSettings اضافه شد، نه به
+// داخل هرکدام از شش data class زیرکلاس CameraMovement (که تکرار بی‌فایده‌ی
+// همان فیلد در شش جا می‌بود). Nullable با پیش‌فرض null — شات‌های/پروژه‌های
+// موجود کاربر که این مقدار را نداشتند بدون تغییر رفتار باقی می‌مانند؛ وقتی
+// null است، Rule اصلاً صدا زده نمی‌شود (چون مقداری برای مقایسه نیست).
 data class CameraSettings(
     val angle: CameraAngle,
     val distance: CameraDistance,
@@ -31,5 +38,6 @@ data class CameraSettings(
     val depthOfField: DepthOfField,
     val focusMode: FocusMode,
     val stabilization: Stabilization,
-    val framing: Framing
+    val framing: Framing,
+    val movementDurationSeconds: Float? = null
 )

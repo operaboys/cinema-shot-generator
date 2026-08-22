@@ -87,6 +87,8 @@ const val CAMERA_TAB_FRAMING_FIELD_TAG = "cameraTab.framingField"
 const val CAMERA_TAB_REFERENCE_TYPE_FIELD_TAG = "cameraTab.referenceTypeField"
 const val CAMERA_TAB_REFERENCE_DESCRIPTION_FIELD_TAG = "cameraTab.referenceDescriptionField"
 const val CAMERA_TAB_ADD_REFERENCE_BUTTON_TAG = "cameraTab.addReferenceButton"
+/** اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129). */
+const val CAMERA_TAB_MOVEMENT_DURATION_FIELD_TAG = "cameraTab.movementDurationField"
 
 fun cameraTabReferenceChipTag(index: Int): String = "cameraTab.referenceChip.$index"
 
@@ -198,6 +200,24 @@ private fun MovementSection(viewModel: ShotComposerViewModel, movement: CameraMo
                 testTag = CAMERA_TAB_MOVEMENT_TIER_ADVANCED_TAG
             )
         }
+
+        // اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129):
+        // مستقل از نوع Variant انتخابی (سطح CameraSettings، نه CameraMovement)،
+        // پس اینجا (بعد از انتخاب Tier، قبل از جزئیات خاص هر Variant) رندر
+        // می‌شود، نه داخل هرکدام از شاخه‌های when زیر.
+        val movementDurationSecondsText by viewModel.movementDurationSecondsText.collectAsStateWithLifecycle()
+        OutlinedTextField(
+            value = movementDurationSecondsText,
+            onValueChange = viewModel::setMovementDurationSecondsText,
+            label = { Text(uiString("cameraTab.movementDurationLabel", language)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag(CAMERA_TAB_MOVEMENT_DURATION_FIELD_TAG)
+        )
+        Text(
+            text = uiString("cameraTab.movementDurationHint", language),
+            style = MaterialTheme.typography.labelSmall,
+            color = CinemaTheme.extendedColors.fg3
+        )
 
         when (movement) {
             is CameraMovement.Basic -> {

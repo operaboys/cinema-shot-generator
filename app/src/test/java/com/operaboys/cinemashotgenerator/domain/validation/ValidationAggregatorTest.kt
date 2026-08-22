@@ -326,6 +326,43 @@ class ValidationAggregatorTest {
         assertTrue(report.issues.none { it.issue.message.contains("دوربین ثابت") })
     }
 
+    // اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129):
+    // فقط وقتی camera.movementDurationSeconds واقعاً غیر-null باشد این Rule
+    // صدا زده می‌شود — سه تست زیر دقیقاً همان شرط را می‌سنجند.
+
+    @Test
+    fun `a null movementDurationSeconds produces no camera-movement-duration issue at all`() {
+        val shot = neutralShot(durationSeconds = 4f)
+        // neutralCamera() از قبل movementDurationSeconds=null دارد.
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("مدت حرکت دوربین") })
+    }
+
+    @Test
+    fun `a movementDurationSeconds exceeding the shot's durationSeconds produces a real Level 2 BLOCKING issue`() {
+        val camera = neutralCamera().copy(movementDurationSeconds = 6f)
+        val shot = neutralShot(camera = camera, durationSeconds = 4f)
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val durationIssue = level2.firstOrNull { it.issue.message.contains("مدت حرکت دوربین") }
+        assertTrue(durationIssue != null)
+        assertEquals(Severity.BLOCKING, durationIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `a movementDurationSeconds within the shot's durationSeconds produces no camera-movement-duration issue`() {
+        val camera = neutralCamera().copy(movementDurationSeconds = 3f)
+        val shot = neutralShot(camera = camera, durationSeconds = 4f)
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("مدت حرکت دوربین") })
+    }
+
     // تکمیل Rule یتیم — قدم ۳ب از ۲ زیرقدم قدم ۳ (ADR-111، آخرین زیرقدم قدم ۳):
     // checkSlowMotionInDialogue واقعاً در Level 2 وایر شده است.
 

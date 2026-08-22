@@ -12,6 +12,7 @@ import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShall
 import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
 import com.operaboys.cinemashotgenerator.domain.camera.checkStaticMovementWithHandheldStabilization
+import com.operaboys.cinemashotgenerator.domain.camera.validateCameraMovementDuration
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.dna.validateShotAgainstDna
 import com.operaboys.cinemashotgenerator.domain.dna.validateShotDuration
@@ -70,10 +71,11 @@ data class AggregatedValidationReport(val issues: List<LeveledValidationIssue>) 
  * کار ValidationViewModel است.
  *
  * دلیل انتخاب دقیق اینکه کدام Rule کجا می‌رود، و کدام Rule های موجود در دامنه
- * عمداً وایر نشدند (مثل MotionIntensityValidation، validateCameraMovementDuration،
- * validateImageReferenceFile) در ADR-055 آمده. checkMandatoryElementsPresent
- * که در همان فهرست بود، بعداً کامل حذف شد (نه فقط یتیم، بلکه مفهومی تکراری
- * با qualityTags — ADR-128).
+ * عمداً وایر نشدند (مثل MotionIntensityValidation، validateImageReferenceFile)
+ * در ADR-055 آمده. checkMandatoryElementsPresent که در همان فهرست بود، بعداً
+ * کامل حذف شد (نه فقط یتیم، بلکه مفهومی تکراری با qualityTags — ADR-128).
+ * validateCameraMovementDuration هم در همان فهرست بود؛ اکنون (ADR-129) واقعاً
+ * وصل شده — طبق CameraSettings.movementDurationSeconds.
  */
 fun aggregateShotValidation(
     shot: Shot,
@@ -127,6 +129,13 @@ fun aggregateShotValidation(
         // صریح شات اجرا می‌شود، نه ارث‌بری‌شده از Scene (همان الگوی موجود سایر Rule
         // های این بلوک، اختراع نشده).
         add(l2, checkStaticCameraInChase(camera.movement.toMovementTypeString(), shot.shotDescription))
+        // اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129):
+        // فقط وقتی کاربر واقعاً یک مقدار برای مدت حرکت وارد کرده باشد (غیر-null)
+        // این Rule صدا زده می‌شود؛ اگر null است (کاربر وارد نکرده یا شات قدیمی)،
+        // هیچ Validation رخ نمی‌دهد، نه خطا.
+        camera.movementDurationSeconds?.let { duration ->
+            add(l2, validateCameraMovementDuration(duration, shot.durationSeconds))
+        }
         shot.environment.overrideValue?.visibility?.let { visibility ->
             add(l2, checkExtremeWideWithLowVisibility(camera.distance, visibility))
         }

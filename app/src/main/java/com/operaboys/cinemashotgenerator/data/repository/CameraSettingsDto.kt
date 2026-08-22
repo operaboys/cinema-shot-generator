@@ -48,5 +48,6 @@ data class CameraSettingsDto(
     val depthOfField: String,
     val focusMode: String,
     val stabilization: String,
-    val framing: String
+    val framing: String,
+    val movementDurationSeconds: Float? = null
 )

@@ -257,6 +257,14 @@ class ShotComposerViewModel(
     private val _cameraMovement = MutableStateFlow<CameraMovement>(CameraMovement.Basic(BasicMovementType.STATIC))
     val cameraMovement: StateFlow<CameraMovement> = _cameraMovement.asStateFlow()
 
+    // اتصال Rule یتیم validateCameraMovementDuration — قدم ۱ از ۲ (ADR-129):
+    // مستقل از نوع Variant انتخابی (سطح CameraSettings)، پس StateFlow جدا و
+    // خارج از _cameraMovement. متن خالی یعنی «تعیین‌نشده» (movementDurationSeconds
+    // نهایی null می‌ماند، هم‌الگو دقیق با _durationSecondsText/toFloatOrNull بالا
+    // — با این تفاوت که این فیلد اختیاری است، پس پیش‌فرض خالی، نه "4").
+    private val _movementDurationSecondsText = MutableStateFlow("")
+    val movementDurationSecondsText: StateFlow<String> = _movementDurationSecondsText.asStateFlow()
+
     private val _imageReferences = MutableStateFlow<List<ImageReference>>(emptyList())
     val imageReferences: StateFlow<List<ImageReference>> = _imageReferences.asStateFlow()
 
@@ -400,6 +408,7 @@ class ShotComposerViewModel(
                         _stabilization.value = camera.stabilization
                         _framing.value = camera.framing
                         _cameraMovement.value = camera.movement
+                        _movementDurationSecondsText.value = camera.movementDurationSeconds?.toString() ?: ""
                     }
                     _lightingSource.value = loaded.lighting.source
                     loaded.lighting.overrideValue?.let { lighting ->
@@ -523,6 +532,7 @@ class ShotComposerViewModel(
     fun setCinematicModeOverride(value: CinematicMode?) { _cinematicModeOverride.value = value; save() }
 
     fun setCameraSource(value: String) { _cameraSource.value = value; save() }
+    fun setMovementDurationSecondsText(value: String) { _movementDurationSecondsText.value = value; save() }
     fun setCameraAngle(value: CameraAngle) { _cameraAngle.value = value; save() }
     fun setCameraDistance(value: CameraDistance) { _cameraDistance.value = value; save() }
     fun setLensType(value: LensType) { _lensType.value = value; save() }
@@ -706,7 +716,8 @@ class ShotComposerViewModel(
         depthOfField = _depthOfField.value,
         focusMode = _focusMode.value,
         stabilization = _stabilization.value,
-        framing = _framing.value
+        framing = _framing.value,
+        movementDurationSeconds = _movementDurationSecondsText.value.toFloatOrNull()
     )
 
     private fun buildShot(): Shot {

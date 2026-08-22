@@ -69,6 +69,11 @@ fun checkExtremeWideWithShallowDepthOfField(distance: CameraDistance, depthOfFie
  * HandheldShake/Compound) فیلد duration ندارند؛ طبق تصمیم تأییدشده، مدت حرکت به‌عنوان
  * پارامتر خارجی مستقل گرفته می‌شود (مشابه الگوی «پارامتر مستقیم به‌جای فیلد ناموجود»
  * که در واحدهای ۰۳/۰۵/۰۷ هم استفاده شد)، نه افزودن فیلد به CameraMovement.
+ *
+ * اتصال واقعی — قدم ۱ از ۲ (ADR-129): این Rule دیگر یتیم نیست. مقدار واقعی
+ * از CameraSettings.movementDurationSeconds (فیلد جدید، سطح CameraSettings
+ * نه CameraMovement) می‌آید و در ValidationAggregator.kt وصل شده — دقیقاً همان
+ * «آینده»ای که این کامنت (از ابتدا، ADR-008) به آن اشاره کرده بود.
  */
 fun validateCameraMovementDuration(movementDurationSeconds: Float, shotDurationSeconds: Float): ValidationIssue? {
     if (movementDurationSeconds > shotDurationSeconds) {
