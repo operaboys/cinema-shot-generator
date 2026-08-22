@@ -13,6 +13,8 @@ import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
 import com.operaboys.cinemashotgenerator.domain.camera.checkStaticMovementWithHandheldStabilization
 import com.operaboys.cinemashotgenerator.domain.camera.validateCameraMovementDuration
+import com.operaboys.cinemashotgenerator.domain.camera.validateMotionBlur
+import com.operaboys.cinemashotgenerator.domain.camera.validateSpeedIntensity
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.dna.validateShotAgainstDna
 import com.operaboys.cinemashotgenerator.domain.dna.validateShotDuration
@@ -75,7 +77,9 @@ data class AggregatedValidationReport(val issues: List<LeveledValidationIssue>) 
  * در ADR-055 آمده. checkMandatoryElementsPresent که در همان فهرست بود، بعداً
  * کامل حذف شد (نه فقط یتیم، بلکه مفهومی تکراری با qualityTags — ADR-128).
  * validateCameraMovementDuration هم در همان فهرست بود؛ اکنون (ADR-129) واقعاً
- * وصل شده — طبق CameraSettings.movementDurationSeconds.
+ * وصل شده — طبق CameraSettings.movementDurationSeconds. validateSpeedIntensity/
+ * validateMotionBlur (MotionIntensityValidation) هم اکنون (ADR-130، قدم ۲ از ۲
+ * پایانی) واقعاً وصل شدند — طبق Shot.subjectMotion/Shot.motionBlur تازه.
  */
 fun aggregateShotValidation(
     shot: Shot,
@@ -119,6 +123,18 @@ fun aggregateShotValidation(
     // motionLevel/shotGoal همیشه (غیر-nullable) روی هر Shot موجودند، نه یک مقدار
     // اختیاری Override-شده.
     add(l2, checkSlowMotionInDialogue(shot.motionLevel, shot.shotGoal))
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130، آخرین قدم برنامه‌ی «اتصال Rule های یتیم دوربین و حرکت»):
+    // مستقیماً روی shot.subjectMotion/shot.motionBlur (نه shot.camera.overrideValue
+    // پایین‌تر) چون این دو فیلد مستقل از CameraSettings/SourcedSettings‌اند —
+    // هم‌الگو با checkSlowMotionInDialogue بالا (ترکیب فیلدهای مستقیم خودِ همین
+    // Shot، بدون نیاز به گیت camera.overrideValue). validateSpeedIntensity فقط با
+    // subjectMotion غیر-null صدا زده می‌شود؛ validateMotionBlur فقط وقتی هر دو
+    // subjectMotion و motionBlur غیر-null باشند (امضای آن هر دو را می‌خواهد).
+    shot.subjectMotion?.let { motion ->
+        add(l2, validateSpeedIntensity(motion))
+        shot.motionBlur?.let { blur -> add(l2, validateMotionBlur(motion.speed, blur)) }
+    }
     shot.camera.overrideValue?.let { camera ->
         add(l2, checkLensDistanceMismatch(camera.lensType, camera.distance))
         add(l2, checkStaticMovementWithHandheldStabilization(camera.movement, camera.stabilization))

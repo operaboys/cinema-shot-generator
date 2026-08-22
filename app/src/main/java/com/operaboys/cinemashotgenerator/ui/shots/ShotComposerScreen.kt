@@ -63,6 +63,9 @@ import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.MotionType
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectSpeed
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.ShotGoal
 import com.operaboys.cinemashotgenerator.domain.shot.ShotType
@@ -103,6 +106,11 @@ const val SHOT_COMPOSER_DURATION_FIELD_TAG = "shotComposer.durationField"
 const val SHOT_COMPOSER_MOTION_FIELD_TAG = "shotComposer.motionField"
 /** تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): Override محلی سطح شات Cinematic Mode. */
 const val SHOT_COMPOSER_CINEMATIC_MODE_FIELD_TAG = "shotComposer.cinematicModeField"
+/** اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲ پایانی (ADR-130). */
+const val SHOT_COMPOSER_SUBJECT_SPEED_FIELD_TAG = "shotComposer.subjectSpeedField"
+const val SHOT_COMPOSER_SUBJECT_MOTION_TYPE_FIELD_TAG = "shotComposer.subjectMotionTypeField"
+const val SHOT_COMPOSER_SUBJECT_INTENSITY_FIELD_TAG = "shotComposer.subjectIntensityField"
+const val SHOT_COMPOSER_MOTION_BLUR_FIELD_TAG = "shotComposer.motionBlurField"
 const val SHOT_COMPOSER_CAMERA_TAB_TAG = "shotComposer.tab.camera"
 const val SHOT_COMPOSER_LIGHTING_TAB_TAG = "shotComposer.tab.lighting"
 const val SHOT_COMPOSER_AUDIO_TAB_TAG = "shotComposer.tab.audio"
@@ -579,6 +587,67 @@ private fun MainFieldsSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = CinemaTheme.extendedColors.fg3
             )
+        }
+
+        // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+        // پایانی (ADR-130، آخرین قدم برنامه‌ی «اتصال Rule های یتیم دوربین و حرکت»):
+        // بخش UI کاملاً مجزا از motionLevel بالا (نه ادغام‌شده در همان بخش) — طبق
+        // ADR-008 (تصمیم ۴) این دو Enum عمداً به هم نگاشت نشدند، پس نمایش‌شان کنار
+        // هم بدون هیچ رابطه‌ی واقعی می‌توانست به کاربر القا کند این دو یک مفهوم
+        // واحدند؛ متن راهنمای زیر همین استقلال را صریح توضیح می‌دهد. StateFlow ها
+        // مستقیماً از viewModel جمع‌آوری می‌شوند (نه پارامتر تازه در امضای این تابع)
+        // — عیناً همان الگوی cinematicModeOverride بالا.
+        val notSetLabel = uiString("shotComposer.notSet", language)
+        val subjectSpeed by viewModel.subjectSpeed.collectAsStateWithLifecycle()
+        val subjectMotionType by viewModel.subjectMotionType.collectAsStateWithLifecycle()
+        val subjectIntensityText by viewModel.subjectIntensityText.collectAsStateWithLifecycle()
+        val motionBlur by viewModel.motionBlur.collectAsStateWithLifecycle()
+
+        Text(
+            text = uiString("shotComposer.subjectMotionSectionTitle", language),
+            style = MaterialTheme.typography.titleSmall
+        )
+        Text(
+            text = uiString("shotComposer.subjectMotionHint", language),
+            style = MaterialTheme.typography.bodySmall,
+            color = CinemaTheme.extendedColors.fg3
+        )
+        AssetFormEnumDropdownField(
+            label = uiString("shotComposer.subjectSpeedLabel", language),
+            selectedLabel = subjectSpeed?.let { subjectSpeedLabel(it, language) } ?: notSetLabel,
+            testTag = SHOT_COMPOSER_SUBJECT_SPEED_FIELD_TAG
+        ) { onDismiss ->
+            Column {
+                DropdownMenuItem(text = { Text(notSetLabel) }, onClick = { viewModel.setSubjectSpeed(null); onDismiss() })
+                AssetFormFlatEntries(SubjectSpeed.entries, { subjectSpeedLabel(it, language) }) { viewModel.setSubjectSpeed(it); onDismiss() }
+            }
+        }
+        AssetFormEnumDropdownField(
+            label = uiString("shotComposer.subjectMotionTypeLabel", language),
+            selectedLabel = subjectMotionType?.let { motionTypeLabel(it, language) } ?: notSetLabel,
+            testTag = SHOT_COMPOSER_SUBJECT_MOTION_TYPE_FIELD_TAG
+        ) { onDismiss ->
+            Column {
+                DropdownMenuItem(text = { Text(notSetLabel) }, onClick = { viewModel.setSubjectMotionType(null); onDismiss() })
+                AssetFormFlatEntries(MotionType.entries, { motionTypeLabel(it, language) }) { viewModel.setSubjectMotionType(it); onDismiss() }
+            }
+        }
+        OutlinedTextField(
+            value = subjectIntensityText,
+            onValueChange = viewModel::setSubjectIntensityText,
+            label = { Text(uiString("shotComposer.subjectIntensityLabel", language)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag(SHOT_COMPOSER_SUBJECT_INTENSITY_FIELD_TAG)
+        )
+        AssetFormEnumDropdownField(
+            label = uiString("shotComposer.motionBlurLabel", language),
+            selectedLabel = motionBlur?.let { motionBlurAmountLabel(it, language) } ?: notSetLabel,
+            testTag = SHOT_COMPOSER_MOTION_BLUR_FIELD_TAG
+        ) { onDismiss ->
+            Column {
+                DropdownMenuItem(text = { Text(notSetLabel) }, onClick = { viewModel.setMotionBlur(null); onDismiss() })
+                AssetFormFlatEntries(MotionBlurAmount.entries, { motionBlurAmountLabel(it, language) }) { viewModel.setMotionBlur(it); onDismiss() }
+            }
         }
     }
 }

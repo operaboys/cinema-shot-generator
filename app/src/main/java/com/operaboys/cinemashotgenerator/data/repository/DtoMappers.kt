@@ -9,7 +9,11 @@ import com.operaboys.cinemashotgenerator.domain.camera.DepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.MotionType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectMotion
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectSpeed
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.ContrastRatio
@@ -157,7 +161,11 @@ fun ShotDto.toDomain(): Shot = Shot(
     locationIds = locationIds,
     overrideScene = overrideScene,
     cinematicModeOverride = cinematicModeOverride?.let { CinematicMode.valueOf(it) },
-    shotDescriptionFaPreview = shotDescriptionFaPreview
+    shotDescriptionFaPreview = shotDescriptionFaPreview,
+    subjectMotion = subjectMotion?.let {
+        SubjectMotion(speed = SubjectSpeed.valueOf(it.speed), intensity = it.intensity, motionType = MotionType.valueOf(it.motionType))
+    },
+    motionBlur = motionBlur?.let { MotionBlurAmount.valueOf(it) }
 )
 
 fun Shot.toDto(): ShotDto = ShotDto(
@@ -188,5 +196,9 @@ fun Shot.toDto(): ShotDto = ShotDto(
     locationIds = locationIds,
     overrideScene = overrideScene,
     cinematicModeOverride = cinematicModeOverride?.name,
-    shotDescriptionFaPreview = shotDescriptionFaPreview
+    shotDescriptionFaPreview = shotDescriptionFaPreview,
+    subjectMotion = subjectMotion?.let {
+        SubjectMotionDto(speed = it.speed.name, intensity = it.intensity, motionType = it.motionType.name)
+    },
+    motionBlur = motionBlur?.name
 )

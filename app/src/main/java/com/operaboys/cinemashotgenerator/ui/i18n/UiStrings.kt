@@ -571,6 +571,15 @@ val faStrings: Map<String, String> = mapOf(
     "shotComposer.cinematicModeOverrideLabel" to "حالت سینمایی این شات",
     "shotComposer.cinematicModeFromSceneOrProject" to "پیروی از صحنه/پروژه",
     "shotComposer.effectiveCinematicModeTemplate" to "حالت مؤثر فعلی: {mode}",
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): بخش UI کاملاً مجزا از motionLevel بالا — طبق ADR-008
+    // (تصمیم ۴) این دو Enum عمداً به هم نگاشت نشدند.
+    "shotComposer.subjectMotionSectionTitle" to "حرکت سوژه (مستقل)",
+    "shotComposer.subjectMotionHint" to "اختیاری و کاملاً مستقل از «سطح حرکت» بالا — جزئیات دقیق‌تر حرکت خودِ سوژه (نه کل شات)، طبق واحد ۰۹",
+    "shotComposer.subjectSpeedLabel" to "سرعت سوژه",
+    "shotComposer.subjectMotionTypeLabel" to "نوع حرکت سوژه",
+    "shotComposer.subjectIntensityLabel" to "شدت حرکت (۰ تا ۱۰)",
+    "shotComposer.motionBlurLabel" to "میزان Motion Blur",
     "shotComposer.tab.main" to "اصلی",
     "shotComposer.tab.camera" to "دوربین",
     "shotComposer.tab.lighting" to "نور و محیط",
@@ -599,6 +608,20 @@ val faStrings: Map<String, String> = mapOf(
     "motionLevel.moderate" to "متوسط",
     "motionLevel.dynamic" to "پویا",
     "motionLevel.extreme" to "شدید",
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): enum های واحد ۰۹ بخش ب.
+    "subjectSpeed.slow" to "آرام",
+    "subjectSpeed.normal" to "عادی",
+    "subjectSpeed.fast" to "سریع",
+    "subjectSpeed.hyperkinetic" to "بسیار سریع (Hyperkinetic)",
+    "motionType.continuous" to "پیوسته",
+    "motionType.intermittent" to "متناوب",
+    "motionType.sudden" to "ناگهانی",
+    "motionType.oscillating" to "نوسانی",
+    "motionBlurAmount.none" to "بدون Blur",
+    "motionBlurAmount.subtle" to "ملایم",
+    "motionBlurAmount.cinematic" to "سینمایی",
+    "motionBlurAmount.extreme" to "شدید",
 
     // فاز ۴ — قدم ۳: Tab «دوربین» Shot Composer
     "cameraTab.sourceSceneLabel" to "استفاده از تنظیمات صحنه",
@@ -1472,6 +1495,12 @@ val enStrings: Map<String, String> = mapOf(
     "shotComposer.cinematicModeOverrideLabel" to "This Shot's Cinematic Mode",
     "shotComposer.cinematicModeFromSceneOrProject" to "Follow Scene/Project",
     "shotComposer.effectiveCinematicModeTemplate" to "Current effective mode: {mode}",
+    "shotComposer.subjectMotionSectionTitle" to "Subject Motion (independent)",
+    "shotComposer.subjectMotionHint" to "Optional and fully independent from Motion Level above — finer detail about the subject's own motion (not the whole shot), per unit 09",
+    "shotComposer.subjectSpeedLabel" to "Subject speed",
+    "shotComposer.subjectMotionTypeLabel" to "Subject motion type",
+    "shotComposer.subjectIntensityLabel" to "Motion intensity (0-10)",
+    "shotComposer.motionBlurLabel" to "Motion blur amount",
     "shotComposer.tab.main" to "Main",
     "shotComposer.tab.camera" to "Camera",
     "shotComposer.tab.lighting" to "Lighting & Environment",
@@ -1499,6 +1528,18 @@ val enStrings: Map<String, String> = mapOf(
     "motionLevel.moderate" to "Moderate",
     "motionLevel.dynamic" to "Dynamic",
     "motionLevel.extreme" to "Extreme",
+    "subjectSpeed.slow" to "Slow",
+    "subjectSpeed.normal" to "Normal",
+    "subjectSpeed.fast" to "Fast",
+    "subjectSpeed.hyperkinetic" to "Hyperkinetic",
+    "motionType.continuous" to "Continuous",
+    "motionType.intermittent" to "Intermittent",
+    "motionType.sudden" to "Sudden",
+    "motionType.oscillating" to "Oscillating",
+    "motionBlurAmount.none" to "None",
+    "motionBlurAmount.subtle" to "Subtle",
+    "motionBlurAmount.cinematic" to "Cinematic",
+    "motionBlurAmount.extreme" to "Extreme",
 
     // Phase 4 — Step 3: Shot Composer "Camera" tab
     "cameraTab.sourceSceneLabel" to "Use scene settings",

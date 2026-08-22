@@ -24,7 +24,11 @@ import com.operaboys.cinemashotgenerator.domain.camera.DepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.MotionType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectMotion
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectSpeed
 import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShallowDepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.checkLensDistanceMismatch
 import com.operaboys.cinemashotgenerator.domain.camera.checkRackFocusSubjectCount
@@ -221,6 +225,27 @@ class ShotComposerViewModel(
     private val _effectiveCinematicMode = MutableStateFlow<CinematicMode?>(null)
     val effectiveCinematicMode: StateFlow<CinematicMode?> = _effectiveCinematicMode.asStateFlow()
 
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): مستقل از motionLevel/camera بالا — طبق ADR-008 (تصمیم ۴)
+    // این دو Enum عمداً به هم نگاشت نشدند. چهار StateFlow، همه Nullable با
+    // پیش‌فرض null یعنی «تنظیم‌نشده»: shot.subjectMotion (که سه زیرفیلد غیر-nullable
+    // دارد) فقط وقتی هر سه واقعاً پر شده باشند در buildSubjectMotion() ساخته
+    // می‌شود — هم‌الگو با _movementDurationSecondsText بالا (ADR-129: پیش‌فرض
+    // خالی/null، نه یک مقدار حدسی).
+    private val _subjectSpeed = MutableStateFlow<SubjectSpeed?>(null)
+    val subjectSpeed: StateFlow<SubjectSpeed?> = _subjectSpeed.asStateFlow()
+
+    private val _subjectMotionType = MutableStateFlow<MotionType?>(null)
+    val subjectMotionType: StateFlow<MotionType?> = _subjectMotionType.asStateFlow()
+
+    // بلوپرینت intensity را عدد صحیح آزاد تعریف کرده (نه Enum) — هم‌الگو متن با
+    // _durationSecondsText/_movementDurationSecondsText بالا.
+    private val _subjectIntensityText = MutableStateFlow("")
+    val subjectIntensityText: StateFlow<String> = _subjectIntensityText.asStateFlow()
+
+    private val _motionBlur = MutableStateFlow<MotionBlurAmount?>(null)
+    val motionBlur: StateFlow<MotionBlurAmount?> = _motionBlur.asStateFlow()
+
     /** Rule 1 واقعی واحد ۰۵ (ShotValidation.kt) — نمایش زنده، بدون مسدودکردن Auto-Save (طبق تصمیم مستند، جزئیات در ADR-051). */
     val shotDescriptionValidation: StateFlow<ValidationIssue?> = _shotDescription
         .map { validateShotDescription(it) }
@@ -396,6 +421,12 @@ class ShotComposerViewModel(
                     _durationSecondsText.value = loaded.durationSeconds.toString()
                     _motionLevel.value = loaded.motionLevel
                     _cinematicModeOverride.value = loaded.cinematicModeOverride
+                    loaded.subjectMotion?.let { motion ->
+                        _subjectSpeed.value = motion.speed
+                        _subjectMotionType.value = motion.motionType
+                        _subjectIntensityText.value = motion.intensity.toString()
+                    }
+                    _motionBlur.value = loaded.motionBlur
                     _imageReferences.value = loaded.imageReferences
                     _subjectCount.value = loaded.characterIds.size + loaded.objectIds.size
                     _cameraSource.value = loaded.camera.source
@@ -530,6 +561,11 @@ class ShotComposerViewModel(
     fun setDurationSecondsText(value: String) { _durationSecondsText.value = value; save() }
     fun setMotionLevel(value: MotionLevel) { _motionLevel.value = value; save() }
     fun setCinematicModeOverride(value: CinematicMode?) { _cinematicModeOverride.value = value; save() }
+
+    fun setSubjectSpeed(value: SubjectSpeed?) { _subjectSpeed.value = value; save() }
+    fun setSubjectMotionType(value: MotionType?) { _subjectMotionType.value = value; save() }
+    fun setSubjectIntensityText(value: String) { _subjectIntensityText.value = value; save() }
+    fun setMotionBlur(value: MotionBlurAmount?) { _motionBlur.value = value; save() }
 
     fun setCameraSource(value: String) { _cameraSource.value = value; save() }
     fun setMovementDurationSecondsText(value: String) { _movementDurationSecondsText.value = value; save() }
@@ -720,6 +756,14 @@ class ShotComposerViewModel(
         movementDurationSeconds = _movementDurationSecondsText.value.toFloatOrNull()
     )
 
+    /** فقط وقتی هر سه زیرفیلد واقعاً پر شده باشند یک SubjectMotion واقعی می‌سازد؛ وگرنه null (یعنی «تنظیم‌نشده»، نه یک مقدار نصفه‌ساخته). */
+    private fun buildSubjectMotion(): SubjectMotion? {
+        val speed = _subjectSpeed.value ?: return null
+        val motionType = _subjectMotionType.value ?: return null
+        val intensity = _subjectIntensityText.value.toIntOrNull() ?: return null
+        return SubjectMotion(speed = speed, intensity = intensity, motionType = motionType)
+    }
+
     private fun buildShot(): Shot {
         val base = loadedShot
         return Shot(
@@ -754,7 +798,9 @@ class ShotComposerViewModel(
             locationIds = base?.locationIds ?: emptyList(),
             overrideScene = base?.overrideScene ?: false,
             cinematicModeOverride = _cinematicModeOverride.value,
-            shotDescriptionFaPreview = _shotDescriptionFaPreview.value.ifBlank { null }
+            shotDescriptionFaPreview = _shotDescriptionFaPreview.value.ifBlank { null },
+            subjectMotion = buildSubjectMotion(),
+            motionBlur = _motionBlur.value
         )
     }
 

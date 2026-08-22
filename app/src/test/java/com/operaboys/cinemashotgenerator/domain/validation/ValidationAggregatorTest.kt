@@ -15,7 +15,11 @@ import com.operaboys.cinemashotgenerator.domain.camera.DepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.MotionType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectMotion
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectSpeed
 import com.operaboys.cinemashotgenerator.domain.dna.AspectRatio
 import com.operaboys.cinemashotgenerator.domain.dna.ColorTemperature
 import com.operaboys.cinemashotgenerator.domain.dna.ContrastLevel
@@ -385,5 +389,89 @@ class ValidationAggregatorTest {
         val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
 
         assertTrue(report.issues.none { it.issue.message.contains("Slow Motion") })
+    }
+
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): مستقیماً روی shot.subjectMotion/shot.motionBlur (مستقل
+    // از camera.overrideValue) — این تست‌ها ثابت می‌کنند خروجی واقعاً به Level 2
+    // این تجمیع‌کننده اضافه می‌شود، نه فقط اینکه خودِ توابع درست کار می‌کنند (که
+    // MotionIntensityValidationTest.kt پوشش دارد).
+
+    @Test
+    fun `null subjectMotion and motionBlur produce no issue from either motion-intensity rule`() {
+        val shot = neutralShot()
+        // neutralShot() از قبل subjectMotion=null و motionBlur=null دارد.
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("Intensity") })
+        assertTrue(report.issues.none { it.issue.message.contains("Blur") })
+    }
+
+    @Test
+    fun `a SLOW subjectMotion with intensity above 6 produces a real Level 2 warning (validateSpeedIntensity)`() {
+        val shot = neutralShot().copy(subjectMotion = SubjectMotion(speed = SubjectSpeed.SLOW, intensity = 8, motionType = MotionType.CONTINUOUS))
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val speedIntensityIssue = level2.firstOrNull { it.issue.message.contains("حرکت آرام با Intensity بالا") }
+        assertTrue(speedIntensityIssue != null)
+        assertEquals(Severity.WARNING, speedIntensityIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `a HYPERKINETIC subjectMotion with intensity below 7 produces a real Level 2 warning (validateSpeedIntensity)`() {
+        val shot = neutralShot().copy(subjectMotion = SubjectMotion(speed = SubjectSpeed.HYPERKINETIC, intensity = 3, motionType = MotionType.SUDDEN))
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val speedIntensityIssue = level2.firstOrNull { it.issue.message.contains("Hyperkinetic باید Intensity بالا") }
+        assertTrue(speedIntensityIssue != null)
+        assertEquals(Severity.WARNING, speedIntensityIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `SLOW speed with EXTREME motionBlur produces a real Level 2 warning (validateMotionBlur)`() {
+        val shot = neutralShot().copy(
+            subjectMotion = SubjectMotion(speed = SubjectSpeed.SLOW, intensity = 2, motionType = MotionType.CONTINUOUS),
+            motionBlur = MotionBlurAmount.EXTREME
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val blurIssue = level2.firstOrNull { it.issue.message.contains("Blur شدید برای حرکت آرام") }
+        assertTrue(blurIssue != null)
+        assertEquals(Severity.WARNING, blurIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `HYPERKINETIC speed with NONE motionBlur produces a real Level 2 warning (validateMotionBlur)`() {
+        val shot = neutralShot().copy(
+            subjectMotion = SubjectMotion(speed = SubjectSpeed.HYPERKINETIC, intensity = 9, motionType = MotionType.SUDDEN),
+            motionBlur = MotionBlurAmount.NONE
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val blurIssue = level2.firstOrNull { it.issue.message.contains("حرکت بسیار سریع بدون Blur") }
+        assertTrue(blurIssue != null)
+        assertEquals(Severity.WARNING, blurIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `a valid non-conflicting subjectMotion and motionBlur combination produces no motion-intensity issue`() {
+        val shot = neutralShot().copy(
+            subjectMotion = SubjectMotion(speed = SubjectSpeed.NORMAL, intensity = 5, motionType = MotionType.CONTINUOUS),
+            motionBlur = MotionBlurAmount.CINEMATIC
+        )
+
+        val report = aggregateShotValidation(shot, neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList())
+
+        assertTrue(report.issues.none { it.issue.message.contains("Intensity") })
+        assertTrue(report.issues.none { it.issue.message.contains("Blur") })
     }
 }

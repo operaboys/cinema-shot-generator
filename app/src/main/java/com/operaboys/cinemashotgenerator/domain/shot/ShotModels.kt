@@ -1,6 +1,8 @@
 package com.operaboys.cinemashotgenerator.domain.shot
 
 import com.operaboys.cinemashotgenerator.domain.camera.CameraSettings
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectMotion
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.EnvironmentSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 import com.operaboys.cinemashotgenerator.domain.visualidentity.CinematicMode
@@ -117,5 +119,21 @@ data class Shot(
     // فارسی shotDescription، فقط برای مرور کاربر فارسی‌زبان — هرگز به
     // پرامپت نهایی راه پیدا نمی‌کند. نام‌گذاری هم‌الگو با shotDescription
     // بالا (پیشوند shot)، نه descriptionFaPreview خام مثل AssetModels.kt.
-    val shotDescriptionFaPreview: String? = null
+    val shotDescriptionFaPreview: String? = null,
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): برخلاف camera/lighting/environment (SourcedSettings با
+    // منبع «scene»)، این دو فیلد مستقیماً روی Shot‌اند، نه در یک SourcedSettings
+    // تازه — چون domain.scene.SceneModels.kt هیچ معادل CameraSettings/
+    // LightingSettings/EnvironmentSettings ای برای subjectMotion/motionBlur ندارد
+    // تا از آن ارث ببرند (تأییدشده مستقل: حتی sceneDefault موجود
+    // resolveCameraSettings/... در SettingsResolutionRepository همیشه null
+    // فراخوانی می‌شود). هم‌الگو دقیق با cinematicModeOverride/negativePromptOverride
+    // بالا: nullable ساده، پیش‌فرض null یعنی شات‌های موجود کاربر بدون تغییر
+    // رفتار می‌مانند و Rule فقط با مقدار واقعی صدا زده می‌شود.
+    val subjectMotion: SubjectMotion? = null,
+    // فقط MotionBlurAmount (نه کل data class MotionBlur) — امضای واقعی
+    // validateMotionBlur(speed, blur: MotionBlurAmount) فقط همین یک فیلد را
+    // می‌خواهد؛ MotionBlur.amount تنها فیلد آن data class است، پس نگه‌داشتن یک
+    // Wrapper اضافه برای یک فیلد تکی بدون فایده بود.
+    val motionBlur: MotionBlurAmount? = null
 )

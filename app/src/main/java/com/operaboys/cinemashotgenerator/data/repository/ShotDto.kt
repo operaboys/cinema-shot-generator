@@ -63,6 +63,14 @@ data class SourcedLightingSettingsDto(val source: String = "scene", val override
 @Serializable
 data class SourcedEnvironmentSettingsDto(val source: String = "scene", val overrideValue: EnvironmentSettingsDto? = null)
 
+// اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+// پایانی (ADR-130): معادل DTO مستقیم domain.camera.SubjectMotion (نه یک
+// SourcedXxxDto، طبق همان تصمیم ShotModels.kt — این فیلد اصلاً SourcedSettings
+// نیست). enum های داخلی هم مثل بقیه‌ی این فایل به‌صورت String (نام Enum) ذخیره
+// می‌شوند.
+@Serializable
+data class SubjectMotionDto(val speed: String, val intensity: Int, val motionType: String)
+
 @Serializable
 data class ShotDto(
     val shotId: String,
@@ -95,5 +103,12 @@ data class ShotDto(
     val cinematicModeOverride: String? = null,
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
     // دقیق با negativePromptOverride/cinematicModeOverride بالا.
-    val shotDescriptionFaPreview: String? = null
+    val shotDescriptionFaPreview: String? = null,
+    // اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+    // پایانی (ADR-130): nullable با پیش‌فرض null، هم‌الگو دقیق با
+    // negativePromptOverride/cinematicModeOverride بالا (بدون Migration رسمی
+    // Room — shotDataJson صرفاً یک Blob است، پس شات‌های موجود کاربر بدون خطا
+    // Decode می‌شوند).
+    val subjectMotion: SubjectMotionDto? = null,
+    val motionBlur: String? = null
 )

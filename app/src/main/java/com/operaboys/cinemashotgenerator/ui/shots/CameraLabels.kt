@@ -8,7 +8,10 @@ import com.operaboys.cinemashotgenerator.domain.camera.DepthOfField
 import com.operaboys.cinemashotgenerator.domain.camera.Framing
 import com.operaboys.cinemashotgenerator.domain.camera.FocusMode
 import com.operaboys.cinemashotgenerator.domain.camera.LensType
+import com.operaboys.cinemashotgenerator.domain.camera.MotionBlurAmount
+import com.operaboys.cinemashotgenerator.domain.camera.MotionType
 import com.operaboys.cinemashotgenerator.domain.camera.Stabilization
+import com.operaboys.cinemashotgenerator.domain.camera.SubjectSpeed
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 
@@ -110,6 +113,40 @@ fun advancedMovementTypeLabel(value: AdvancedMovementType, language: Language): 
         AdvancedMovementType.DOLLY_ZOOM -> "advancedMovementType.dollyZoom"
         AdvancedMovementType.HANDHELD_SHAKE -> "advancedMovementType.handheldShake"
         AdvancedMovementType.COMPOUND -> "advancedMovementType.compound"
+    },
+    language
+)
+
+// اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲
+// پایانی (ADR-130): نگاشت enum های واحد ۰۹ بخش ب (Motion Intensity) به کلید
+// ترجمه، هم‌الگو با بقیه‌ی این فایل.
+
+fun subjectSpeedLabel(value: SubjectSpeed, language: Language): String = uiString(
+    when (value) {
+        SubjectSpeed.SLOW -> "subjectSpeed.slow"
+        SubjectSpeed.NORMAL -> "subjectSpeed.normal"
+        SubjectSpeed.FAST -> "subjectSpeed.fast"
+        SubjectSpeed.HYPERKINETIC -> "subjectSpeed.hyperkinetic"
+    },
+    language
+)
+
+fun motionTypeLabel(value: MotionType, language: Language): String = uiString(
+    when (value) {
+        MotionType.CONTINUOUS -> "motionType.continuous"
+        MotionType.INTERMITTENT -> "motionType.intermittent"
+        MotionType.SUDDEN -> "motionType.sudden"
+        MotionType.OSCILLATING -> "motionType.oscillating"
+    },
+    language
+)
+
+fun motionBlurAmountLabel(value: MotionBlurAmount, language: Language): String = uiString(
+    when (value) {
+        MotionBlurAmount.NONE -> "motionBlurAmount.none"
+        MotionBlurAmount.SUBTLE -> "motionBlurAmount.subtle"
+        MotionBlurAmount.CINEMATIC -> "motionBlurAmount.cinematic"
+        MotionBlurAmount.EXTREME -> "motionBlurAmount.extreme"
     },
     language
 )

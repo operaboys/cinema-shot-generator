@@ -2467,6 +2467,29 @@ Severity: در صورت عبور از مدت شات، Blocking). فیلد معا
 دارد (`SubjectMotion` هیچ معادلی در `Shot` ندارد) و هنوز آغاز نشده است.
 جزئیات کامل در `docs/adr/129-connect-camera-movement-duration-rule.md`.
 
+### ✅ اتصال Rule های یتیم validateSpeedIntensity/validateMotionBlur — قدم ۲ از ۲ پایانی (ADR-130)
+
+آخرین قدم برنامه‌ی «اتصال Rule های یتیم دوربین و حرکت» (ADR-129 + این
+ADR): دو Rule یتیم `validateSpeedIntensity`/`validateMotionBlur`
+(`domain/camera/MotionIntensityValidation.kt`) با افزودن دو فیلد تازه به
+`Shot` وصل شدند — `subjectMotion: SubjectMotion?` و
+`motionBlur: MotionBlurAmount?`، هر دو `null` پیش‌فرض. برخلاف
+`camera`/`lighting`/`environment` (که `SourcedSettings<T>` با منبع
+«scene»اند)، این دو فیلد مستقیماً روی `Shot`اند — هم‌الگو با
+`cinematicModeOverride`/`negativePromptOverride` موجود — چون
+`domain/scene/SceneModels.kt` هیچ معادل واقعی برای Motion Intensity ندارد
+تا از آن ارث ببرند (تأییدشده مستقل: حتی `sceneDefault` موجود
+`resolveCameraSettings`/... در `SettingsResolutionRepository` همیشه
+`null` فراخوانی می‌شود).
+
+طبق `docs/adr/008-unit09-camera-motion-deviations.md` (تصمیم ۴)،
+`SubjectSpeed` و `MotionLevel` عمداً به هم نگاشت نشدند — این قدم آن
+استقلال را کامل حفظ کرد: بخش UI تازه در `ShotComposerScreen.kt`
+(«حرکت سوژه (مستقل)») کاملاً مجزا از «سطح حرکت» موجود رندر می‌شود، با
+متن راهنمای صریح درباره‌ی این استقلال. `motionLevel` و هر ۱۰ فایل وابسته
+به آن کاملاً دست‌نخورده ماندند. جزئیات کامل در
+`docs/adr/130-connect-motion-intensity-rules.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
