@@ -181,6 +181,9 @@ class DnaViewModel(
     // محدودیت‌های خروجی — این قدم سه فیلد باقی‌مانده‌ی OutputConstraints
     // (forbiddenElements/mandatoryElements/maxShotDurationSeconds، محدودیت
     // ثبت‌شده در ADR-047) را به UI اضافه می‌کند؛ جزئیات کامل در ADR-054.
+    // حذف مفهومی mandatoryElements (ADR-128): checkMandatoryElementsPresent
+    // و خودِ فیلد mandatoryElements کامل از OutputConstraints حذف شدند —
+    // qualityTags همان نقش را در صنعت پرامپت‌نویسی درست انجام می‌دهد.
     fun setAspectRatio(ratio: AspectRatio) = updateAndSave {
         it.copy(outputConstraints = it.outputConstraints.copy(aspectRatio = ratio))
     }
@@ -190,18 +193,6 @@ class DnaViewModel(
         text.toIntOrNull()?.takeIf { it > 0 }?.let { seconds ->
             updateAndSave { it.copy(outputConstraints = it.outputConstraints.copy(maxShotDurationSeconds = seconds)) }
         }
-    }
-
-    fun addMandatoryElement(value: String) {
-        val trimmed = value.trim()
-        if (trimmed.isEmpty()) return
-        updateAndSave {
-            it.copy(outputConstraints = it.outputConstraints.copy(mandatoryElements = it.outputConstraints.mandatoryElements + trimmed))
-        }
-    }
-
-    fun removeMandatoryElement(index: Int) = updateAndSave {
-        it.copy(outputConstraints = it.outputConstraints.copy(mandatoryElements = it.outputConstraints.mandatoryElements.filterIndexed { i, _ -> i != index }))
     }
 
     fun addForbiddenElement(category: String, value: String) {
@@ -266,8 +257,8 @@ private fun randomDnaId(): String = "dna_" + UUID.randomUUID().toString().replac
  * SEMI_REALISTIC، StyleConsistency.MODERATE، ColorTemperature.NEUTRAL،
  * SaturationLevel.MEDIUM، ContrastLevel.MEDIUM، Mood.CALM (هم‌راستا با پیش‌فرض
  * Mood موجود StoryViewModel)، AspectRatio.LANDSCAPE_16_9 (رایج‌ترین نسبت). مقدار
- * maxShotDurationSeconds=8 (پیش‌فرض بلوپرینت) و forbiddenElements/mandatoryElements
- * خالی — هر سه فیلد اکنون (ADR-054) در UI قابل ویرایش‌اند.
+ * maxShotDurationSeconds=8 (پیش‌فرض بلوپرینت) و forbiddenElements خالی — هر دو
+ * فیلد اکنون (ADR-054) در UI قابل ویرایش‌اند.
  */
 internal fun defaultProjectDna(projectId: String, idProvider: () -> String): ProjectDna = ProjectDna(
     dnaId = idProvider(),
@@ -285,7 +276,6 @@ internal fun defaultProjectDna(projectId: String, idProvider: () -> String): Pro
     ),
     outputConstraints = OutputConstraints(
         forbiddenElements = emptyMap(),
-        mandatoryElements = emptyList(),
         maxShotDurationSeconds = 8,
         aspectRatio = AspectRatio.LANDSCAPE_16_9
     ),

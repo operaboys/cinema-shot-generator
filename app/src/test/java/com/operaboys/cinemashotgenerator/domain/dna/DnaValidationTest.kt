@@ -26,7 +26,6 @@ class DnaValidationTest {
             "lighting" to listOf("top_light"),
             "weather" to emptyList()
         ),
-        mandatoryElements: List<String> = listOf("atmospheric_depth", "color_grading"),
         maxShotDurationSeconds: Int = 10,
         aspectRatio: AspectRatio = AspectRatio.ANAMORPHIC_2_39,
         colorPalette: List<String> = emptyList()
@@ -53,7 +52,6 @@ class DnaValidationTest {
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = forbiddenElements,
-            mandatoryElements = mandatoryElements,
             maxShotDurationSeconds = maxShotDurationSeconds,
             aspectRatio = aspectRatio
         )
@@ -122,29 +120,6 @@ class DnaValidationTest {
         val result = validateShotDuration(15, sampleDna(maxShotDurationSeconds = 10))
 
         assertEquals(Severity.BLOCKING, result!!.severity)
-    }
-
-    // --- Rule 3 (Warning helper): mandatory_elements ---
-
-    @Test
-    fun `checkMandatoryElementsPresent with all elements included is valid`() {
-        val result = checkMandatoryElementsPresent(
-            includedElements = listOf("atmospheric_depth", "color_grading", "extra_thing"),
-            dna = sampleDna()
-        )
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `checkMandatoryElementsPresent with missing element warns`() {
-        val result = checkMandatoryElementsPresent(
-            includedElements = listOf("atmospheric_depth"),
-            dna = sampleDna()
-        )
-
-        assertEquals(Severity.WARNING, result!!.severity)
-        assertTrue(result.message.contains("color_grading"))
     }
 
     // --- Rule 6/7 (جدید): validateColorPalette ---

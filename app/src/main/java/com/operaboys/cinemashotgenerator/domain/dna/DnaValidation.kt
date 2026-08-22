@@ -85,27 +85,6 @@ fun validateShotDuration(durationSeconds: Int, dna: ProjectDna): ValidationIssue
 }
 
 /**
- * Rule 3 (Warning) — تابع کمکی مستقل: عدم وجود عنصر در mandatory_elements هنگام Finalize شات.
- *
- * خارج از Scope این قدم: اتصال واقعی به «Finalize شدن یک Shot» متعلق به واحد ۰۵
- * (Shot Engine) است؛ این تابع فقط لیست عناصر نهاییِ یک شات را می‌گیرد و عناصر
- * الزامی غایب را برمی‌گرداند.
- */
-fun checkMandatoryElementsPresent(
-    includedElements: List<String>,
-    dna: ProjectDna
-): ValidationIssue? {
-    val missing = dna.outputConstraints.mandatoryElements.filter { it !in includedElements }
-    if (missing.isNotEmpty()) {
-        return ValidationIssue(
-            Severity.WARNING,
-            message = "عناصر الزامی زیر در این شات وجود ندارند: ${missing.joinToString(", ")}"
-        )
-    }
-    return null
-}
-
-/**
  * Rule ۶/۷ (جدید، بلوپرینت ۰۲ نسخه ۵): اعتبارسنجی colorPalette.
  * خالی = Valid (اختیاری است)؛ بیش از ۵ مقدار = Warning (فقط ۵ مورد اول استفاده
  * می‌شود، بدون بررسی Hex بودن باقی مقادیر — دقیقاً طبق ترتیب کد مفهومی بلوپرینت)؛

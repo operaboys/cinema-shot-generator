@@ -109,8 +109,6 @@ const val DNA_MOOD_CONSISTENCY_FIELD_TAG = "dna.moodConsistencyField"
 const val DNA_LIGHTING_STYLE_FIELD_TAG = "dna.lightingStyleField"
 const val DNA_ASPECT_RATIO_FIELD_TAG = "dna.aspectRatioField"
 const val DNA_MAX_SHOT_DURATION_FIELD_TAG = "dna.maxShotDurationField"
-const val DNA_MANDATORY_ELEMENT_FIELD_TAG = "dna.mandatoryElementField"
-const val DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG = "dna.addMandatoryElementButton"
 const val DNA_FORBIDDEN_CATEGORY_FIELD_TAG = "dna.forbiddenCategoryField"
 const val DNA_FORBIDDEN_VALUE_FIELD_TAG = "dna.forbiddenValueField"
 const val DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG = "dna.addForbiddenElementButton"
@@ -132,7 +130,6 @@ fun dnaForbiddenCategoryLabel(category: String, language: Language): String = wh
 /** testTag برای Swatch شماره‌ی [index] (۰ تا ۴) — طبق الگوی testTag های فیلد در قدم قبل. */
 fun dnaSwatchFieldTag(index: Int): String = "dna.swatchField.$index"
 
-fun dnaMandatoryElementChipTag(index: Int): String = "dna.mandatoryElementChip.$index"
 fun dnaForbiddenElementChipTag(index: Int): String = "dna.forbiddenElementChip.$index"
 
 @Composable
@@ -352,7 +349,7 @@ fun DnaTabContent(
             }
         }
 
-        DnaGroup(title = uiString("dna.group.outputConstraints", language), fieldCount = 4) {
+        DnaGroup(title = uiString("dna.group.outputConstraints", language), fieldCount = 3) {
             EnumDropdownField(
                 label = uiString("dna.outputConstraints.aspectRatioLabel", language),
                 selectedLabel = aspectRatioLabel(dna.outputConstraints.aspectRatio),
@@ -367,7 +364,6 @@ fun DnaTabContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag(DNA_MAX_SHOT_DURATION_FIELD_TAG)
             )
-            MandatoryElementsSection(viewModel = viewModel, language = language, elements = dna.outputConstraints.mandatoryElements)
             ForbiddenElementsSection(viewModel = viewModel, language = language, forbiddenElements = dna.outputConstraints.forbiddenElements)
         }
 
@@ -587,54 +583,6 @@ private fun ValidationIssueRow(issue: ValidationIssue) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(icon, contentDescription = null, tint = color)
         Text(text = issue.message, color = color, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-/**
- * فرم افزودن دستی ساده — هم‌الگو با actionSounds/characterSounds Shot Composer
- * (docs/adr/053، تصمیم ۶): لیست چیپ قابل‌حذف + یک فیلد متنی + دکمه‌ی افزودن.
- */
-@Composable
-private fun MandatoryElementsSection(viewModel: DnaViewModel, language: Language, elements: List<String>) {
-    var text by remember { mutableStateOf("") }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(uiString("dna.outputConstraints.mandatoryElementsSectionTitle", language), style = MaterialTheme.typography.labelLarge)
-        if (elements.isEmpty()) {
-            Text(
-                uiString("dna.outputConstraints.mandatoryElementsEmptyState", language),
-                style = MaterialTheme.typography.bodySmall,
-                color = CinemaTheme.extendedColors.fg3
-            )
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                elements.forEachIndexed { index, element ->
-                    OpaqueChip(
-                        label = "$element ×",
-                        selected = false,
-                        onClick = { viewModel.removeMandatoryElement(index) },
-                        testTag = dnaMandatoryElementChipTag(index)
-                    )
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text(uiString("dna.outputConstraints.mandatoryElementFieldLabel", language)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f).testTag(DNA_MANDATORY_ELEMENT_FIELD_TAG)
-            )
-            IconButton(
-                onClick = { if (text.isNotBlank()) { viewModel.addMandatoryElement(text); text = "" } },
-                modifier = Modifier.testTag(DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = uiString("dna.outputConstraints.addMandatoryElementButton", language))
-            }
-        }
     }
 }
 

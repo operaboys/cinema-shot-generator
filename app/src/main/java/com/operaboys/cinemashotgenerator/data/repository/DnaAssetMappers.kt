@@ -70,7 +70,6 @@ fun ProjectDnaDto.toDomain(): ProjectDna = ProjectDna(
     ),
     outputConstraints = OutputConstraints(
         forbiddenElements = outputConstraints.forbiddenElements,
-        mandatoryElements = outputConstraints.mandatoryElements,
         maxShotDurationSeconds = outputConstraints.maxShotDurationSeconds,
         aspectRatio = AspectRatio.valueOf(outputConstraints.aspectRatio)
     ),
@@ -112,7 +111,6 @@ fun ProjectDna.toDto(): ProjectDnaDto = ProjectDnaDto(
     ),
     outputConstraints = OutputConstraintsDto(
         forbiddenElements = outputConstraints.forbiddenElements,
-        mandatoryElements = outputConstraints.mandatoryElements,
         maxShotDurationSeconds = outputConstraints.maxShotDurationSeconds,
         aspectRatio = outputConstraints.aspectRatio.name
     ),

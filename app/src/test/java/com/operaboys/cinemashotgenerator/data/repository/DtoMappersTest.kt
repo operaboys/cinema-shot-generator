@@ -213,7 +213,6 @@ class DtoMappersTest {
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = emptyMap(),
-            mandatoryElements = emptyList(),
             maxShotDurationSeconds = 8,
             aspectRatio = AspectRatio.LANDSCAPE_16_9
         ),

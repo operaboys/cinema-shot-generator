@@ -75,7 +75,6 @@ class ProjectDnaRepositoryTest {
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = mapOf("camera" to listOf("dutch_angle"), "weather" to listOf("snow")),
-            mandatoryElements = listOf("subject_visible"),
             maxShotDurationSeconds = 10,
             aspectRatio = AspectRatio.ANAMORPHIC_2_39
         ),

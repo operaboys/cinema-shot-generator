@@ -51,7 +51,6 @@ data class GlobalMoodBaseDto(
 @Serializable
 data class OutputConstraintsDto(
     val forbiddenElements: Map<String, List<String>>,
-    val mandatoryElements: List<String>,
     val maxShotDurationSeconds: Int,
     val aspectRatio: String
 )

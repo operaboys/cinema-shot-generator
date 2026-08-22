@@ -143,7 +143,7 @@ private fun seededDna(): ProjectDna = ProjectDna(
     projectId = PROJECT_ID,
     coreIdentity = CoreIdentity(VisualStyle.CINEMATIC_STYLE, RealismLevel.SEMI_REALISTIC, StyleConsistency.MODERATE),
     masterPalette = MasterPalette(ColorTemperature.NEUTRAL, SaturationLevel.MEDIUM, ContrastLevel.MEDIUM, ""),
-    outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, AspectRatio.LANDSCAPE_16_9),
+    outputConstraints = OutputConstraints(emptyMap(), 10, AspectRatio.LANDSCAPE_16_9),
     globalMoodBase = GlobalMoodBase(Mood.CALM)
 )
 

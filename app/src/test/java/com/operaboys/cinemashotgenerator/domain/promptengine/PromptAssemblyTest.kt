@@ -92,7 +92,6 @@ class PromptAssemblyTest {
         ),
         outputConstraints = OutputConstraints(
             forbiddenElements = emptyMap(),
-            mandatoryElements = emptyList(),
             maxShotDurationSeconds = 10,
             aspectRatio = AspectRatio.ANAMORPHIC_2_39
         )

@@ -71,7 +71,9 @@ data class AggregatedValidationReport(val issues: List<LeveledValidationIssue>) 
  *
  * دلیل انتخاب دقیق اینکه کدام Rule کجا می‌رود، و کدام Rule های موجود در دامنه
  * عمداً وایر نشدند (مثل MotionIntensityValidation، validateCameraMovementDuration،
- * validateImageReferenceFile، checkMandatoryElementsPresent) در ADR-055 آمده.
+ * validateImageReferenceFile) در ADR-055 آمده. checkMandatoryElementsPresent
+ * که در همان فهرست بود، بعداً کامل حذف شد (نه فقط یتیم، بلکه مفهومی تکراری
+ * با qualityTags — ADR-128).
  */
 fun aggregateShotValidation(
     shot: Shot,

@@ -41,7 +41,7 @@ private fun testDna(globalMode: CinematicMode = CinematicMode.BALANCED, sceneOve
     projectId = "proj_001",
     coreIdentity = CoreIdentity(VisualStyle.CINEMATIC_STYLE, RealismLevel.SEMI_REALISTIC, StyleConsistency.MODERATE),
     masterPalette = MasterPalette(ColorTemperature.NEUTRAL, SaturationLevel.MEDIUM, ContrastLevel.MEDIUM, ""),
-    outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, AspectRatio.LANDSCAPE_16_9),
+    outputConstraints = OutputConstraints(emptyMap(), 10, AspectRatio.LANDSCAPE_16_9),
     globalMoodBase = GlobalMoodBase(Mood.CALM),
     cinematicLanguage = CinematicLanguageSettings(globalMode = globalMode, sceneOverrides = sceneOverrides)
 )

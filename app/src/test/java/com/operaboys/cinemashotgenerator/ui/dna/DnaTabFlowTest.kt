@@ -214,15 +214,15 @@ class DnaTabFlowTest {
     // Test Rule اجازه‌ی دومین فراخوان `setContent` در همان تست را نمی‌دهد
     // (`IllegalStateException: ...has already set content`، یافته‌ی واقعی این قدم).
 
+    // حذف مفهومی mandatoryElements (ADR-128): بخش «افزودن یک عنصر الزامی» این تست
+    // (که قبلاً همراه forbidden element/max shot duration در یک تست ترکیبی بود)
+    // حذف شد — خودِ فیلد/UI/ViewModel متناظرش کامل از پروژه حذف شده‌اند.
+
     @Test
-    fun `adding a mandatory element, a forbidden element and setting max shot duration round-trips after leaving and re-entering Studio`() {
+    fun `adding a forbidden element and setting max shot duration round-trips after leaving and re-entering Studio`() {
         createProjectAndOpenDnaTab("DNA Output Constraints Test")
 
         composeRule.onNodeWithTag(DNA_MAX_SHOT_DURATION_FIELD_TAG).performScrollTo().performTextReplacement("15")
-
-        composeRule.onNodeWithTag(DNA_MANDATORY_ELEMENT_FIELD_TAG).performScrollTo().performTextInput("subject_visible")
-        composeRule.onNodeWithTag(DNA_ADD_MANDATORY_ELEMENT_BUTTON_TAG).clickViaSemantics()
-        composeRule.waitUntilExactlyOneExists(hasTestTag(dnaMandatoryElementChipTag(0)), timeoutMillis = 5_000)
 
         composeRule.onNodeWithTag(DNA_FORBIDDEN_VALUE_FIELD_TAG).performScrollTo().performTextInput("dutch_angle")
         composeRule.onNodeWithTag(DNA_ADD_FORBIDDEN_ELEMENT_BUTTON_TAG).clickViaSemantics()
@@ -234,12 +234,10 @@ class DnaTabFlowTest {
         composeRule.waitUntilExactlyOneExists(hasTestTag(studioTabTestTag(StudioTab.STORY)), timeoutMillis = 5_000)
         composeRule.onNodeWithTag(studioTabTestTag(StudioTab.DNA)).performClick()
 
-        composeRule.waitUntilExactlyOneExists(hasTestTag(DNA_MANDATORY_ELEMENT_FIELD_TAG), timeoutMillis = 5_000)
+        composeRule.waitUntilExactlyOneExists(hasTestTag(DNA_MAX_SHOT_DURATION_FIELD_TAG), timeoutMillis = 5_000)
         composeRule.onNodeWithTag(DNA_MAX_SHOT_DURATION_FIELD_TAG).performScrollTo().assertTextContains("15")
-        composeRule.onNodeWithTag(dnaMandatoryElementChipTag(0)).performScrollTo().assertTextContains("subject_visible ×")
         // یافته‌ی واقعی: substring ای که از مرز متن فارسی (RTL) به انگلیسی (LTR) عبور
-        // کند (مثلاً "دوربین: dutch_angle") در assertTextContains شکست می‌خورد —
-        // برخلاف چیپ mandatoryElement بالا (کاملاً انگلیسی) که مشکلی نداشت. برای
+        // کند (مثلاً "دوربین: dutch_angle") در assertTextContains شکست می‌خورد — برای
         // پرهیز از این مرز، فقط بخش انگلیسی (بدون پیشوند فارسی دسته) بررسی می‌شود.
         composeRule.onNodeWithTag(dnaForbiddenElementChipTag(0)).performScrollTo().assertTextContains("dutch_angle", substring = true)
     }

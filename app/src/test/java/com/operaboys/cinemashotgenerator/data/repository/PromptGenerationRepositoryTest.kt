@@ -143,7 +143,7 @@ class PromptGenerationRepositoryTest {
         coreIdentity = CoreIdentity(VisualStyle.CINEMATIC_STYLE, RealismLevel.GROUNDED, StyleConsistency.STRICT, locked = true),
         masterPalette = MasterPalette(ColorTemperature.WARM, SaturationLevel.MEDIUM, ContrastLevel.HIGH, "natural"),
         globalMoodBase = GlobalMoodBase(Mood.MYSTERIOUS, "medium", StyleConsistency.STRICT),
-        outputConstraints = OutputConstraints(emptyMap(), emptyList(), 10, AspectRatio.ANAMORPHIC_2_39)
+        outputConstraints = OutputConstraints(emptyMap(), 10, AspectRatio.ANAMORPHIC_2_39)
     )
 
     private fun sampleScene() = Scene(

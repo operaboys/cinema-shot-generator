@@ -216,7 +216,6 @@ data class MasterPalette(
 
 data class OutputConstraints(
     val forbiddenElements: Map<String, List<String>>, // مثلاً "camera" -> ["dutch_angle"]
-    val mandatoryElements: List<String>,
     val maxShotDurationSeconds: Int,
     val aspectRatio: AspectRatio                        // Breaking Change — قبلاً String آزاد بود
 )

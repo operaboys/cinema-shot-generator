@@ -2418,6 +2418,29 @@ override اضافه کند». این قدم آن شرط را قطعی می‌ب�
 دست‌نخورده ماندند. جزئیات کامل در
 `docs/adr/127-remove-validate-shot-aspect-ratio.md`.
 
+### ✅ حذف کامل مفهوم mandatoryElements — نه فقط Rule یتیم، بلکه یک مفهوم تکراری با qualityTags (ADR-128)
+
+برخلاف ADR-127 (که یک Rule بی‌فایده را حذف کرد اما مفهوم زیرینش معتبر
+ماند)، این قدم **کل مفهوم** «Mandatory Elements» را حذف کرد — هم Rule
+(`checkMandatoryElementsPresent`) و هم خودِ فیلد
+(`OutputConstraints.mandatoryElements`). دلیل ریشه‌ای: دو دور تحقیق
+مستقل معمار در منابع صنعت prompt engineering تصویر/ویدیو (ازجمله راهنمای
+رسمی Luma) تأیید کرد این مفهوم به‌عنوان یک دسته‌ی جدا از «Quality Tags»
+در صنعت وجود ندارد — دقیقاً همان الگویی است که در این پروژه با
+`QualityDirectives.qualityTags` از قبل پیاده و کاملاً فعال است. یعنی
+`mandatoryElements` نه فقط یتیم، بلکه مفهومی تکراری بود.
+
+این حذف در سراسر ۱۲+ فایل (دامنه، DTO، Mapper، ViewModel، UI، i18n) و
+۹ فایل تست اعمال شد؛ چهار فایل تست با آرگومان موقعیتی
+(`OutputConstraints(emptyMap(), emptyList(), ...)`) با `grep` ساده‌ی
+کلمه‌ی `mandatoryElements` دیده نمی‌شدند و با بررسی مستقل ساختار
+سازنده پیدا شدند. `qualityTags`/`forbiddenElements`/
+`maxShotDurationSeconds`/`aspectRatio` کاملاً دست‌نخورده ماندند —
+`Json { ignoreUnknownKeys = true }` موجود یعنی بدون نیاز به هیچ
+Migration، پروژه‌های موجود کاربر بدون خطا بارگذاری می‌شوند. این ADR
+ابهام‌های قدیمی ADR-055/ADR-064 را رسماً می‌بندد. جزئیات کامل در
+`docs/adr/128-remove-mandatory-elements-concept.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
