@@ -2355,6 +2355,25 @@ AI Connector از این فیچر پشتیبانی می‌کنند. `ui/common/R
 ماندند — این فیچر فقط فیلد Preview فارسی را پر می‌کند، پرامپت نهایی همیشه
 انگلیسی می‌ماند. جزئیات کامل در `docs/adr/124-retranslate-with-ai-button.md`.
 
+### ✅ اتصال دو Rule یتیم سیستم ترجمه‌ی UI (ADR-125)
+
+`domain/outputdelivery/Bilingual.kt` دو Rule نوشته‌شده اما یتیم داشت —
+`validateLanguageSupported` اکنون در `WorkflowViewModel` (تنها نقطه‌ی واقعی
+کل کدبیس که یک رشته‌ی خام زبان از DataStore به enum `Language` تبدیل
+می‌شود) وصل شد: مقدار نامعتبر همچنان بی‌صدا به `Language.FA` Fallback
+می‌شود (رفتار ظاهری برای کاربر بدون تغییر)، اما اکنون با `android.util.Log.w`
+قابل‌ردیابی است — بدون هیچ وابستگی Logging تازه (کدبیس تا این قدم هیچ
+Framework ای نداشت).
+
+`validateTranslationKeyFound` عمداً در Runtime (داخل `uiString`، که در صدها
+جای کدبیس در هر رندر صدا زده می‌شود) وصل نشد — به‌جایش، هم‌الگو با نحوه‌ی
+اتصال Rule خواهرش (`validateTranslationCoverage`)، یک تست خودکار جامع در
+`UiStringsTest.kt` نوشته شد: با یک Regex تمام کلیدهای واقعی `uiString("...")`
+در سراسر `app/src/main` استخراج می‌شوند و هرکدام با این Rule تأیید می‌شوند —
+پوششی که تست قبلی نداشت (فقط کلیدهای *تعریف‌شده* را چک می‌کرد، نه تایپوهای
+کامل). جزئیات کامل، ازجمله راستی‌آزمایی تجربی دسترسی فایل‌سیستم از تست JVM،
+در `docs/adr/125-orphan-translation-rules-wiring.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

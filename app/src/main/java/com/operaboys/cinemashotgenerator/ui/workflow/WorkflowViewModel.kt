@@ -1,6 +1,7 @@
 package com.operaboys.cinemashotgenerator.ui.workflow
 
 import android.app.Application
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -9,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.domain.outputdelivery.validateLanguageSupported
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.domain.workflow.ComposerLayoutVariant
 import com.operaboys.cinemashotgenerator.domain.workflow.HomeLayoutVariant
@@ -66,10 +68,7 @@ class WorkflowViewModel(
 
     private val initialPrefs: Preferences = runBlocking { dataStore.data.first() }
 
-    private val _language = MutableStateFlow(
-        initialPrefs[WorkflowPrefKeys.LANGUAGE]?.let { raw -> Language.entries.find { it.name == raw } }
-            ?: Language.FA
-    )
+    private val _language = MutableStateFlow(resolveInitialLanguage(initialPrefs[WorkflowPrefKeys.LANGUAGE]))
     val language: StateFlow<Language> = _language.asStateFlow()
 
     private val _theme = MutableStateFlow(
@@ -238,3 +237,22 @@ class WorkflowViewModel(
 }
 
 private fun nowIso8601(): String = Instant.now().toString()
+
+/**
+ * اتصال واقعی Rule یتیم validateLanguageSupported (domain/outputdelivery/
+ * Bilingual.kt، ADR-125) — تنها نقطه‌ی واقعی کل کدبیس که یک رشته‌ی خام زبان
+ * از منبع بیرونی (DataStore) به enum Language تبدیل می‌شود (تأییدشده با
+ * grep گسترده: صفر استفاده از Locale سیستم‌عامل در کل پروژه). رفتار ظاهری
+ * برای کاربر عمداً بدون تغییر می‌ماند — مقدار نامعتبر همچنان بی‌صدا به
+ * Language.FA Fallback می‌شود؛ تنها تغییر این است که این حالت اکنون با
+ * Log.w قابل‌ردیابی/قابل‌دیباگ می‌شود (نه کاملاً بی‌اثر)، مثلاً برای یک
+ * Backup/Import قدیمی خراب.
+ */
+private fun resolveInitialLanguage(raw: String?): Language {
+    if (raw != null) {
+        validateLanguageSupported(raw)?.let { issue ->
+            Log.w("WorkflowViewModel", "persisted language '$raw' is invalid, falling back to FA: ${issue.message}")
+        }
+    }
+    return raw?.let { r -> Language.entries.find { it.name == r } } ?: Language.FA
+}

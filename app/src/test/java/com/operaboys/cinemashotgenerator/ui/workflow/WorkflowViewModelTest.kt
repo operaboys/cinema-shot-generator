@@ -2,9 +2,11 @@ package com.operaboys.cinemashotgenerator.ui.workflow
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -17,12 +19,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 import java.util.UUID
 
 // واحد ۱۶ — فاز ۰: تست‌های WorkflowViewModel (docs/adr/042-unit16-phase0-shared-foundation.md).
@@ -118,5 +123,44 @@ class WorkflowViewModelTest {
         val state = viewModel.workflowState.value
         assertEquals("proj_001", state?.projectId)
         assertEquals(WorkflowStep.STORY_WIZARD, state?.currentStep)
+    }
+
+    // اتصال واقعی Rule یتیم validateLanguageSupported (ADR-125) — هم‌الگو با
+    // یادداشت خودِ resolveInitialLanguage در WorkflowViewModel.kt: رفتار ظاهری
+    // (Fallback به FA) عمداً بدون تغییر می‌ماند؛ این دو تست فقط اثبات می‌کنند
+    // که (۱) آن رفتار واقعاً دست‌نخورده مانده، (۲) اکنون یک Log.w واقعی هم
+    // برای مقدار نامعتبر ثبت می‌شود (نه کاملاً بی‌صدا مثل قبل).
+
+    @Test
+    fun `an invalid persisted language value still falls back to FA - unchanged behavior - but is now logged as a warning`() = runBlocking {
+        dataStore.edit { it[WorkflowPrefKeys.LANGUAGE] = "XX" }
+        ShadowLog.clear()
+
+        val viewModel = newViewModel()
+
+        assertEquals(
+            "رفتار ظاهری برای کاربر نباید تغییر کند — مقدار نامعتبر همچنان به Language.FA Fallback می‌شود",
+            Language.FA,
+            viewModel.language.value
+        )
+        val warningLogged = ShadowLog.getLogs().any {
+            it.tag == "WorkflowViewModel" && it.type == Log.WARN && it.msg.contains("XX")
+        }
+        assertTrue(
+            "مقدار نامعتبر باید اکنون با Log.w قابل‌ردیابی باشد (طبق اتصال واقعی validateLanguageSupported، ADR-125)",
+            warningLogged
+        )
+    }
+
+    @Test
+    fun `a valid persisted language value does not produce any warning log`() = runBlocking {
+        dataStore.edit { it[WorkflowPrefKeys.LANGUAGE] = Language.EN.name }
+        ShadowLog.clear()
+
+        val viewModel = newViewModel()
+
+        assertEquals(Language.EN, viewModel.language.value)
+        val warningLogged = ShadowLog.getLogs().any { it.tag == "WorkflowViewModel" && it.type == Log.WARN }
+        assertFalse("یک مقدار معتبر نباید هیچ هشداری تولید کند", warningLogged)
     }
 }
