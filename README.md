@@ -2505,6 +2505,22 @@ ADR): دو Rule یتیم `validateSpeedIntensity`/`validateMotionBlur`
 — `assetDataJson` یک Blob JSON خام است. جزئیات کامل در
 `docs/adr/131-reference-image-prompt-data-model.md`.
 
+### ✅ موتور Template و اعتبارسنجی «پرامپت ساخت عکس مرجع» — زیرقدم ۲ از ۵ (ADR-132)
+
+دو فایل خالص دامنه‌ی تازه در `domain/asset/`، همچنان بدون AI Connector و
+بدون UI/ViewModel — و کاملاً مستقل از موتور اصلی پرامپت ویدیو.
+`ImagePromptEngine.kt`: چهار تابع خالص (`buildCharacterBaseImagePrompt`/
+`buildOutfitImagePrompt`/`buildLocationImagePrompt`/`buildObjectImagePrompt`)
+که با `combineStyles`/`toStyleReference` موجود (از `projectDna.coreIdentity`،
+نه از `StyleMatrix` یتیم) + فیلدهای موجود هر Asset، پرامپت انگلیسی
+می‌سازند — فقط رشته برمی‌گردانند، ذخیره‌سازی کار زیرقدم‌های بعدی است.
+`ImagePromptValidation.kt`: چهار تابع Warning-only (طول پرامپت، فیلد
+حداقلی خالی، تناقض کلیدواژه‌ای ساده بین سبک پروژه و متن آزاد کاربر —
+هر دو جهت: انیمیشنی+فوتورئال و برعکس) — هیچ‌کدام BLOCKING نیست و هیچ‌کدام
+در `ValidationAggregator.kt` اصلی Wire نشد، چون این پرامپت هرگز به موتور
+اصلی وارد نمی‌شود. جزئیات کامل در
+`docs/adr/132-reference-image-prompt-template-engine.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
