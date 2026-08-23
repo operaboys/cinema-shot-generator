@@ -24,6 +24,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
 import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
+import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
@@ -35,8 +36,6 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFIL
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
-import com.operaboys.cinemashotgenerator.domain.visualidentity.combineStyles
-import com.operaboys.cinemashotgenerator.domain.visualidentity.toStyleReference
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
@@ -101,16 +100,6 @@ private fun buildPhysicalAppearance(
         hair = hair,
         physicalFeatures = physicalFeatures.ifBlank { null },
         facialFeatures = facialFeatures
-    )
-}
-
-/** Style Tokens یک ProjectDna — هم‌الگو دقیق با styleTokensOf خصوصی ImagePromptEngine.kt (ADR-132)؛ آن تابع private است، پس اینجا تکرار شد (طبق تصمیم دستور کار این قدم: تغییر آن فایل مجاز نیست). */
-private fun styleTokensOf(dna: ProjectDna): String {
-    val coreIdentity = dna.coreIdentity
-    return combineStyles(
-        primary = coreIdentity.dominantVisualStyle.toStyleReference(),
-        secondary = coreIdentity.secondaryStyle?.toStyleReference(),
-        influence = coreIdentity.influence
     )
 }
 
@@ -443,7 +432,7 @@ class CharacterAssetFormViewModel(
             }
             _imagePromptAiInProgress.value = true
             val templatePrompt = buildCharacterBaseImagePrompt(characterSnapshot.value, dna)
-            val result = generateImagePromptWithAi(templatePrompt, styleTokensOf(dna), profile, apiKey, httpClientEngine)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensForImagePrompt(dna), profile, apiKey, httpClientEngine)
             _imagePromptAiInProgress.value = false
             result.fold(
                 onSuccess = { response ->
@@ -490,7 +479,7 @@ class CharacterAssetFormViewModel(
             }
             _outfitImagePromptAiInProgress.value = _outfitImagePromptAiInProgress.value + outfit.id
             val templatePrompt = buildOutfitImagePrompt(outfit, characterSnapshot.value, dna)
-            val result = generateImagePromptWithAi(templatePrompt, styleTokensOf(dna), profile, apiKey, httpClientEngine)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensForImagePrompt(dna), profile, apiKey, httpClientEngine)
             _outfitImagePromptAiInProgress.value = _outfitImagePromptAiInProgress.value - outfit.id
             result.fold(
                 onSuccess = { response ->

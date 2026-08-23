@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,10 +29,13 @@ import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
+import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
 
 // واحد ۱۶ فاز ۳ — قدم ۲ — بخش ب: صفحه‌ی فرم ساخت Location. طبق
 // docs/blueprints/16-user-workflow-v2.md «مرحله ۳» + docs/design/README.md بخش
@@ -50,6 +56,11 @@ const val LOCATION_FORM_SAVE_BUTTON_TAG = "locationForm.saveButton"
 const val LOCATION_FORM_BACK_BUTTON_TAG = "locationForm.backButton"
 const val LOCATION_FORM_TOGGLE_LANGUAGE_BUTTON_TAG = "locationForm.toggleLanguageButton"
 const val LOCATION_FORM_TOGGLE_THEME_BUTTON_TAG = "locationForm.toggleThemeButton"
+
+// فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+const val LOCATION_FORM_IMAGE_PROMPT_QUICK_BUTTON_TAG = "locationForm.imagePromptQuickButton"
+const val LOCATION_FORM_IMAGE_PROMPT_AI_BUTTON_TAG = "locationForm.imagePromptAiButton"
+const val LOCATION_FORM_IMAGE_PROMPT_STALE_WARNING_TAG = "locationForm.imagePromptStaleWarning"
 
 @Composable
 fun LocationAssetFormScreen(
@@ -88,6 +99,15 @@ fun LocationAssetFormScreen(
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
+
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+    val imagePromptPreview by viewModel.imagePromptPreview.collectAsStateWithLifecycle()
+    val imagePromptQuick by viewModel.imagePromptQuick.collectAsStateWithLifecycle()
+    val imagePromptAi by viewModel.imagePromptAi.collectAsStateWithLifecycle()
+    val imagePromptFaPreview by viewModel.imagePromptFaPreview.collectAsStateWithLifecycle()
+    val imagePromptGeneratedAt by viewModel.imagePromptGeneratedAt.collectAsStateWithLifecycle()
+    val imagePromptAiInProgress by viewModel.imagePromptAiInProgress.collectAsStateWithLifecycle()
+    val imagePromptAiError by viewModel.imagePromptAiError.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
@@ -184,6 +204,19 @@ fun LocationAssetFormScreen(
                 language = language
             )
 
+            LocationImagePromptSection(
+                viewModel = viewModel,
+                language = language,
+                preview = imagePromptPreview,
+                imagePromptQuick = imagePromptQuick,
+                imagePromptAi = imagePromptAi,
+                imagePromptFaPreview = imagePromptFaPreview,
+                imagePromptGeneratedAt = imagePromptGeneratedAt,
+                aiInProgress = imagePromptAiInProgress,
+                aiError = imagePromptAiError,
+                apiKeySaved = apiKeySavedForTranslationProfile
+            )
+
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
         }
 
@@ -193,6 +226,79 @@ fun LocationAssetFormScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp).testTag(LOCATION_FORM_SAVE_BUTTON_TAG)
         ) {
             Text(uiString("assetForm.saveButton", language))
+        }
+    }
+}
+
+/**
+ * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): هم‌الگو دقیق با
+ * CharacterImagePromptSection در CharacterAssetFormScreen.kt (ADR-134)، بدون
+ * بخش Outfit (LocationAsset ساختار Outfit ندارد — یک پرامپت واحد به‌ازای هر
+ * Asset).
+ */
+@Composable
+private fun LocationImagePromptSection(
+    viewModel: LocationAssetFormViewModel,
+    language: Language,
+    preview: String?,
+    imagePromptQuick: String?,
+    imagePromptAi: String?,
+    imagePromptFaPreview: String?,
+    imagePromptGeneratedAt: Long?,
+    aiInProgress: Boolean,
+    aiError: String?,
+    apiKeySaved: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = uiString("locationForm.imagePromptSectionTitle", language), style = MaterialTheme.typography.titleSmall)
+        preview?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text = uiTemplate("assetForm.imagePromptPreviewTemplate", language, "prompt" to it),
+                style = MaterialTheme.typography.bodySmall,
+                color = CinemaTheme.extendedColors.fg3
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                onClick = viewModel::generateImagePromptQuick,
+                modifier = Modifier.testTag(LOCATION_FORM_IMAGE_PROMPT_QUICK_BUTTON_TAG)
+            ) {
+                Text(uiString("assetForm.imagePromptQuickButton", language))
+            }
+            TextButton(
+                onClick = { viewModel.generateLocationImagePromptWithAi() },
+                enabled = apiKeySaved && !aiInProgress,
+                modifier = Modifier.testTag(LOCATION_FORM_IMAGE_PROMPT_AI_BUTTON_TAG)
+            ) {
+                if (aiInProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(uiString("assetForm.imagePromptAiButton", language))
+                }
+            }
+        }
+        if (!apiKeySaved) {
+            Text(text = uiString("retranslate.noKeyHint", language), style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.fg3)
+        }
+        aiError?.let { AssetFormValidationIssueRow(ValidationIssue(Severity.BLOCKING, message = it)) }
+        imagePromptQuick?.let {
+            Text(text = uiTemplate("assetForm.imagePromptQuickResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+        }
+        imagePromptAi?.let {
+            Text(text = uiTemplate("assetForm.imagePromptAiResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+            imagePromptFaPreview?.let { fa ->
+                Text(
+                    text = uiTemplate("assetForm.imagePromptFaPreviewResultTemplate", language, "prompt" to fa),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+        }
+        if (viewModel.isImagePromptStale(imagePromptGeneratedAt)) {
+            AssetFormValidationIssueRow(
+                ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),
+                testTag = LOCATION_FORM_IMAGE_PROMPT_STALE_WARNING_TAG
+            )
         }
     }
 }

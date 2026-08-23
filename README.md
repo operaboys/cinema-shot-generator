@@ -2548,6 +2548,18 @@ Template (ADR-132) و مسیر AI (ADR-133) وصل شدند — هم برای ش
 می‌کند — بدون آن، تشخیص قدیمی‌شدن کار نمی‌کرد. جزئیات کامل در
 `docs/adr/134-reference-image-prompt-character-form-ui.md`.
 
+### ✅ اتصال «پرامپت ساخت عکس مرجع» به فرم مکان/شیء — زیرقدم ۵ از ۵ پایانی (ADR-135)
+
+`LocationAssetFormViewModel`/`ObjectAssetFormViewModel` و صفحه‌های
+متناظرشان هم‌الگو با زیرقدم ۴ (بدون بخش Outfit — هر دو نوع Asset یک
+پرامپت واحد دارند) به موتور Template (ADR-132) و مسیر AI (ADR-133) وصل
+شدند. یک DRY کوچک هم انجام شد: تابع `styleTokensForImagePrompt` مشترک
+(`domain/asset/ImagePromptStyleTokens.kt`) جایگزین نسخه‌ی محلی تکراری‌شونده
+در `CharacterAssetFormViewModel.kt` شد. **با این قدم، فیچر مستقل «پرامپت
+ساخت عکس مرجع» (ADR-131 تا ۱۳۵) کامل شد** — هر سه نوع Asset (شخصیت/Outfit،
+مکان، شیء) اکنون پرامپت عکس مرجع Template و AI را پشتیبانی می‌کنند. جزئیات
+کامل در `docs/adr/135-reference-image-prompt-location-object-form-ui.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

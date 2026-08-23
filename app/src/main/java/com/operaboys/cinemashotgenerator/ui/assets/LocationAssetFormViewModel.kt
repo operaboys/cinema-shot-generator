@@ -7,13 +7,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
+import com.operaboys.cinemashotgenerator.domain.asset.buildLocationImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
+import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
+import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
@@ -43,6 +48,21 @@ import kotlinx.coroutines.launch
 // پیاده شد (AssetFormTagListField در AssetFormSupport.kt) — کاربر متن دلخواه اضافه
 // می‌کند. environment/keyElements هم به فرم اضافه شدند (نه Placeholder). LocationType
 // (که در قدم قبل فقط نمایش/فیلتر بود) اولین‌بار در این قدم قابل‌ویرایش شد.
+
+// فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): buildLocationImagePrompt
+// (ADR-132) فقط description/environment/keyElements/basePrompt را می‌خواند (نه
+// name/locationType/...، تأییدشده مستقیم با خواندن ImagePromptEngine.kt) —
+// snapshot زنده‌ی Preview فقط همین ۵ فیلد را دنبال می‌کند. combine مستقیم ۶
+// آرگومانی امکان ندارد؛ دو‌مرحله‌ای (۵+۱)، هم‌الگو با characterSnapshot
+// CharacterAssetFormViewModel.kt (ADR-134).
+private data class LocationSnapshotPartial(
+    val description: String,
+    val environmentType: String,
+    val environmentSize: String,
+    val environmentLighting: String,
+    val keyElements: List<String>
+)
+
 class LocationAssetFormViewModel(
     application: Application,
     private val projectId: String,
@@ -55,6 +75,9 @@ class LocationAssetFormViewModel(
     // CharacterAssetFormViewModel.
     private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
     private val httpClientEngine: HttpClientEngine = OkHttp.create(),
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): هم‌الگو دقیق
+    // با CharacterAssetFormViewModel (ADR-134).
+    private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -111,6 +134,57 @@ class LocationAssetFormViewModel(
     /** سطح تداوم LocationAsset فقط یک مقدار دارد (STYLE) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE
 
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): هم‌الگو دقیق
+    // با CharacterAssetFormViewModel (ADR-134).
+    private val _projectDna = MutableStateFlow<ProjectDna?>(null)
+    val projectDna: StateFlow<ProjectDna?> = _projectDna.asStateFlow()
+
+    private val _imagePromptQuick = MutableStateFlow<String?>(null)
+    val imagePromptQuick: StateFlow<String?> = _imagePromptQuick.asStateFlow()
+
+    private val _imagePromptAi = MutableStateFlow<String?>(null)
+    val imagePromptAi: StateFlow<String?> = _imagePromptAi.asStateFlow()
+
+    private val _imagePromptFaPreview = MutableStateFlow<String?>(null)
+    val imagePromptFaPreview: StateFlow<String?> = _imagePromptFaPreview.asStateFlow()
+
+    private val _imagePromptGeneratedAt = MutableStateFlow<Long?>(null)
+    val imagePromptGeneratedAt: StateFlow<Long?> = _imagePromptGeneratedAt.asStateFlow()
+
+    private val _imagePromptAiInProgress = MutableStateFlow(false)
+    val imagePromptAiInProgress: StateFlow<Boolean> = _imagePromptAiInProgress.asStateFlow()
+
+    private val _imagePromptAiError = MutableStateFlow<String?>(null)
+    val imagePromptAiError: StateFlow<String?> = _imagePromptAiError.asStateFlow()
+
+    /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
+    private var loadedUpdatedAt: Long? = null
+
+    private val locationSnapshot: StateFlow<LocationAsset> = combine(
+        _description, _environmentType, _environmentSize, _environmentLighting, _keyElements
+    ) { description, environmentType, environmentSize, environmentLighting, keyElements ->
+        LocationSnapshotPartial(description, environmentType, environmentSize, environmentLighting, keyElements)
+    }.let { partial ->
+        combine(partial, _basePrompt) { p, basePrompt ->
+            LocationAsset(
+                assetId = existingAssetId ?: "preview",
+                name = "",
+                description = p.description,
+                environment = Environment(type = p.environmentType, size = p.environmentSize, lightingCondition = p.environmentLighting),
+                keyElements = p.keyElements,
+                basePrompt = basePrompt.ifBlank { null }
+            )
+        }
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        LocationAsset(assetId = "preview", name = "", description = "", environment = Environment(type = "unspecified", size = "medium", lightingCondition = "natural"))
+    )
+
+    /** پیش‌نمایش زنده‌ی پرامپت Template — بدون دکمه، بدون فراخوان AI. */
+    val imagePromptPreview: StateFlow<String?> = combine(locationSnapshot, _projectDna) { location, dna ->
+        dna?.let { buildLocationImagePrompt(location, it) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): هم‌الگو دقیق با
     // CharacterAssetFormViewModel.existingNames.
     private val existingNames = repository.loadAllLocationAssets(projectId)
@@ -136,6 +210,8 @@ class LocationAssetFormViewModel(
             }
         }
         ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+        ioScope.launch { _projectDna.value = projectDnaRepository.loadProjectDna(projectId).getOrNull() }
     }
 
     private suspend fun refreshApiKeySavedForTranslation(profileId: String) {
@@ -181,6 +257,58 @@ class LocationAssetFormViewModel(
         _keyElements.value = asset.keyElements
         _basePrompt.value = asset.basePrompt.orEmpty()
         _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+        _imagePromptQuick.value = asset.imagePromptQuick
+        _imagePromptAi.value = asset.imagePromptAi
+        _imagePromptFaPreview.value = asset.imagePromptFaPreview
+        _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
+        loadedUpdatedAt = asset.updatedAt
+    }
+
+    /** هم‌الگو دقیق با CharacterAssetFormViewModel.isImagePromptStale (ADR-134). */
+    fun isImagePromptStale(generatedAt: Long?): Boolean =
+        generatedAt != null && (loadedUpdatedAt ?: 0) > generatedAt
+
+    /** پرامپت سریع (بدون AI) — فوری، بدون فراخوان شبکه. */
+    fun generateImagePromptQuick() {
+        val dna = _projectDna.value ?: return
+        _imagePromptQuick.value = buildLocationImagePrompt(locationSnapshot.value, dna)
+        _imagePromptGeneratedAt.value = System.currentTimeMillis()
+    }
+
+    /**
+     * پرامپت حرفه‌ای (با AI) — هم‌الگو دقیق با
+     * generateCharacterBaseImagePromptWithAi (ADR-134). نام تابع عمداً از
+     * generateImagePromptWithAi وارداتی دامنه (ImagePromptAiConnector.kt،
+     * ADR-133) متفاوت گرفته شد — با اینکه هر دو با آرگومان‌های متفاوت به‌درستی
+     * Resolve می‌شوند (تشخیص Kotlin بر مبنای Arity)، نام متفاوت خوانایی را
+     * بیشتر و ریسک ابهام را صفر می‌کند؛ هم‌راستا با تصمیم مشابه زیرقدم ۴.
+     */
+    fun generateLocationImagePromptWithAi(): Job {
+        if (_imagePromptAiInProgress.value) return Job().apply { complete() }
+        val dna = _projectDna.value ?: return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _imagePromptAiError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _imagePromptAiError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _imagePromptAiInProgress.value = true
+            val templatePrompt = buildLocationImagePrompt(locationSnapshot.value, dna)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensForImagePrompt(dna), profile, apiKey, httpClientEngine)
+            _imagePromptAiInProgress.value = false
+            result.fold(
+                onSuccess = { response ->
+                    _imagePromptAi.value = response.imagePromptEn
+                    _imagePromptFaPreview.value = response.imagePromptFa
+                    _imagePromptGeneratedAt.value = System.currentTimeMillis()
+                },
+                onFailure = { _imagePromptAiError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
+            )
+        }
     }
 
     fun setName(value: String) { _name.value = value }
@@ -211,7 +339,14 @@ class LocationAssetFormViewModel(
             keyElements = _keyElements.value,
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityLockLevel = continuityLockLevel,
-            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null }
+            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null },
+            // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135):
+            // هم‌الگو دقیق با CharacterAssetFormViewModel.save (ADR-134).
+            imagePromptQuick = _imagePromptQuick.value,
+            imagePromptAi = _imagePromptAi.value,
+            imagePromptFaPreview = _imagePromptFaPreview.value,
+            imagePromptGeneratedAt = _imagePromptGeneratedAt.value,
+            updatedAt = System.currentTimeMillis()
         )
         ioScope.launch {
             repository.saveLocationAsset(projectId, asset)
@@ -224,14 +359,24 @@ class LocationAssetFormViewModel(
             application: Application,
             projectId: String,
             repository: AssetRepository? = null,
-            existingAssetId: String? = null
+            existingAssetId: String? = null,
+            projectDnaRepository: ProjectDnaRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) LocationAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
-                        else LocationAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        if (repository != null || projectDnaRepository != null) {
+                            LocationAssetFormViewModel(
+                                application = application,
+                                projectId = projectId,
+                                repository = repository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                existingAssetId = existingAssetId,
+                                projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao())
+                            )
+                        } else {
+                            LocationAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        }
                     ) as T
             }
     }

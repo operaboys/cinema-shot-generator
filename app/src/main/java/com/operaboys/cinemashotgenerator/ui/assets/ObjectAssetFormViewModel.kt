@@ -7,13 +7,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
+import com.operaboys.cinemashotgenerator.domain.asset.buildObjectImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
+import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
+import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
@@ -51,6 +56,9 @@ class ObjectAssetFormViewModel(
     // CharacterAssetFormViewModel.
     private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
     private val httpClientEngine: HttpClientEngine = OkHttp.create(),
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): هم‌الگو دقیق
+    // با CharacterAssetFormViewModel (ADR-134).
+    private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -98,6 +106,61 @@ class ObjectAssetFormViewModel(
     /** سطح تداوم ObjectAsset فقط یک مقدار دارد (FORM) — ثابت، بدون کنترل تعاملی. */
     val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM
 
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135): هم‌الگو دقیق
+    // با CharacterAssetFormViewModel (ADR-134).
+    private val _projectDna = MutableStateFlow<ProjectDna?>(null)
+    val projectDna: StateFlow<ProjectDna?> = _projectDna.asStateFlow()
+
+    private val _imagePromptQuick = MutableStateFlow<String?>(null)
+    val imagePromptQuick: StateFlow<String?> = _imagePromptQuick.asStateFlow()
+
+    private val _imagePromptAi = MutableStateFlow<String?>(null)
+    val imagePromptAi: StateFlow<String?> = _imagePromptAi.asStateFlow()
+
+    private val _imagePromptFaPreview = MutableStateFlow<String?>(null)
+    val imagePromptFaPreview: StateFlow<String?> = _imagePromptFaPreview.asStateFlow()
+
+    private val _imagePromptGeneratedAt = MutableStateFlow<Long?>(null)
+    val imagePromptGeneratedAt: StateFlow<Long?> = _imagePromptGeneratedAt.asStateFlow()
+
+    private val _imagePromptAiInProgress = MutableStateFlow(false)
+    val imagePromptAiInProgress: StateFlow<Boolean> = _imagePromptAiInProgress.asStateFlow()
+
+    private val _imagePromptAiError = MutableStateFlow<String?>(null)
+    val imagePromptAiError: StateFlow<String?> = _imagePromptAiError.asStateFlow()
+
+    /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
+    private var loadedUpdatedAt: Long? = null
+
+    /**
+     * buildObjectImagePrompt (ADR-132) فقط description/size/materialAndColor/
+     * specialTrait/basePrompt را می‌خواند (نه name/subtype/...، تأییدشده مستقیم
+     * با خواندن ImagePromptEngine.kt) — دقیقاً ۵ فیلد، پس (برخلاف
+     * LocationAssetFormViewModel) یک combine تک‌مرحله‌ای کافی است.
+     */
+    private val objectSnapshot: StateFlow<ObjectAsset> = combine(
+        _description, _size, _materialAndColor, _specialTrait, _basePrompt
+    ) { description, size, materialAndColor, specialTrait, basePrompt ->
+        ObjectAsset(
+            assetId = existingAssetId ?: "preview",
+            name = "",
+            description = description,
+            subtype = ObjectSubtype.GENERAL_PROP,
+            size = size,
+            materialAndColor = materialAndColor,
+            specialTrait = specialTrait.ifBlank { null },
+            basePrompt = basePrompt.ifBlank { null }
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        ObjectAsset(assetId = "preview", name = "", description = "", subtype = ObjectSubtype.GENERAL_PROP, size = "", materialAndColor = "")
+    )
+
+    /** پیش‌نمایش زنده‌ی پرامپت Template — بدون دکمه، بدون فراخوان AI. */
+    val imagePromptPreview: StateFlow<String?> = combine(objectSnapshot, _projectDna) { objectAsset, dna ->
+        dna?.let { buildObjectImagePrompt(objectAsset, it) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private fun buildPreviewAsset(): ObjectAsset = ObjectAsset(
         assetId = "preview",
         name = _name.value,
@@ -137,6 +200,8 @@ class ObjectAssetFormViewModel(
             }
         }
         ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+        ioScope.launch { _projectDna.value = projectDnaRepository.loadProjectDna(projectId).getOrNull() }
     }
 
     private suspend fun refreshApiKeySavedForTranslation(profileId: String) {
@@ -179,6 +244,56 @@ class ObjectAssetFormViewModel(
         _specialTrait.value = asset.specialTrait.orEmpty()
         _basePrompt.value = asset.basePrompt.orEmpty()
         _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+        _imagePromptQuick.value = asset.imagePromptQuick
+        _imagePromptAi.value = asset.imagePromptAi
+        _imagePromptFaPreview.value = asset.imagePromptFaPreview
+        _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
+        loadedUpdatedAt = asset.updatedAt
+    }
+
+    /** هم‌الگو دقیق با CharacterAssetFormViewModel.isImagePromptStale (ADR-134). */
+    fun isImagePromptStale(generatedAt: Long?): Boolean =
+        generatedAt != null && (loadedUpdatedAt ?: 0) > generatedAt
+
+    /** پرامپت سریع (بدون AI) — فوری، بدون فراخوان شبکه. */
+    fun generateImagePromptQuick() {
+        val dna = _projectDna.value ?: return
+        _imagePromptQuick.value = buildObjectImagePrompt(objectSnapshot.value, dna)
+        _imagePromptGeneratedAt.value = System.currentTimeMillis()
+    }
+
+    /**
+     * پرامپت حرفه‌ای (با AI) — هم‌الگو دقیق با
+     * generateCharacterBaseImagePromptWithAi (ADR-134)؛ نام تابع عمداً از
+     * generateImagePromptWithAi وارداتی دامنه متفاوت گرفته شد (هم‌راستا با
+     * همان تصمیم مستقل LocationAssetFormViewModel، برای خوانایی/عدم ابهام).
+     */
+    fun generateObjectImagePromptWithAi(): Job {
+        if (_imagePromptAiInProgress.value) return Job().apply { complete() }
+        val dna = _projectDna.value ?: return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _imagePromptAiError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _imagePromptAiError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _imagePromptAiInProgress.value = true
+            val templatePrompt = buildObjectImagePrompt(objectSnapshot.value, dna)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensForImagePrompt(dna), profile, apiKey, httpClientEngine)
+            _imagePromptAiInProgress.value = false
+            result.fold(
+                onSuccess = { response ->
+                    _imagePromptAi.value = response.imagePromptEn
+                    _imagePromptFaPreview.value = response.imagePromptFa
+                    _imagePromptGeneratedAt.value = System.currentTimeMillis()
+                },
+                onFailure = { _imagePromptAiError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
+            )
+        }
     }
 
     fun setName(value: String) { _name.value = value }
@@ -192,7 +307,16 @@ class ObjectAssetFormViewModel(
 
     fun save() {
         if (!canSave.value) return
-        val asset = buildPreviewAsset().copy(assetId = existingAssetId ?: idProvider())
+        val asset = buildPreviewAsset().copy(
+            assetId = existingAssetId ?: idProvider(),
+            // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135):
+            // هم‌الگو دقیق با CharacterAssetFormViewModel.save (ADR-134).
+            imagePromptQuick = _imagePromptQuick.value,
+            imagePromptAi = _imagePromptAi.value,
+            imagePromptFaPreview = _imagePromptFaPreview.value,
+            imagePromptGeneratedAt = _imagePromptGeneratedAt.value,
+            updatedAt = System.currentTimeMillis()
+        )
         ioScope.launch {
             repository.saveObjectAsset(projectId, asset)
             _saveCompleted.value = true
@@ -204,14 +328,24 @@ class ObjectAssetFormViewModel(
             application: Application,
             projectId: String,
             repository: AssetRepository? = null,
-            existingAssetId: String? = null
+            existingAssetId: String? = null,
+            projectDnaRepository: ProjectDnaRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) ObjectAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
-                        else ObjectAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        if (repository != null || projectDnaRepository != null) {
+                            ObjectAssetFormViewModel(
+                                application = application,
+                                projectId = projectId,
+                                repository = repository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                existingAssetId = existingAssetId,
+                                projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao())
+                            )
+                        } else {
+                            ObjectAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        }
                     ) as T
             }
     }

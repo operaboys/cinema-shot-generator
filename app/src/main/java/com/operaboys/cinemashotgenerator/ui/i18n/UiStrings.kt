@@ -285,6 +285,8 @@ val faStrings: Map<String, String> = mapOf(
     "locationForm.timeCompatibilityLabel" to "سازگاری زمانی (برچسب آزاد)",
     "locationForm.weatherCompatibilityLabel" to "سازگاری آب‌وهوایی (برچسب آزاد)",
     "locationForm.keyElementsLabel" to "عناصر کلیدی (برچسب آزاد)",
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+    "locationForm.imagePromptSectionTitle" to "پرامپت عکس مرجع",
 
     // فاز ۳ — قدم ۲ — بخش ج: فرم Object
     "objectForm.title" to "شیء جدید",
@@ -293,6 +295,8 @@ val faStrings: Map<String, String> = mapOf(
     "objectForm.sizeLabel" to "اندازه",
     "objectForm.materialAndColorLabel" to "جنس و رنگ",
     "objectForm.specialTraitLabel" to "ویژگی خاص (اختیاری)",
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
+    "objectForm.imagePromptSectionTitle" to "پرامپت عکس مرجع",
 
     // فاز ۲ — قدم ۲: صفحه‌ی AI Story Breakdown
     "aiBreakdown.subtitle" to "داستان را به شات‌های سینمایی تقسیم کنید",
@@ -1229,6 +1233,7 @@ val enStrings: Map<String, String> = mapOf(
     "locationForm.timeCompatibilityLabel" to "Time compatibility (free tags)",
     "locationForm.weatherCompatibilityLabel" to "Weather compatibility (free tags)",
     "locationForm.keyElementsLabel" to "Key elements (free tags)",
+    "locationForm.imagePromptSectionTitle" to "Reference image prompt",
 
     // Phase 3 — Step 2 — Part C: Object form
     "objectForm.title" to "New Object",
@@ -1237,6 +1242,7 @@ val enStrings: Map<String, String> = mapOf(
     "objectForm.sizeLabel" to "Size",
     "objectForm.materialAndColorLabel" to "Material and color",
     "objectForm.specialTraitLabel" to "Special trait (optional)",
+    "objectForm.imagePromptSectionTitle" to "Reference image prompt",
 
     // Phase 2 — Step 2: AI Story Breakdown screen
     "aiBreakdown.subtitle" to "Turn your story into cinematic shots",
