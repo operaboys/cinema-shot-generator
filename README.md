@@ -2605,6 +2605,25 @@ Merge سمانتیک است — Query تگ‌های روی فرزندان ساد
 است. جزئیات کامل در
 `docs/adr/138-real-reference-image-library-card-thumbnail.md`.
 
+### ✅ آپلود عکس مرجع واقعی Asset — زیرقدم ۳ از ۳، پایانی: اتصال به پرامپت Shot (ADR-139)
+
+عکس‌های مرجع آپلودشده‌ی هر Character/Location/Object اکنون به‌صورت خودکار
+به `imageReferences` نهایی پرامپت هر Shot اضافه می‌شوند — تابع خالص جدید
+`collectAssetImageReferences` (`domain/promptengine/AssetImageReferenceCollector.kt`)
+هر `ReferenceImage` روی Asset را به یک `ImageReference` تبدیل می‌کند
+(Character → `type="character"`؛ Location/Object → `type="composition"`،
+چون هیچ‌کدام از ۴ مقدار مستند برای «شیء فیزیکی» دقیقاً مناسب نیست — یک
+شکاف طراحی شناخته‌شده، بدون افزودن مقدار پنجم بدون تأیید معمار).
+`assemblePromptBlueprint` (`PromptAssembly.kt`) این رفرنس‌های خودکار را
+کنار رفرنس‌های دستی موجود Shot Composer ترکیب می‌کند
+(`distinctBy(localFilePath)` مانع تکرار می‌شود اگر همان عکس هم دستی هم
+خودکار اضافه شده باشد). یافته‌ی مهم راستی‌آزمایی: `ImageReference.type`
+امروز در مسیر Render واقعی اصلاً خوانده نمی‌شود — فقط
+`imageReferences.size`/`isEmpty()` اثر دارند؛ پس انتخاب `type` بالا امروز
+بدون اثر رفتاری است. **با این قدم، فیچر «آپلود عکس مرجع واقعی Asset»
+(ADR-137 تا ۱۳۹) کامل شد.** جزئیات کامل در
+`docs/adr/139-real-reference-image-shot-prompt-connection.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

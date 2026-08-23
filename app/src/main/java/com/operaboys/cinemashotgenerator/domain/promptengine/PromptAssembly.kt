@@ -76,7 +76,14 @@ fun assemblePromptBlueprint(
         promptBlueprintId = idProvider(),
         shotId = input.shot.shotId,
         structuredParts = structuredParts,
-        imageReferences = input.shot.imageReferences,
+        // فیچر مستقل «آپلود عکس مرجع واقعی Asset» — زیرقدم ۳ از ۳، پایانی
+        // (ADR-139): رفرنس‌های دستی Shot Composer + رفرنس‌های خودکار Asset
+        // (collectAssetImageReferences، AssetImageReferenceCollector.kt)
+        // ترکیب می‌شوند؛ distinctBy(localFilePath) از دستور تکراری در پرامپت
+        // نهایی جلوگیری می‌کند اگر کاربر همان عکس را هم دستی هم روی Asset
+        // اضافه کرده باشد.
+        imageReferences = (input.shot.imageReferences + collectAssetImageReferences(input.characters, input.objects, input.locations))
+            .distinctBy { it.localFilePath },
         weightedEmphasis = collectWeightedEmphasis(weightedTags),
         seed = manageSeed(input.shot.shotId, useSeed, null),
         conflictsResolved = conflictResolution.conflictsResolved,

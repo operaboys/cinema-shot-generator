@@ -11,6 +11,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
 import com.operaboys.cinemashotgenerator.domain.audio.AmbientSound as DomainAmbientSound
 import com.operaboys.cinemashotgenerator.domain.camera.BasicMovementType
@@ -323,5 +324,92 @@ class PromptAssemblyTest {
             validationIssues = emptyList()
         )
         assertEquals("watermark", blueprint.negativePrompt)
+    }
+
+    // فیچر مستقل «آپلود عکس مرجع واقعی Asset» — زیرقدم ۳ از ۳، پایانی
+    // (ADR-139): اتصال خودکار referenceImages هر Asset به imageReferences
+    // نهایی، کنار رفرنس‌های دستی موجود sampleShot() (که از قبل یک
+    // ImageReference("character", "/storage/char_001_ref.jpg", ...) دارد).
+
+    @Test
+    fun `assemblePromptBlueprint includes a character's referenceImages with type character`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(
+                characters = listOf(
+                    sampleCharacter().copy(
+                        referenceImages = listOf(ReferenceImage(localFilePath = "/storage/char_uploaded.jpg", description = "Detective John — 35-40 male"))
+                    )
+                )
+            ),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        val uploaded = blueprint.imageReferences.single { it.localFilePath == "/storage/char_uploaded.jpg" }
+        assertEquals("character", uploaded.type)
+        assertEquals("Detective John — 35-40 male", uploaded.description)
+        // رفرنس دستی sampleShot() هم باید کنار آن باقی بماند — این قدم مسیر
+        // دستی موجود را جایگزین نمی‌کند، فقط تکمیل می‌کند.
+        assertTrue(blueprint.imageReferences.any { it.localFilePath == "/storage/char_001_ref.jpg" })
+    }
+
+    @Test
+    fun `assemblePromptBlueprint deduplicates an image reference that appears both manually on the shot and on the asset`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(
+                shot = sampleShot().copy(
+                    imageReferences = listOf(ImageReference("character", "/storage/char_shared_ref.jpg", "دستی"))
+                ),
+                characters = listOf(
+                    sampleCharacter().copy(
+                        referenceImages = listOf(ReferenceImage(localFilePath = "/storage/char_shared_ref.jpg", description = "خودکار"))
+                    )
+                )
+            ),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        assertEquals(1, blueprint.imageReferences.count { it.localFilePath == "/storage/char_shared_ref.jpg" })
+    }
+
+    @Test
+    fun `assemblePromptBlueprint includes a location's referenceImages with type composition`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(
+                locations = listOf(
+                    sampleLocationAsset().copy(
+                        referenceImages = listOf(ReferenceImage(localFilePath = "/storage/loc_uploaded.jpg", description = "دفتر کارآگاه — توضیح نمونه"))
+                    )
+                )
+            ),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        val uploaded = blueprint.imageReferences.single { it.localFilePath == "/storage/loc_uploaded.jpg" }
+        assertEquals("composition", uploaded.type)
+    }
+
+    @Test
+    fun `assemblePromptBlueprint includes an object's referenceImages with type composition`() {
+        val blueprint = assemblePromptBlueprint(
+            input = sampleInput().copy(
+                objects = listOf(
+                    sampleObjectAsset().copy(
+                        referenceImages = listOf(ReferenceImage(localFilePath = "/storage/obj_uploaded.jpg", description = "Service Pistol — worn black metal"))
+                    )
+                )
+            ),
+            useSeed = false,
+            weightedTags = null,
+            validationIssues = emptyList()
+        )
+
+        val uploaded = blueprint.imageReferences.single { it.localFilePath == "/storage/obj_uploaded.jpg" }
+        assertEquals("composition", uploaded.type)
     }
 }
