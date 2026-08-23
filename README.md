@@ -2521,6 +2521,21 @@ ADR): دو Rule یتیم `validateSpeedIntensity`/`validateMotionBlur`
 اصلی وارد نمی‌شود. جزئیات کامل در
 `docs/adr/132-reference-image-prompt-template-engine.md`.
 
+### ✅ مسیر اختیاری AI برای «پرامپت ساخت عکس مرجع» — زیرقدم ۳ از ۵ (ADR-133)
+
+یک فایل خالص دامنه‌ی تازه، `domain/asset/ImagePromptAiConnector.kt` —
+همچنان بدون ViewModel/UI. `buildImagePromptAiRequest` پرامپت Template
+زیرقدم ۲ را همراه Style Tokens به یک دستورالعمل دوزبانه برای AI تبدیل
+می‌کند (هم‌الگو با `STORY_BREAKDOWN_JSON_SCHEMA_INSTRUCTION_BILINGUAL`
+موجود)؛ `generateImagePromptWithAi` مستقیماً `sendToAiConnector` موجود
+(`domain/storybreakdown/AiConnector.kt`، بدون هیچ تغییر در آن) را
+فراخوانی می‌کند و پاسخ را با `ImagePromptAiResponse`
+(`imagePromptEn`/`imagePromptFa`) Parse می‌کند. تصمیم مستقل مستند: بدون
+استفاده از `repairJson`/`smartCombineChunks` (`JsonDoctor.kt`/
+`ChunkCombiner.kt`) — آن دو ابزار برای پاسخ‌های چندبخشی/بزرگ Story
+Breakdown طراحی شده‌اند، نه یک شیء JSON تک‌شات و کوچک با دو کلید. جزئیات
+کامل در `docs/adr/133-reference-image-prompt-ai-connector.md`.
+
 ## Stack
 
 - **زبان:** Kotlin
