@@ -1,6 +1,10 @@
 package com.operaboys.cinemashotgenerator.ui.assets
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +46,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
@@ -101,6 +106,10 @@ fun outfitImagePromptExpandButtonTag(index: Int): String = "characterForm.outfit
 fun outfitImagePromptQuickButtonTag(index: Int): String = "characterForm.outfitImagePromptQuickButton.$index"
 fun outfitImagePromptAiButtonTag(index: Int): String = "characterForm.outfitImagePromptAiButton.$index"
 fun outfitImagePromptStaleWarningTag(index: Int): String = "characterForm.outfitImagePromptStaleWarning.$index"
+
+// فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137).
+const val CHARACTER_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG = "characterForm.addReferenceImageButton"
+fun referenceImageRemoveButtonTag(index: Int): String = "characterForm.referenceImageRemoveButton.$index"
 
 @Composable
 fun CharacterAssetFormScreen(
@@ -162,6 +171,21 @@ fun CharacterAssetFormScreen(
     // اتصال Rule های یتیم ADR-132 (ADR-136).
     val imagePromptValidationIssues by viewModel.imagePromptValidationIssues.collectAsStateWithLifecycle()
     val outfitImagePromptValidationIssues by viewModel.outfitImagePromptValidationIssues.collectAsStateWithLifecycle()
+
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌الگو دقیق با chooseImageLauncher در SettingsScreen.kt — OpenDocument()
+    // (نه GetContent()) + takePersistableUriPermission، چون localFilePath باید
+    // بعد از بستن اپ هم معتبر بماند.
+    val referenceImages by viewModel.referenceImages.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val chooseReferenceImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            viewModel.addReferenceImage(it.toString())
+        }
+    }
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
@@ -267,6 +291,15 @@ fun CharacterAssetFormScreen(
                 language = language
             )
 
+            ReferenceImagesSection(
+                language = language,
+                referenceImages = referenceImages,
+                onAddClick = { chooseReferenceImageLauncher.launch(arrayOf("image/*")) },
+                onRemove = viewModel::removeReferenceImage,
+                addButtonTag = CHARACTER_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG,
+                removeButtonTag = ::referenceImageRemoveButtonTag
+            )
+
             CharacterImagePromptSection(
                 viewModel = viewModel,
                 language = language,
@@ -303,6 +336,43 @@ fun CharacterAssetFormScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp).testTag(CHARACTER_FORM_SAVE_BUTTON_TAG)
         ) {
             Text(uiString("assetForm.saveButton", language))
+        }
+    }
+}
+
+/**
+ * فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+ * فقط دکمه‌ی افزودن + یک لیست متنی ساده (نام فایل استخراج‌شده از Uri) — نمایش
+ * گرافیکی واقعی Thumbnail و اتصال به کارت لیست کتابخانه کار زیرقدم ۲ است. هر
+ * سه Screen (Character/Location/Object) نسخه‌ی مستقل این Composable را دارند
+ * (بدون Promote به یک فایل مشترک) — هم‌الگو با تکرار پذیرفته‌شده‌ی
+ * NullableEnumDropdownField در این پروژه.
+ */
+@Composable
+private fun ReferenceImagesSection(
+    language: Language,
+    referenceImages: List<ReferenceImage>,
+    onAddClick: () -> Unit,
+    onRemove: (Int) -> Unit,
+    addButtonTag: String,
+    removeButtonTag: (Int) -> String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = uiString("assetForm.referenceImagesSectionTitle", language), style = MaterialTheme.typography.titleSmall)
+        referenceImages.forEachIndexed { index, image ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = runCatching { Uri.parse(image.localFilePath).lastPathSegment }.getOrNull() ?: image.localFilePath,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { onRemove(index) }, modifier = Modifier.testTag(removeButtonTag(index))) {
+                    Icon(Icons.Filled.Close, contentDescription = uiString("assetForm.removeReferenceImageButton", language))
+                }
+            }
+        }
+        TextButton(onClick = onAddClick, modifier = Modifier.testTag(addButtonTag)) {
+            Text(uiString("assetForm.addReferenceImageButton", language))
         }
     }
 }

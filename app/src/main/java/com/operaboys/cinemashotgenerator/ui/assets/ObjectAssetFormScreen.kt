@@ -1,6 +1,10 @@
 package com.operaboys.cinemashotgenerator.ui.assets
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -19,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -27,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.validation.Severity
@@ -58,6 +68,10 @@ const val OBJECT_FORM_TOGGLE_THEME_BUTTON_TAG = "objectForm.toggleThemeButton"
 const val OBJECT_FORM_IMAGE_PROMPT_QUICK_BUTTON_TAG = "objectForm.imagePromptQuickButton"
 const val OBJECT_FORM_IMAGE_PROMPT_AI_BUTTON_TAG = "objectForm.imagePromptAiButton"
 const val OBJECT_FORM_IMAGE_PROMPT_STALE_WARNING_TAG = "objectForm.imagePromptStaleWarning"
+
+// فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137).
+const val OBJECT_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG = "objectForm.addReferenceImageButton"
+fun objectReferenceImageRemoveButtonTag(index: Int): String = "objectForm.referenceImageRemoveButton.$index"
 
 @Composable
 fun ObjectAssetFormScreen(
@@ -104,6 +118,21 @@ fun ObjectAssetFormScreen(
     val imagePromptAiError by viewModel.imagePromptAiError.collectAsStateWithLifecycle()
     // اتصال Rule یتیم ADR-132 (ADR-136).
     val imagePromptValidationIssues by viewModel.imagePromptValidationIssues.collectAsStateWithLifecycle()
+
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌الگو دقیق با chooseImageLauncher در SettingsScreen.kt — OpenDocument()
+    // (نه GetContent()) + takePersistableUriPermission، چون localFilePath باید
+    // بعد از بستن اپ هم معتبر بماند.
+    val referenceImages by viewModel.referenceImages.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val chooseReferenceImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            viewModel.addReferenceImage(it.toString())
+        }
+    }
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
@@ -182,6 +211,15 @@ fun ObjectAssetFormScreen(
                 language = language
             )
 
+            ReferenceImagesSection(
+                language = language,
+                referenceImages = referenceImages,
+                onAddClick = { chooseReferenceImageLauncher.launch(arrayOf("image/*")) },
+                onRemove = viewModel::removeReferenceImage,
+                addButtonTag = OBJECT_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG,
+                removeButtonTag = ::objectReferenceImageRemoveButtonTag
+            )
+
             ObjectImagePromptSection(
                 viewModel = viewModel,
                 language = language,
@@ -205,6 +243,40 @@ fun ObjectAssetFormScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp).testTag(OBJECT_FORM_SAVE_BUTTON_TAG)
         ) {
             Text(uiString("assetForm.saveButton", language))
+        }
+    }
+}
+
+/**
+ * فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+ * هم‌الگو دقیق با ReferenceImagesSection در CharacterAssetFormScreen.kt/
+ * LocationAssetFormScreen.kt — تکرار عمدی به‌جای Promote به یک فایل مشترک.
+ */
+@Composable
+private fun ReferenceImagesSection(
+    language: Language,
+    referenceImages: List<ReferenceImage>,
+    onAddClick: () -> Unit,
+    onRemove: (Int) -> Unit,
+    addButtonTag: String,
+    removeButtonTag: (Int) -> String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = uiString("assetForm.referenceImagesSectionTitle", language), style = MaterialTheme.typography.titleSmall)
+        referenceImages.forEachIndexed { index, image ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = runCatching { Uri.parse(image.localFilePath).lastPathSegment }.getOrNull() ?: image.localFilePath,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { onRemove(index) }, modifier = Modifier.testTag(removeButtonTag(index))) {
+                    Icon(Icons.Filled.Close, contentDescription = uiString("assetForm.removeReferenceImageButton", language))
+                }
+            }
+        }
+        TextButton(onClick = onAddClick, modifier = Modifier.testTag(addButtonTag)) {
+            Text(uiString("assetForm.addReferenceImageButton", language))
         }
     }
 }

@@ -2573,6 +2573,23 @@ Warning-only نوشته بود که زیرقدم‌های ۴/۵ به UI وصل �
 همچنان کاملاً Warning-only، بدون تغییر رفتار موجود. جزئیات کامل در
 `docs/adr/136-connect-image-prompt-validation-rules.md`.
 
+### ✅ آپلود عکس مرجع واقعی Asset — زیرقدم ۱ از ۳: مدل داده (ADR-137)
+
+فیچر مستقل و تازه‌ای شروع شد — کاملاً مجزا از «پرامپت ساخت عکس مرجع»
+(ADR-131 تا ۱۳۶) که فقط متن پرامپت می‌سازد، نه خودِ عکس. این زیرقدم فقط
+مدل داده + منطق انتخاب/ذخیره‌ی Uri را اضافه کرد: نوع `ReferenceImage`
+موجود (که قبلاً فقط برای `CharacterAsset` تعریف شده بود) به
+`LocationAsset`/`ObjectAsset` هم اضافه شد (فیلد `referenceImages`، در همان
+بلوب JSON موجود، بدون Migration رومی)، هر سه ViewModel یک
+`addReferenceImage(uri)`/`removeReferenceImage(index)` گرفتند (توضیح هر
+عکس به‌صورت خودکار و **در لحظه‌ی `save()`** از فیلدهای زنده‌ی فرم محاسبه
+می‌شود، نه در لحظه‌ی افزودن)، و هر سه Screen یک دکمه‌ی «افزودن عکس مرجع» با
+همان الگوی اثبات‌شده‌ی `ActivityResultContracts.OpenDocument()` در
+`SettingsScreen.kt` گرفتند (+ فهرست متنی ساده‌ی نام فایل). Thumbnail واقعی
+و کارت کتابخانه (زیرقدم ۲) و اتصال به پرامپت شات (زیرقدم ۳) هنوز شروع
+نشده‌اند. جزئیات کامل در
+`docs/adr/137-real-reference-image-upload-data-model.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

@@ -263,6 +263,11 @@ data class LocationAsset(
     val keyElements: List<String> = emptyList(),
     val basePrompt: String? = null,
     val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE,
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // کاملاً مجزا از فیچر «پرامپت ساخت عکس مرجع» (ADR-131 تا ۱۳۶، که فقط متن
+    // پرامپت می‌سازد، نه خودِ عکس). هم‌نوع مستقیم با CharacterAsset.referenceImages
+    // موجود (از قبل تعریف‌شده، اینجا فقط برای Location/Object هم اضافه شد).
+    val referenceImages: List<ReferenceImage> = emptyList(),
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
     // دقیق با CharacterAsset.descriptionFaPreview بالا.
     val descriptionFaPreview: String? = null,
@@ -295,6 +300,9 @@ data class ObjectAsset(
     val specialTrait: String? = null,
     val basePrompt: String? = null,
     val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM,
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌الگو دقیق با LocationAsset بالا.
+    val referenceImages: List<ReferenceImage> = emptyList(),
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
     // دقیق با CharacterAsset.descriptionFaPreview بالا.
     val descriptionFaPreview: String? = null,

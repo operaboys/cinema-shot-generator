@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.asset.buildLocationImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
@@ -166,6 +167,23 @@ class LocationAssetFormViewModel(
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
     private var loadedUpdatedAt: Long? = null
 
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // description هر ReferenceImage عمداً همیشه در save() (پایین‌تر) از روی
+    // وضعیت فعلی فرم بازمحاسبه می‌شود، نه در همین‌جا هنگام افزودن — هم‌الگو دقیق
+    // با CharacterAssetFormViewModel.
+    private val _referenceImages = MutableStateFlow<List<ReferenceImage>>(emptyList())
+    val referenceImages: StateFlow<List<ReferenceImage>> = _referenceImages.asStateFlow()
+
+    fun addReferenceImage(uri: String) {
+        _referenceImages.value = _referenceImages.value + ReferenceImage(localFilePath = uri, description = "")
+    }
+
+    fun removeReferenceImage(index: Int) {
+        val current = _referenceImages.value
+        if (index !in current.indices) return
+        _referenceImages.value = current.filterIndexed { i, _ -> i != index }
+    }
+
     private val locationSnapshot: StateFlow<LocationAsset> = combine(
         _description, _environmentType, _environmentSize, _environmentLighting, _keyElements
     ) { description, environmentType, environmentSize, environmentLighting, keyElements ->
@@ -263,6 +281,8 @@ class LocationAssetFormViewModel(
         _keyElements.value = asset.keyElements
         _basePrompt.value = asset.basePrompt.orEmpty()
         _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
+        // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137).
+        _referenceImages.value = asset.referenceImages
         // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135).
         _imagePromptQuick.value = asset.imagePromptQuick
         _imagePromptAi.value = asset.imagePromptAi
@@ -337,6 +357,10 @@ class LocationAssetFormViewModel(
 
     fun save() {
         if (!canSave.value) return
+        // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+        // هم‌الگو دقیق با CharacterAssetFormViewModel.save.
+        val referenceImageDescription = "${_name.value} — ${_description.value}"
+        val referenceImages = _referenceImages.value.map { it.copy(description = referenceImageDescription) }
         val asset = LocationAsset(
             assetId = existingAssetId ?: idProvider(),
             name = _name.value,
@@ -348,6 +372,7 @@ class LocationAssetFormViewModel(
             keyElements = _keyElements.value,
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityLockLevel = continuityLockLevel,
+            referenceImages = referenceImages,
             descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null },
             // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۵ از ۵ (ADR-135):
             // هم‌الگو دقیق با CharacterAssetFormViewModel.save (ADR-134).

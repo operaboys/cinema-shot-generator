@@ -240,6 +240,10 @@ val faStrings: Map<String, String> = mapOf(
     "assetForm.imagePromptAiResultTemplate" to "پرامپت حرفه‌ای (AI): {prompt}",
     "assetForm.imagePromptFaPreviewResultTemplate" to "ترجمه‌ی فارسی (فقط مرور): {prompt}",
     "assetForm.imagePromptStaleWarning" to "این پرامپت از آخرین ویرایش این Asset قدیمی‌تر است — دوباره بسازید",
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137).
+    "assetForm.referenceImagesSectionTitle" to "عکس‌های مرجع",
+    "assetForm.addReferenceImageButton" to "افزودن عکس مرجع",
+    "assetForm.removeReferenceImageButton" to "حذف عکس مرجع",
 
     // فاز ۳ — قدم ۲ — بخش الف: فرم Character
     "characterForm.title" to "کاراکتر جدید",
@@ -1188,6 +1192,9 @@ val enStrings: Map<String, String> = mapOf(
     "assetForm.imagePromptAiResultTemplate" to "Professional prompt (AI): {prompt}",
     "assetForm.imagePromptFaPreviewResultTemplate" to "Persian translation (review only): {prompt}",
     "assetForm.imagePromptStaleWarning" to "This prompt is older than the last edit to this asset — regenerate it",
+    "assetForm.referenceImagesSectionTitle" to "Reference images",
+    "assetForm.addReferenceImageButton" to "Add reference image",
+    "assetForm.removeReferenceImageButton" to "Remove reference image",
 
     // Phase 3 — Step 2 — Part A: Character form
     "characterForm.title" to "New Character",

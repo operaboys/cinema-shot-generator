@@ -19,6 +19,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.asset.buildCharacterBaseImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
@@ -258,6 +259,23 @@ class CharacterAssetFormViewModel(
     // برای یک Character تازه‌ساز بدون هیچ تعامل کاربر هم برقرار بماند.
     private val _outfits = MutableStateFlow(listOf(Outfit(id = generateAssetFormId("outfit"), name = "Default", description = "", isDefault = true)))
     val outfits: StateFlow<List<Outfit>> = _outfits.asStateFlow()
+
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // description هر ReferenceImage عمداً همیشه در save() (پایین‌تر) از روی
+    // وضعیت فعلی فرم بازمحاسبه می‌شود، نه در همین‌جا هنگام افزودن — تا اگر
+    // کاربر بعداً نام/ظاهر شخصیت را عوض کرد، توضیح هم به‌روز بماند.
+    private val _referenceImages = MutableStateFlow<List<ReferenceImage>>(emptyList())
+    val referenceImages: StateFlow<List<ReferenceImage>> = _referenceImages.asStateFlow()
+
+    fun addReferenceImage(uri: String) {
+        _referenceImages.value = _referenceImages.value + ReferenceImage(localFilePath = uri, description = "")
+    }
+
+    fun removeReferenceImage(index: Int) {
+        val current = _referenceImages.value
+        if (index !in current.indices) return
+        _referenceImages.value = current.filterIndexed { i, _ -> i != index }
+    }
 
     // رفع یافته‌ی G14 «کاندید وصل آینده» (ADR-064، ADR-092): existingNames از همان
     // Repository.loadAllCharacterAssets (Flow زنده، هم‌الگو با AssetLibraryViewModel)
@@ -531,6 +549,8 @@ class CharacterAssetFormViewModel(
         _basePrompt.value = asset.basePrompt.orEmpty()
         _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
         _outfits.value = asset.outfits
+        // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137).
+        _referenceImages.value = asset.referenceImages
         // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
         _imagePromptQuick.value = asset.imagePromptQuick
         _imagePromptAi.value = asset.imagePromptAi
@@ -643,6 +663,13 @@ class CharacterAssetFormViewModel(
             physicalFeatures = _physicalFeatures.value
         )
 
+        // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+        // description هر ReferenceImage عمداً همین‌جا (نه در addReferenceImage)
+        // از روی وضعیت فعلی فرم بازمحاسبه می‌شود — Derived، نه فیکس‌شده در لحظه‌ی
+        // افزودن عکس، تا تغییر بعدی نام/ظاهر شخصیت را هم منعکس کند.
+        val referenceImageDescription = "${_name.value} — ${physicalAppearance.toPromptString()}"
+        val referenceImages = _referenceImages.value.map { it.copy(description = referenceImageDescription) }
+
         val asset = CharacterAsset(
             assetId = existingAssetId ?: idProvider(),
             characterTier = _tier.value,
@@ -653,6 +680,7 @@ class CharacterAssetFormViewModel(
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityRules = ContinuityRules(),
             continuityLockLevel = continuityLockLevel.value,
+            referenceImages = referenceImages,
             descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null },
             // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134):
             // updatedAt همیشه زمان همین save() واقعی است — بدون این، تشخیص

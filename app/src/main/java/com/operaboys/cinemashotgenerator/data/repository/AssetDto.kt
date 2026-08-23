@@ -143,6 +143,9 @@ data class LocationAssetDto(
     val keyElements: List<String> = emptyList(),
     val basePrompt: String? = null,
     val continuityLockLevel: String = "STYLE",
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌شکل مستقیم با CharacterAssetDto.referenceImages موجود.
+    val referenceImages: List<ReferenceImageDto> = emptyList(),
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
     val descriptionFaPreview: String? = null,
     // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131).
@@ -165,6 +168,9 @@ data class ObjectAssetDto(
     val specialTrait: String? = null,
     val basePrompt: String? = null,
     val continuityLockLevel: String = "FORM",
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌شکل مستقیم با CharacterAssetDto.referenceImages موجود.
+    val referenceImages: List<ReferenceImageDto> = emptyList(),
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
     val descriptionFaPreview: String? = null,
     // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131).

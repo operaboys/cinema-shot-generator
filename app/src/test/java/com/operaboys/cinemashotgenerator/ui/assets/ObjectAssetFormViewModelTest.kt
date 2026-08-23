@@ -336,4 +336,60 @@ class ObjectAssetFormViewModelTest {
             vm.imagePromptValidationIssues.value.isNotEmpty()
         )
     }
+
+    // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
+    // هم‌الگو دقیق با تست‌های معادل CharacterAssetFormViewModelTest.kt/
+    // LocationAssetFormViewModelTest.kt.
+
+    @Test
+    fun `addReferenceImage appends an entry and removeReferenceImage removes it by index`() = runBlocking {
+        val vm = ObjectAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_object_reference_image_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+
+        vm.addReferenceImage("content://media/external/images/1")
+        vm.addReferenceImage("content://media/external/images/2")
+
+        assertEquals(2, vm.referenceImages.value.size)
+        assertEquals("content://media/external/images/1", vm.referenceImages.value[0].localFilePath)
+        assertEquals("content://media/external/images/2", vm.referenceImages.value[1].localFilePath)
+
+        vm.removeReferenceImage(0)
+
+        assertEquals(1, vm.referenceImages.value.size)
+        assertEquals("content://media/external/images/2", vm.referenceImages.value[0].localFilePath)
+    }
+
+    @Test
+    fun `save persists referenceImages with a description recomputed from the current name and materialAndColor at save time`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val vm = ObjectAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_object_reference_image_save_test",
+            repository = repository,
+            idProvider = { "obj_reference_image_save_test" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.addReferenceImage("content://media/external/images/1")
+        vm.setName("Service Pistol")
+        vm.setSize("small")
+        vm.setMaterialAndColor("worn black metal")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted) { it }
+
+        val loaded = repository.loadObjectAssets(listOf("obj_reference_image_save_test")).getOrThrow().single()
+        assertEquals(1, loaded.referenceImages.size)
+        assertEquals("content://media/external/images/1", loaded.referenceImages[0].localFilePath)
+        assertEquals(
+            "توضیح باید در لحظه‌ی save() از name/materialAndColor زنده‌ی فرم محاسبه شود، نه در لحظه‌ی addReferenceImage()",
+            "Service Pistol — worn black metal",
+            loaded.referenceImages[0].description
+        )
+    }
 }
