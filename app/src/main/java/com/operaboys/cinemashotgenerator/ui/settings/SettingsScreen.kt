@@ -364,12 +364,11 @@ private fun LanguageThemeCard(
 }
 
 /**
- * طبق یافته‌ی صریح این قدم (grep روی کل کدبیس): هیچ زیرساخت File Picker ای وجود
- * ندارد (هم‌کلاس محدودیت شناخته‌شده‌ی Attached References در Shot Composer) —
- * دکمه‌ی «انتخاب تصویر» پیام «به‌زودی» نشان می‌دهد (نه یک انتخاب‌گر واقعی). مقدار
- * URI واقعاً در DataStore Persist می‌شود (برای اتصال آینده)؛ نمایش واقعی این
- * تصویر روی Home/پس‌زمینه‌ی بقیه‌ی صفحات هم کار یک قدم بعدی است — این قدم فقط
- * خودِ کارت Settings را می‌سازد.
+ * دکمه‌ی «انتخاب تصویر» یک SAF File Picker واقعی است (ADR-075،
+ * `chooseImageLauncher`/`OpenDocument()` — این کامنت پیش‌تر قدیمی مانده
+ * بود و هنوز حالت «به‌زودی» را توصیف می‌کرد). مقدار URI در DataStore
+ * Persist می‌شود؛ Attached References در Shot Composer همچنان محدودیت
+ * جداگانه‌ی خودش را دارد (هنوز بدون File Picker واقعی).
  */
 @Composable
 private fun HomeImageCard(

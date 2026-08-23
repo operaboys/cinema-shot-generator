@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    یافته‌ی بازبینی نهایی (ADR-142): android:allowBackup="true" بدون این
+    فایل یعنی secure_api_keys.xml (کلید API رمزنگاری‌شده با
+    EncryptedSharedPreferences، طبق SecureKeyRepository.kt) هم در
+    Auto Backup/Device Transfer پیش‌فرض اندروید کپی می‌شود. رمزنگاری با
+    MasterKey متصل به Android Keystore عملاً روی دستگاه دیگر قابل‌بازیابی
+    نیست، اما استثنای صریح دفاع-در-عمق است — طبق API 31+.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="secure_api_keys.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="secure_api_keys.xml" />
+    </device-transfer>
+</data-extraction-rules>

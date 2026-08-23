@@ -139,4 +139,52 @@ class ImagePromptEngineTest {
         assertTrue(prompt.contains("small, tarnished silver"))
         assertTrue(prompt.contains("engraved with a faded rose"))
     }
+
+    // یافته‌ی بازبینی نهایی (ADR-142، بازبینی خصمانه‌ی adversarial-reviewer):
+    // description در سه تابع بالا برخلاف فیلدهای اختیاری خواهر (basePrompt/
+    // specialTrait/defaultMood که با takeIf(isNotBlank) محافظت می‌شدند) بدون
+    // محافظت اضافه می‌شد — یک description خالی (که هیچ Rule ای آن را Block
+    // نمی‌کند، فقط Warning می‌دهد) یک المان رشته‌ی خالی در لیست ایجاد می‌کرد که
+    // با joinToString(", ") به یک کاما دوتایی قابل‌مشاهده در متن پرامپت نهایی
+    // تبدیل می‌شد.
+
+    @Test
+    fun `buildOutfitImagePrompt with blank description does not produce a double comma`() {
+        val character = neutralCharacter()
+        val outfit = Outfit(id = "outfit_1", name = "Plain Shirt", description = "", isDefault = true)
+
+        val prompt = buildOutfitImagePrompt(outfit, character, neutralDna())
+
+        assertTrue(!prompt.contains(", ,"))
+    }
+
+    @Test
+    fun `buildLocationImagePrompt with blank description does not produce a double comma`() {
+        val location = LocationAsset(
+            assetId = "loc_002",
+            name = "Empty Room",
+            description = "",
+            environment = Environment(type = "indoor", size = "small", lightingCondition = "bright")
+        )
+
+        val prompt = buildLocationImagePrompt(location, neutralDna())
+
+        assertTrue(!prompt.contains(", ,"))
+    }
+
+    @Test
+    fun `buildObjectImagePrompt with blank description does not produce a double comma`() {
+        val objectAsset = ObjectAsset(
+            assetId = "obj_002",
+            name = "Plain Box",
+            description = "",
+            subtype = ObjectSubtype.PERSONAL_PROP,
+            size = "small",
+            materialAndColor = "wood"
+        )
+
+        val prompt = buildObjectImagePrompt(objectAsset, neutralDna())
+
+        assertTrue(!prompt.contains(", ,"))
+    }
 }

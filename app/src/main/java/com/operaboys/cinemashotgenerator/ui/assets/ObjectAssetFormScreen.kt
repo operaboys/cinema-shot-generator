@@ -3,6 +3,7 @@ package com.operaboys.cinemashotgenerator.ui.assets
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -133,6 +134,8 @@ fun ObjectAssetFormScreen(
         uri?.let {
             runCatching {
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }.onFailure { error ->
+                Log.w("ObjectAssetFormScreen", "takePersistableUriPermission failed for $it — the reference image may become inaccessible after app restart", error)
             }
             viewModel.addReferenceImage(it.toString())
         }

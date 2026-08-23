@@ -2652,7 +2652,7 @@ BLOCKING). فیچر واقعی «آپلود عکس مرجع واقعی Asset» (
 ```
 app/src/main/java/com/operaboys/cinemashotgenerator/
 ├── data/    → Room entities, DAO, Database, Repository (واحد ۱۵ + Project/Story Repository واحد ۱۶)
-│   ├── entity/ → ۱۳ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext/StoryContext) — ProjectEntity فیلد state گرفت (فاز ۱)؛ StoryContextEntity جدید (فاز ۲ قدم ۱، فیلدهای مسطح)
+│   ├── entity/ → ۱۴ Room Entity (Project/Scene/Shot/Asset/PromptBlueprint/RenderedOutput/Override/Version/DependencyEdge/EventLog/ProjectDna/AudioContext/StoryContext/StoryBreakdownSession) — ProjectEntity فیلد state گرفت (فاز ۱)؛ StoryContextEntity جدید (فاز ۲ قدم ۱، فیلدهای مسطح)؛ StoryBreakdownSessionEntity جدید (ADR-121، `version = 2` با Migration واقعی)
 │   ├── dao/    → DAO های suspend/Flow متناظر + ProjectTransactionDao (اثبات Atomicity)؛ ProjectDao.getAllProjectsWithCounts با Correlated Subquery شمارش صحنه/شات؛ StoryDao جدید
 │   ├── repository/ → Settings/Versioning/ImpactAnalysis/ProjectDna/Asset/Scene/AudioContext/Project/Story Repository + PromptGenerationRepository.collectData + DTO محلی (data ← domain مجاز، domain ← data ممنوع)
 │   └── AppDatabase.kt → RoomDatabase + Singleton Provider (بدون DI)
@@ -2693,6 +2693,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── settings/  → واحد ۱۶ فاز ۶ قدم ۱: SettingsScreen/ViewModel (۷ کارت طبق سند طراحی)
 │   ├── backups/   → واحد ۱۶ فاز ۶ قدم ۲ (آخرین قدم): BackupsScreen/ViewModel/BackupLabels (فهرست/ساخت/بازیابی/حذف)
 │   ├── i18n/      → UiStrings (fa/en با domain.outputdelivery.t() واقعی) + BidiUtils (زیرساخت RTL)
+│   ├── common/    → کامپوننت‌های UI مشترک بین چند صفحه — اولین عضو RetranslateButton.kt (ADR-124، اولین کامپوننت مشترک پروژه، تا آن قدم هیچ ui.common ای وجود نداشت)
 │   └── App.kt     → ریشه‌ی درخت Compose (تم + جهت RTL/LTR + MainScaffold؛ همه‌ی Repository/Manager های مشترک اینجا ساخته می‌شوند)
 └── di/      → (خالی، برای بعد)
 
@@ -2786,10 +2787,13 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   می‌شوند اما هیچ زیرساخت Runtime ای برایشان وجود ندارد** — نه `HomeScreen`
   نه `ShotComposerScreen` فعلاً به مقدار Layout Variant شاخه‌بندی می‌کنند؛
   سه سوییچ Display هم به هیچ رفتار واقعی (فونت/اندازه‌ی لمس/انیمیشن) وصل
-  نیستند. «Choose Image» (Home Screen Image) هم پیام «به‌زودی» می‌دهد —
-  هیچ File Picker ای در کدبیس نیست (هم‌کلاس محدودیت Attached
-  References/Export). جزئیات کامل در
-  `docs/adr/058-unit16-phase6-step1-settings-autosave.md`.
+  نیستند. جزئیات کامل در
+  `docs/adr/058-unit16-phase6-step1-settings-autosave.md`. ~~«Choose
+  Image» (Home Screen Image) هم پیام «به‌زودی» می‌دهد — هیچ File Picker
+  ای در کدبیس نیست~~ — **رفع شد** (ADR-075): «انتخاب تصویر» اکنون یک
+  `OpenDocument()` واقعی است (`chooseImageLauncher`). این یک نسخه‌ی
+  تکراری از همان ادعای قدیمی بود که در بند «آپلود/انتخاب تصویر واقعی»
+  پایین‌تر هم اصلاح شد.
 - ~~Backups — Restore/Delete بدون دیالوگ تأیید~~ — **رفع شد** (یافته‌ی 🔴
   G19/G20 ممیزی `docs/audit/post-unit16-full-audit.md`): هر دو عملیات
   اکنون یک `AlertDialog` تأیید واقعی دارند (هم‌الگو با Delete پروژه‌ی
@@ -2828,7 +2832,10 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   آزاد کاربرند، نه enum). تا آن تصمیم، `OutputPackage.bilingualPrompts`
   (اکنون واقعاً ساخته و Export می‌شود، ADR-069) هر دو نسخه‌ی en/fa را با
   همان متن رندرشده‌ی نهایی پر می‌کند — یک Fallback صادقانه، نه ترجمه‌ی
-  جعلی.
+  جعلی. (این محدودیت مختص همین لایه است — یک `translateToFarsi` واقعی
+  و AI-محور جداگانه در `domain/storybreakdown/AiConnector.kt` برای Preview
+  فیلدهای Story Breakdown از قبل وجود دارد، ADR-121 تا ۱۲۴؛ آن مسیر
+  دیگری با هدف دیگری است، نه رفع این محدودیت.)
 - **صفحه‌ی مستقل «مرور همه‌ی Override های پروژه» (Revoke Screen) ساخته
   نشد** — Revoke فقط Inline روی همان کارت هشدار صفحه‌ی Validation ممکن
   است (ADR-068). دلیل: `OverrideEntity` (واحد ۱۵) فیلد `projectId` ندارد

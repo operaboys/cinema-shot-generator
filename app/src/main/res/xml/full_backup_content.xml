@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    یافته‌ی بازبینی نهایی (ADR-142): معادل قدیمی‌تر data_extraction_rules.xml
+    برای مسیر Backup پیش از API 31 (minSdk این پروژه ۲۶ است، پس هر دو مسیر
+    لازم‌اند — طبق مستندات رسمی اندروید برای android:fullBackupContent).
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="secure_api_keys.xml" />
+</full-backup-content>

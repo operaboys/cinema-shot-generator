@@ -52,7 +52,7 @@ fun buildOutfitImagePrompt(outfit: Outfit, character: CharacterAsset, projectDna
     parts += styleTokensOf(projectDna)
     parts += "matching the established character reference exactly"
     parts += "${character.name} wearing ${outfit.name}"
-    parts += outfit.description
+    outfit.description.takeIf { it.isNotBlank() }?.let { parts += it }
     outfit.condition?.let { condition ->
         val conditionParts = listOfNotNull(condition.weather, condition.timeOfDay, condition.locationType)
         if (conditionParts.isNotEmpty()) parts += conditionParts.joinToString(", ")
@@ -63,7 +63,7 @@ fun buildOutfitImagePrompt(outfit: Outfit, character: CharacterAsset, projectDna
 fun buildLocationImagePrompt(location: LocationAsset, projectDna: ProjectDna): String {
     val parts = mutableListOf<String>()
     parts += styleTokensOf(projectDna)
-    parts += location.description
+    location.description.takeIf { it.isNotBlank() }?.let { parts += it }
     parts += "${location.environment.type}, ${location.environment.size}, ${location.environment.lightingCondition}"
     if (location.keyElements.isNotEmpty()) parts += location.keyElements.joinToString(", ")
     location.basePrompt?.takeIf { it.isNotBlank() }?.let { parts += it }
@@ -73,7 +73,7 @@ fun buildLocationImagePrompt(location: LocationAsset, projectDna: ProjectDna): S
 fun buildObjectImagePrompt(objectAsset: ObjectAsset, projectDna: ProjectDna): String {
     val parts = mutableListOf<String>()
     parts += styleTokensOf(projectDna)
-    parts += objectAsset.description
+    objectAsset.description.takeIf { it.isNotBlank() }?.let { parts += it }
     parts += "${objectAsset.size}, ${objectAsset.materialAndColor}"
     objectAsset.specialTrait?.takeIf { it.isNotBlank() }?.let { parts += it }
     objectAsset.basePrompt?.takeIf { it.isNotBlank() }?.let { parts += it }
