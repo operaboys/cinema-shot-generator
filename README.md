@@ -2536,6 +2536,18 @@ ADR): دو Rule یتیم `validateSpeedIntensity`/`validateMotionBlur`
 Breakdown طراحی شده‌اند، نه یک شیء JSON تک‌شات و کوچک با دو کلید. جزئیات
 کامل در `docs/adr/133-reference-image-prompt-ai-connector.md`.
 
+### ✅ اتصال «پرامپت ساخت عکس مرجع» به فرم شخصیت — زیرقدم ۴ از ۵ (ADR-134)
+
+`CharacterAssetFormViewModel`/`CharacterAssetFormScreen` به موتور
+Template (ADR-132) و مسیر AI (ADR-133) وصل شدند — هم برای شخصیت پایه و
+هم برای هر Outfit. پیش‌نمایش زنده‌ی Template (بدون دکمه، خودکار)، دکمه‌ی
+دوگزینه‌ای «سریع»/«حرفه‌ای» (هر دو `imagePromptGeneratedAt` را ست
+می‌کنند)، و برچسب هشدار «قدیمی‌شده» وقتی `updatedAt` شخصیت از
+`imagePromptGeneratedAt` جدیدتر باشد. نتایج فقط با کلیک دکمه‌ی اصلی
+«ذخیره» ماندگار می‌شوند. `save()` اکنون `updatedAt` را واقعاً ست
+می‌کند — بدون آن، تشخیص قدیمی‌شدن کار نمی‌کرد. جزئیات کامل در
+`docs/adr/134-reference-image-prompt-character-form-ui.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

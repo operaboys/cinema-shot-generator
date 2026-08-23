@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,14 +37,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
+import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
+import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
@@ -84,6 +92,15 @@ fun outfitRemoveButtonTag(index: Int): String = "characterForm.outfitRemoveButto
 fun outfitConditionWeatherFieldTag(index: Int): String = "characterForm.outfitConditionWeatherField.$index"
 fun outfitConditionTimeOfDayFieldTag(index: Int): String = "characterForm.outfitConditionTimeOfDayField.$index"
 fun outfitConditionLocationTypeFieldTag(index: Int): String = "characterForm.outfitConditionLocationTypeField.$index"
+
+// فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+const val CHARACTER_FORM_IMAGE_PROMPT_QUICK_BUTTON_TAG = "characterForm.imagePromptQuickButton"
+const val CHARACTER_FORM_IMAGE_PROMPT_AI_BUTTON_TAG = "characterForm.imagePromptAiButton"
+const val CHARACTER_FORM_IMAGE_PROMPT_STALE_WARNING_TAG = "characterForm.imagePromptStaleWarning"
+fun outfitImagePromptExpandButtonTag(index: Int): String = "characterForm.outfitImagePromptExpandButton.$index"
+fun outfitImagePromptQuickButtonTag(index: Int): String = "characterForm.outfitImagePromptQuickButton.$index"
+fun outfitImagePromptAiButtonTag(index: Int): String = "characterForm.outfitImagePromptAiButton.$index"
+fun outfitImagePromptStaleWarningTag(index: Int): String = "characterForm.outfitImagePromptStaleWarning.$index"
 
 @Composable
 fun CharacterAssetFormScreen(
@@ -129,6 +146,18 @@ fun CharacterAssetFormScreen(
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
+
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+    val projectDna by viewModel.projectDna.collectAsStateWithLifecycle()
+    val characterBaseImagePromptPreview by viewModel.characterBaseImagePromptPreview.collectAsStateWithLifecycle()
+    val imagePromptQuick by viewModel.imagePromptQuick.collectAsStateWithLifecycle()
+    val imagePromptAi by viewModel.imagePromptAi.collectAsStateWithLifecycle()
+    val imagePromptFaPreview by viewModel.imagePromptFaPreview.collectAsStateWithLifecycle()
+    val imagePromptGeneratedAt by viewModel.imagePromptGeneratedAt.collectAsStateWithLifecycle()
+    val imagePromptAiInProgress by viewModel.imagePromptAiInProgress.collectAsStateWithLifecycle()
+    val imagePromptAiError by viewModel.imagePromptAiError.collectAsStateWithLifecycle()
+    val outfitImagePromptAiInProgress by viewModel.outfitImagePromptAiInProgress.collectAsStateWithLifecycle()
+    val outfitImagePromptAiError by viewModel.outfitImagePromptAiError.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
@@ -234,7 +263,30 @@ fun CharacterAssetFormScreen(
                 language = language
             )
 
-            OutfitsSection(viewModel = viewModel, language = language, outfits = outfits)
+            CharacterImagePromptSection(
+                viewModel = viewModel,
+                language = language,
+                preview = characterBaseImagePromptPreview,
+                imagePromptQuick = imagePromptQuick,
+                imagePromptAi = imagePromptAi,
+                imagePromptFaPreview = imagePromptFaPreview,
+                imagePromptGeneratedAt = imagePromptGeneratedAt,
+                aiInProgress = imagePromptAiInProgress,
+                aiError = imagePromptAiError,
+                apiKeySaved = apiKeySavedForTranslationProfile
+            )
+
+            OutfitsSection(
+                viewModel = viewModel,
+                language = language,
+                outfits = outfits,
+                characterName = name,
+                characterTier = tier,
+                projectDna = projectDna,
+                outfitImagePromptAiInProgress = outfitImagePromptAiInProgress,
+                outfitImagePromptAiError = outfitImagePromptAiError,
+                apiKeySaved = apiKeySavedForTranslationProfile
+            )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
         }
@@ -250,6 +302,81 @@ fun CharacterAssetFormScreen(
 }
 
 /**
+ * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): بخش شخصیت
+ * پایه/خنثی (مستقل از هر Outfit — بخش هر Outfit پایین‌تر، داخل OutfitRow).
+ * Preview زنده (بدون دکمه، بدون AI) همیشه از پرامپت Template زیرقدم ۲ محاسبه
+ * می‌شود؛ دو دکمه («سریع»/«با AI») نتیجه را در ViewModel ذخیره می‌کنند —
+ * ذخیره‌ی نهایی روی دیسک با کلیک دکمه‌ی اصلی «ذخیره» انجام می‌شود (تصمیم
+ * صریح معمار)، نه بلافاصله در همین کلیک.
+ */
+@Composable
+private fun CharacterImagePromptSection(
+    viewModel: CharacterAssetFormViewModel,
+    language: Language,
+    preview: String?,
+    imagePromptQuick: String?,
+    imagePromptAi: String?,
+    imagePromptFaPreview: String?,
+    imagePromptGeneratedAt: Long?,
+    aiInProgress: Boolean,
+    aiError: String?,
+    apiKeySaved: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = uiString("characterForm.imagePromptSectionTitle", language), style = MaterialTheme.typography.titleSmall)
+        preview?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text = uiTemplate("assetForm.imagePromptPreviewTemplate", language, "prompt" to it),
+                style = MaterialTheme.typography.bodySmall,
+                color = CinemaTheme.extendedColors.fg3
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                onClick = viewModel::generateCharacterBaseImagePromptQuick,
+                modifier = Modifier.testTag(CHARACTER_FORM_IMAGE_PROMPT_QUICK_BUTTON_TAG)
+            ) {
+                Text(uiString("assetForm.imagePromptQuickButton", language))
+            }
+            TextButton(
+                onClick = { viewModel.generateCharacterBaseImagePromptWithAi() },
+                enabled = apiKeySaved && !aiInProgress,
+                modifier = Modifier.testTag(CHARACTER_FORM_IMAGE_PROMPT_AI_BUTTON_TAG)
+            ) {
+                if (aiInProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(uiString("assetForm.imagePromptAiButton", language))
+                }
+            }
+        }
+        if (!apiKeySaved) {
+            Text(text = uiString("retranslate.noKeyHint", language), style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.fg3)
+        }
+        aiError?.let { AssetFormValidationIssueRow(ValidationIssue(Severity.BLOCKING, message = it)) }
+        imagePromptQuick?.let {
+            Text(text = uiTemplate("assetForm.imagePromptQuickResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+        }
+        imagePromptAi?.let {
+            Text(text = uiTemplate("assetForm.imagePromptAiResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+            imagePromptFaPreview?.let { fa ->
+                Text(
+                    text = uiTemplate("assetForm.imagePromptFaPreviewResultTemplate", language, "prompt" to fa),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+        }
+        if (viewModel.isImagePromptStale(imagePromptGeneratedAt)) {
+            AssetFormValidationIssueRow(
+                ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),
+                testTag = CHARACTER_FORM_IMAGE_PROMPT_STALE_WARNING_TAG
+            )
+        }
+    }
+}
+
+/**
  * رفع G5 (ADR-067 بخش ه، ADR-095) — هم‌الگو دقیق با ActionSoundsSection
  * (ui/shots/AudioTabContent.kt): empty-state وقتی لیست خالی است، ردیف‌های
  * موجود بالا، فرم «افزودن» ثابت پایین (State محلی، بعد از افزودن پاک می‌شود).
@@ -258,7 +385,17 @@ fun CharacterAssetFormScreen(
  * استفاده شد (هم‌الگو با LinkedAssetCard در ui/scenes/SceneDetailScreen.kt).
  */
 @Composable
-private fun OutfitsSection(viewModel: CharacterAssetFormViewModel, language: Language, outfits: List<Outfit>) {
+private fun OutfitsSection(
+    viewModel: CharacterAssetFormViewModel,
+    language: Language,
+    outfits: List<Outfit>,
+    characterName: String,
+    characterTier: CharacterTier,
+    projectDna: ProjectDna?,
+    outfitImagePromptAiInProgress: Set<String>,
+    outfitImagePromptAiError: Map<String, String>,
+    apiKeySaved: Boolean
+) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
@@ -281,7 +418,17 @@ private fun OutfitsSection(viewModel: CharacterAssetFormViewModel, language: Lan
                     onRemove = { viewModel.removeOutfit(index) },
                     onWeatherChange = { viewModel.setOutfitConditionWeather(index, it) },
                     onTimeOfDayChange = { viewModel.setOutfitConditionTimeOfDay(index, it) },
-                    onLocationTypeChange = { viewModel.setOutfitConditionLocationType(index, it) }
+                    onLocationTypeChange = { viewModel.setOutfitConditionLocationType(index, it) },
+                    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+                    characterName = characterName,
+                    characterTier = characterTier,
+                    projectDna = projectDna,
+                    aiInProgress = outfit.id in outfitImagePromptAiInProgress,
+                    aiError = outfitImagePromptAiError[outfit.id],
+                    apiKeySaved = apiKeySaved,
+                    isStale = viewModel.isImagePromptStale(outfit.imagePromptGeneratedAt),
+                    onGenerateQuick = { viewModel.generateOutfitImagePromptQuick(index) },
+                    onGenerateWithAi = { viewModel.generateOutfitImagePromptWithAi(index) }
                 )
             }
         }
@@ -326,7 +473,17 @@ private fun OutfitRow(
     onRemove: () -> Unit,
     onWeatherChange: (WeatherType?) -> Unit,
     onTimeOfDayChange: (TimeOfDay?) -> Unit,
-    onLocationTypeChange: (LocationType?) -> Unit
+    onLocationTypeChange: (LocationType?) -> Unit,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+    characterName: String,
+    characterTier: CharacterTier,
+    projectDna: ProjectDna?,
+    aiInProgress: Boolean,
+    aiError: String?,
+    apiKeySaved: Boolean,
+    isStale: Boolean,
+    onGenerateQuick: () -> Unit,
+    onGenerateWithAi: () -> Unit
 ) {
     val notSetLabel = uiString("shotComposer.notSet", language)
     // condition.weather/timeOfDay/locationType به‌صورت name.lowercase() ذخیره
@@ -392,6 +549,112 @@ private fun OutfitRow(
                 notSetLabel = notSetLabel,
                 onSelect = onLocationTypeChange
             )
+
+            OutfitImagePromptSection(
+                outfit = outfit,
+                index = index,
+                language = language,
+                characterName = characterName,
+                characterTier = characterTier,
+                projectDna = projectDna,
+                aiInProgress = aiInProgress,
+                aiError = aiError,
+                apiKeySaved = apiKeySaved,
+                isStale = isStale,
+                onGenerateQuick = onGenerateQuick,
+                onGenerateWithAi = onGenerateWithAi
+            )
+        }
+    }
+}
+
+/**
+ * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): بخش جمع‌وجور
+ * (Expand/Collapse، طبق دستور کار — OutfitRow از قبل شلوغ است) — Preview زنده
+ * فقط وقتی باز است محاسبه می‌شود (buildOutfitImagePrompt مستقیماً از این
+ * Composable صدا زده می‌شود؛ الگویی که در سراسر پروژه برای توابع خالص دامنه
+ * از UI رایج است، مثل checkStyleCompatibility در ui/dna/DnaTabContent.kt).
+ * `character` یک شیء کمینه است — buildOutfitImagePrompt فقط `character.name`
+ * را می‌خواند (تأییدشده مستقیم با خواندن ImagePromptEngine.kt، ADR-132)، پس
+ * ساخت کامل PhysicalAppearance/... اینجا لازم نیست.
+ */
+@Composable
+private fun OutfitImagePromptSection(
+    outfit: Outfit,
+    index: Int,
+    language: Language,
+    characterName: String,
+    characterTier: CharacterTier,
+    projectDna: ProjectDna?,
+    aiInProgress: Boolean,
+    aiError: String?,
+    apiKeySaved: Boolean,
+    isStale: Boolean,
+    onGenerateQuick: () -> Unit,
+    onGenerateWithAi: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextButton(onClick = { expanded = !expanded }, modifier = Modifier.testTag(outfitImagePromptExpandButtonTag(index))) {
+            Text(uiString("characterForm.outfitImagePromptToggleButton", language))
+        }
+        if (expanded) {
+            val preview = projectDna?.let { dna ->
+                val minimalCharacter = CharacterAsset(
+                    assetId = "preview",
+                    characterTier = characterTier,
+                    name = characterName,
+                    physicalAppearance = PhysicalAppearance(ageRange = "", gender = Gender.OTHER),
+                    outfits = emptyList()
+                )
+                buildOutfitImagePrompt(outfit, minimalCharacter, dna)
+            }
+            preview?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = uiTemplate("assetForm.imagePromptPreviewTemplate", language, "prompt" to it),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CinemaTheme.extendedColors.fg3
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onGenerateQuick, modifier = Modifier.testTag(outfitImagePromptQuickButtonTag(index))) {
+                    Text(uiString("assetForm.imagePromptQuickButton", language))
+                }
+                TextButton(
+                    onClick = onGenerateWithAi,
+                    enabled = apiKeySaved && !aiInProgress,
+                    modifier = Modifier.testTag(outfitImagePromptAiButtonTag(index))
+                ) {
+                    if (aiInProgress) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(uiString("assetForm.imagePromptAiButton", language))
+                    }
+                }
+            }
+            if (!apiKeySaved) {
+                Text(text = uiString("retranslate.noKeyHint", language), style = MaterialTheme.typography.labelSmall, color = CinemaTheme.extendedColors.fg3)
+            }
+            aiError?.let { AssetFormValidationIssueRow(ValidationIssue(Severity.BLOCKING, message = it)) }
+            outfit.imagePromptQuick?.let {
+                Text(text = uiTemplate("assetForm.imagePromptQuickResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+            }
+            outfit.imagePromptAi?.let {
+                Text(text = uiTemplate("assetForm.imagePromptAiResultTemplate", language, "prompt" to it), style = MaterialTheme.typography.bodySmall)
+                outfit.imagePromptFaPreview?.let { fa ->
+                    Text(
+                        text = uiTemplate("assetForm.imagePromptFaPreviewResultTemplate", language, "prompt" to fa),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CinemaTheme.extendedColors.fg3
+                    )
+                }
+            }
+            if (isStale) {
+                AssetFormValidationIssueRow(
+                    ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),
+                    testTag = outfitImagePromptStaleWarningTag(index)
+                )
+            }
         }
     }
 }

@@ -7,11 +7,18 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
+import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
+import com.operaboys.cinemashotgenerator.domain.asset.Gender
+import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -343,5 +350,216 @@ class CharacterAssetFormViewModelTest {
         assertEquals("", vm.descriptionFaPreview.value)
         assertNotNull(vm.translationError.value)
         assertTrue(vm.translationError.value!!.contains("invalid API key"))
+    }
+
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): همان الگوی
+    // دقیق تست‌های بالا (ioScopeOverride=Dispatchers.Unconfined، Collector مصنوعی
+    // برای StateFlow های combine(...).stateIn(WhileSubscribed) — اینجا
+    // characterBaseImagePromptPreview، طبق همان یافته‌ی مستندشده‌ی canSave بالا).
+
+    private fun buildTestProjectDnaRepository(): ProjectDnaRepository = ProjectDnaRepository(injectedDatabase.projectDnaDao())
+
+    // یافته‌ی واقعی دیباگ این ۳ تست: ProjectDnaEntity یک ForeignKey واقعی به
+    // ProjectEntity دارد (هم‌الگو با یافته‌ی مستندشده‌ی DnaViewModelTest.kt) —
+    // بدون یک ردیف Project واقعی، saveProjectDna داخل runCatching بی‌صدا شکست
+    // می‌خورد و vm.projectDna برای همیشه null می‌ماند.
+    private suspend fun createTestProject(projectId: String) {
+        ProjectRepository(injectedDatabase.projectDao(), idProvider = { projectId }).createProject("Image Prompt Test").getOrThrow()
+    }
+
+    @Test
+    fun `generateCharacterBaseImagePromptQuick populates imagePromptQuick and imagePromptGeneratedAt from the live Template preview`() = runBlocking {
+        createTestProject("proj_character_outfit_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        projectDnaRepository.saveProjectDna(defaultProjectDna("proj_character_outfit_test") { "dna_image_prompt_quick_test" }).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_outfit_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.characterBaseImagePromptPreview.collect {} }
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        vm.setAgeRange("30s")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.generateCharacterBaseImagePromptQuick()
+
+        assertNotNull(vm.imagePromptQuick.value)
+        assertTrue(vm.imagePromptQuick.value!!.contains("Jane Doe"))
+        assertTrue(
+            "پرامپت باید شامل Style Tokens واقعی سبک پروژه باشد، نه فقط فیلدهای شخصیت",
+            vm.imagePromptQuick.value!!.contains("cinematic style")
+        )
+        assertNotNull(vm.imagePromptGeneratedAt.value)
+    }
+
+    @Test
+    fun `generateOutfitImagePromptQuick populates only that outfit's own imagePromptQuick, leaving other outfits untouched`() = runBlocking {
+        createTestProject("proj_character_outfit_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        projectDnaRepository.saveProjectDna(defaultProjectDna("proj_character_outfit_test") { "dna_outfit_quick_test" }).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_outfit_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.characterBaseImagePromptPreview.collect {} }
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        vm.addOutfit("Winter Coat", "a heavy wool coat")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.generateOutfitImagePromptQuick(1)
+
+        val outfits = vm.outfits.value
+        assertNotNull(outfits[1].imagePromptQuick)
+        assertTrue(outfits[1].imagePromptQuick!!.contains("Jane Doe"))
+        assertTrue(outfits[1].imagePromptQuick!!.contains("Winter Coat"))
+        assertNotNull(outfits[1].imagePromptGeneratedAt)
+        assertNull(
+            "تولید پرامپت برای Outfit دوم نباید Outfit اول (پیش‌فرض) را دست بزند",
+            outfits[0].imagePromptQuick
+        )
+    }
+
+    @Test
+    fun `save persists a real updatedAt timestamp, without which stale-prompt detection could never work`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_updated_at_test",
+            repository = repository,
+            idProvider = { "char_updated_at_test" },
+            projectDnaRepository = buildTestProjectDnaRepository(),
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        val beforeSave = System.currentTimeMillis()
+        vm.setName("Detective John")
+        vm.setAgeRange("30-40")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        val loaded = repository.loadCharacterAssets(listOf("char_updated_at_test")).getOrThrow().single()
+        assertNotNull(loaded.updatedAt)
+        assertTrue(
+            "updatedAt باید زمان همین save() واقعی باشد (نه null، نه یک مقدار قدیمی)",
+            loaded.updatedAt!! >= beforeSave
+        )
+    }
+
+    @Test
+    fun `generateCharacterBaseImagePromptWithAi without a saved key never attempts a real HTTP call and sets a meaningful error`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("character_image_prompt_ai_no_key_prefs")
+        var engineCalled = false
+        val engine = MockEngine {
+            engineCalled = true
+            respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        createTestProject("proj_character_image_prompt_ai_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        projectDnaRepository.saveProjectDna(defaultProjectDna("proj_character_image_prompt_ai_test") { "dna_image_prompt_ai_no_key_test" }).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_image_prompt_ai_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine,
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        vm.setAgeRange("30s")
+
+        vm.generateCharacterBaseImagePromptWithAi().join()
+
+        assertFalse(
+            "بدون کلید ذخیره‌شده نباید هیچ تلاش HTTP واقعی انجام شود — مهم‌ترین تست امنیتی این فیچر",
+            engineCalled
+        )
+        assertNotNull(vm.imagePromptAiError.value)
+        assertNull(vm.imagePromptAi.value)
+    }
+
+    @Test
+    fun `generateCharacterBaseImagePromptWithAi with a saved key and a successful bilingual response populates imagePromptAi and imagePromptFaPreview`() = runBlocking {
+        val secureKeyRepository = buildTestSecureKeyRepository("character_image_prompt_ai_success_prefs")
+        secureKeyRepository.saveApiKey(GEMINI_API_PROFILE.profileId, "gemini-real-key")
+        val engine = MockEngine {
+            respond(
+                content = """{"candidates":[{"content":{"parts":[{"text":"{\"imagePromptEn\": \"a rich cinematic prompt\", \"imagePromptFa\": \"یک پرامپت سینمایی غنی\"}"}]}}]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        createTestProject("proj_character_image_prompt_ai_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        projectDnaRepository.saveProjectDna(defaultProjectDna("proj_character_image_prompt_ai_test") { "dna_image_prompt_ai_success_test" }).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_image_prompt_ai_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            secureKeyRepository = secureKeyRepository,
+            httpClientEngine = engine,
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        vm.setAgeRange("30s")
+        awaitCondition(vm.apiKeySavedForTranslationProfile) { it }
+
+        vm.generateCharacterBaseImagePromptWithAi().join()
+
+        assertEquals("a rich cinematic prompt", vm.imagePromptAi.value)
+        assertEquals("یک پرامپت سینمایی غنی", vm.imagePromptFaPreview.value)
+        assertNotNull(vm.imagePromptGeneratedAt.value)
+        assertNull(vm.imagePromptAiError.value)
+    }
+
+    @Test
+    fun `isImagePromptStale is true only when a prompt exists and the character was loaded with a newer updatedAt`() = runBlocking {
+        assertFalse(
+            "بدون هیچ imagePromptGeneratedAt ای، قدیمی‌بودن معنا ندارد",
+            viewModel.isImagePromptStale(null)
+        )
+
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        repository.saveCharacterAsset(
+            "proj_character_stale_test",
+            CharacterAsset(
+                assetId = "char_stale_test",
+                characterTier = CharacterTier.MAIN,
+                name = "Jane Doe",
+                physicalAppearance = PhysicalAppearance(ageRange = "30s", gender = Gender.OTHER),
+                outfits = emptyList(),
+                updatedAt = 2_000L
+            )
+        ).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_stale_test",
+            repository = repository,
+            existingAssetId = "char_stale_test",
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        awaitCondition(vm.name) { it == "Jane Doe" }
+
+        assertTrue(
+            "وقتی پرامپت قبل از آخرین ویرایش Asset ساخته شده، باید قدیمی محسوب شود",
+            vm.isImagePromptStale(1_000L)
+        )
+        assertFalse(
+            "وقتی پرامپت بعد از آخرین ویرایش Asset ساخته شده، نباید قدیمی محسوب شود",
+            vm.isImagePromptStale(3_000L)
+        )
     }
 }

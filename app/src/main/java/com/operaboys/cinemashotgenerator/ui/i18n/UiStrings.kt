@@ -230,6 +230,17 @@ val faStrings: Map<String, String> = mapOf(
     "assetForm.addTagButton" to "افزودن",
     "assetForm.continuityLockLevelFixedTemplate" to "سطح قفل تداوم (ثابت): {level}",
 
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): کلیدهای
+    // مشترک بین سه فرم Asset (Character اکنون؛ Location/Object زیرقدم ۵) —
+    // طبق namespace مشترک assetForm.* موجود، نه characterForm.* اختصاصی.
+    "assetForm.imagePromptPreviewTemplate" to "پیش‌نمایش زنده: {prompt}",
+    "assetForm.imagePromptQuickButton" to "ساخت سریع",
+    "assetForm.imagePromptAiButton" to "ساخت با AI",
+    "assetForm.imagePromptQuickResultTemplate" to "پرامپت سریع (ذخیره‌شده): {prompt}",
+    "assetForm.imagePromptAiResultTemplate" to "پرامپت حرفه‌ای (AI): {prompt}",
+    "assetForm.imagePromptFaPreviewResultTemplate" to "ترجمه‌ی فارسی (فقط مرور): {prompt}",
+    "assetForm.imagePromptStaleWarning" to "این پرامپت از آخرین ویرایش این Asset قدیمی‌تر است — دوباره بسازید",
+
     // فاز ۳ — قدم ۲ — بخش الف: فرم Character
     "characterForm.title" to "کاراکتر جدید",
     "characterForm.subtitle" to "ساخت یک Asset کاراکتر برای کتابخانه",
@@ -259,6 +270,9 @@ val faStrings: Map<String, String> = mapOf(
     "characterForm.outfitConditionTimeOfDayLabel" to "شرط زمان روز (اختیاری)",
     "characterForm.outfitConditionLocationTypeLabel" to "شرط نوع مکان (اختیاری)",
     "characterForm.continuityLockLevelLabel" to "سطح قفل تداوم",
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+    "characterForm.imagePromptSectionTitle" to "پرامپت عکس مرجع — شخصیت پایه",
+    "characterForm.outfitImagePromptToggleButton" to "پرامپت عکس این لباس",
 
     // فاز ۳ — قدم ۲ — بخش ب: فرم Location
     "locationForm.title" to "مکان جدید",
@@ -1162,6 +1176,15 @@ val enStrings: Map<String, String> = mapOf(
     "assetForm.addTagButton" to "Add",
     "assetForm.continuityLockLevelFixedTemplate" to "Continuity lock level (fixed): {level}",
 
+    // Independent feature "reference image prompt" — sub-step 4 of 5 (ADR-134).
+    "assetForm.imagePromptPreviewTemplate" to "Live preview: {prompt}",
+    "assetForm.imagePromptQuickButton" to "Quick",
+    "assetForm.imagePromptAiButton" to "Generate with AI",
+    "assetForm.imagePromptQuickResultTemplate" to "Quick prompt (saved): {prompt}",
+    "assetForm.imagePromptAiResultTemplate" to "Professional prompt (AI): {prompt}",
+    "assetForm.imagePromptFaPreviewResultTemplate" to "Persian translation (review only): {prompt}",
+    "assetForm.imagePromptStaleWarning" to "This prompt is older than the last edit to this asset — regenerate it",
+
     // Phase 3 — Step 2 — Part A: Character form
     "characterForm.title" to "New Character",
     "characterForm.subtitle" to "Create a character asset for the library",
@@ -1191,6 +1214,9 @@ val enStrings: Map<String, String> = mapOf(
     "characterForm.outfitConditionTimeOfDayLabel" to "Condition: time of day (optional)",
     "characterForm.outfitConditionLocationTypeLabel" to "Condition: location type (optional)",
     "characterForm.continuityLockLevelLabel" to "Continuity lock level",
+    // Independent feature "reference image prompt" — sub-step 4 of 5 (ADR-134).
+    "characterForm.imagePromptSectionTitle" to "Reference image prompt — base character",
+    "characterForm.outfitImagePromptToggleButton" to "This outfit's image prompt",
 
     // Phase 3 — Step 2 — Part B: Location form
     "locationForm.title" to "New Location",

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel
@@ -18,10 +19,14 @@ import com.operaboys.cinemashotgenerator.domain.asset.Hair
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.asset.buildCharacterBaseImagePrompt
+import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
+import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
+import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
@@ -30,6 +35,8 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFIL
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
+import com.operaboys.cinemashotgenerator.domain.visualidentity.combineStyles
+import com.operaboys.cinemashotgenerator.domain.visualidentity.toStyleReference
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +63,57 @@ import kotlinx.coroutines.launch
 // (`enforceCharacterContinuity`، domain/promptengine/CharacterContinuity.kt) از قبل
 // درست پیاده بودند و در این قدم تغییر نکردند — این قدم فقط UI را به آن‌ها وصل
 // می‌کند.
+
+// فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): دو نوع خصوصی
+// واسط برای combine سه‌مرحله‌ای characterSnapshot پایین‌تر (بیش از ۵ Flow).
+private data class SnapshotPartial1(val name: String, val ageRange: String, val gender: Gender, val height: String, val build: String)
+private data class SnapshotPartial2(val p1: SnapshotPartial1, val hairColor: String, val hairStyle: String, val hairLength: String, val facialEyes: String)
+
+/**
+ * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): استخراج‌شده از
+ * منطق قبلاً تکراری save() تا هم توسط save() و هم توسط characterSnapshot
+ * (Preview زنده) بدون کپی منطق hair/facialFeatures استفاده شود.
+ */
+private fun buildPhysicalAppearance(
+    ageRange: String,
+    gender: Gender,
+    height: String,
+    build: String,
+    hairColor: String,
+    hairStyle: String,
+    hairLength: String,
+    facialEyes: String,
+    facialDistinctiveMarks: String,
+    physicalFeatures: String
+): PhysicalAppearance {
+    val hair = if (hairColor.isNotBlank() || hairStyle.isNotBlank() || hairLength.isNotBlank()) {
+        Hair(color = hairColor, style = hairStyle, length = hairLength)
+    } else null
+    val distinctiveMarks = facialDistinctiveMarks.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    val facialFeatures = if (facialEyes.isNotBlank() || distinctiveMarks.isNotEmpty()) {
+        FacialFeatures(eyes = facialEyes, distinctiveMarks = distinctiveMarks)
+    } else null
+    return PhysicalAppearance(
+        ageRange = ageRange,
+        gender = gender,
+        height = height.ifBlank { null },
+        build = build.ifBlank { null },
+        hair = hair,
+        physicalFeatures = physicalFeatures.ifBlank { null },
+        facialFeatures = facialFeatures
+    )
+}
+
+/** Style Tokens یک ProjectDna — هم‌الگو دقیق با styleTokensOf خصوصی ImagePromptEngine.kt (ADR-132)؛ آن تابع private است، پس اینجا تکرار شد (طبق تصمیم دستور کار این قدم: تغییر آن فایل مجاز نیست). */
+private fun styleTokensOf(dna: ProjectDna): String {
+    val coreIdentity = dna.coreIdentity
+    return combineStyles(
+        primary = coreIdentity.dominantVisualStyle.toStyleReference(),
+        secondary = coreIdentity.secondaryStyle?.toStyleReference(),
+        influence = coreIdentity.influence
+    )
+}
+
 class CharacterAssetFormViewModel(
     application: Application,
     private val projectId: String,
@@ -70,6 +128,11 @@ class CharacterAssetFormViewModel(
     // SharedPreferences معمولی/MockEngine جایگزین کنند.
     private val secureKeyRepository: SecureKeyRepository = SecureKeyRepository(application),
     private val httpClientEngine: HttpClientEngine = OkHttp.create(),
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): برای
+    // Style Tokens لازم برای buildCharacterBaseImagePrompt/buildOutfitImagePrompt
+    // (زیرقدم ۲، ADR-132) به ProjectDna پروژه نیاز است. تزریق‌پذیر، هم‌الگو با
+    // بقیه‌ی Repository های این ViewModel.
+    private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -144,6 +207,49 @@ class CharacterAssetFormViewModel(
     private val _translationError = MutableStateFlow<String?>(null)
     val translationError: StateFlow<String?> = _translationError.asStateFlow()
 
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): پرامپت عکس
+    // شخصیت پایه/خنثی (بدون لباس داستانی، مستقل از هر Outfit — Outfit.imagePromptQuick/...
+    // پایین‌تر، از خودِ لیست _outfits می‌آید، بدون نیاز به StateFlow جداگانه).
+    private val _projectDna = MutableStateFlow<ProjectDna?>(null)
+    val projectDna: StateFlow<ProjectDna?> = _projectDna.asStateFlow()
+
+    private val _imagePromptQuick = MutableStateFlow<String?>(null)
+    val imagePromptQuick: StateFlow<String?> = _imagePromptQuick.asStateFlow()
+
+    private val _imagePromptAi = MutableStateFlow<String?>(null)
+    val imagePromptAi: StateFlow<String?> = _imagePromptAi.asStateFlow()
+
+    private val _imagePromptFaPreview = MutableStateFlow<String?>(null)
+    val imagePromptFaPreview: StateFlow<String?> = _imagePromptFaPreview.asStateFlow()
+
+    private val _imagePromptGeneratedAt = MutableStateFlow<Long?>(null)
+    val imagePromptGeneratedAt: StateFlow<Long?> = _imagePromptGeneratedAt.asStateFlow()
+
+    private val _imagePromptAiInProgress = MutableStateFlow(false)
+    val imagePromptAiInProgress: StateFlow<Boolean> = _imagePromptAiInProgress.asStateFlow()
+
+    private val _imagePromptAiError = MutableStateFlow<String?>(null)
+    val imagePromptAiError: StateFlow<String?> = _imagePromptAiError.asStateFlow()
+
+    // هر Outfit در حال Generate با AI با شناسه‌ی خودش (outfit.id) ردیابی می‌شود —
+    // چون هر ردیف Outfit مستقل از بقیه است (کاربر می‌تواند هم‌زمان روی دو Outfit
+    // مختلف کلیک کند)، یک Boolean سراسری تک‌مقداره کافی نبود.
+    private val _outfitImagePromptAiInProgress = MutableStateFlow<Set<String>>(emptySet())
+    val outfitImagePromptAiInProgress: StateFlow<Set<String>> = _outfitImagePromptAiInProgress.asStateFlow()
+
+    private val _outfitImagePromptAiError = MutableStateFlow<Map<String, String>>(emptyMap())
+    val outfitImagePromptAiError: StateFlow<Map<String, String>> = _outfitImagePromptAiError.asStateFlow()
+
+    /**
+     * زمان آخرین ذخیره‌ی واقعی این Asset روی دیسک، قبل از این جلسه‌ی ویرایش —
+     * `var` معمولی (نه StateFlow)، دقیقاً هم‌الگو با `loadedShot` در
+     * ShotComposerViewModel.kt: فقط یک‌بار در applyLoadedAsset() پر می‌شود و در
+     * طول همین جلسه‌ی ویرایش ثابت می‌ماند (تا save() واقعاً کلیک شود). تشخیص
+     * «قدیمی‌شدن پرامپت عکس» این مقدار را با imagePromptGeneratedAt هر پرامپت
+     * مقایسه می‌کند — نه یک updatedAt «زنده» که با هر کلیدفشاری تغییر کند.
+     */
+    private var loadedUpdatedAt: Long? = null
+
     // همیشه با دقیقاً یک Outfit پیش‌فرض شروع می‌شود — دقیقاً هم‌رفتار با مقدار
     // پیش‌فرض قدیمی («Default» + توضیح خالی)، تا Rule ۵ (validateDefaultOutfitExists)
     // برای یک Character تازه‌ساز بدون هیچ تعامل کاربر هم برقرار بماند.
@@ -166,6 +272,54 @@ class CharacterAssetFormViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /**
+     * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): CharacterAsset
+     * زنده‌ی «Preview» — فقط فیلدهایی که buildCharacterBaseImagePrompt/
+     * buildOutfitImagePrompt (ADR-132) واقعاً می‌خوانند (name/physicalAppearance/
+     * defaultMood؛ outfits/tier اینجا بی‌اثرند، پس خالی/ثابت مانده‌اند). `combine`
+     * با بیش از ۵ Flow امکان مستقیم ندارد — سه مرحله‌ای (۵+۵+۳)، هم‌الگو با
+     * ShotComposerViewModel.cameraValidationIssues.
+     */
+    private val characterSnapshot: StateFlow<CharacterAsset> = combine(
+        _name, _ageRange, _gender, _height, _build
+    ) { name, ageRange, gender, height, build ->
+        SnapshotPartial1(name, ageRange, gender, height, build)
+    }.let { partial1 ->
+        combine(partial1, _hairColor, _hairStyle, _hairLength, _facialEyes) { p1, hairColor, hairStyle, hairLength, facialEyes ->
+            SnapshotPartial2(p1, hairColor, hairStyle, hairLength, facialEyes)
+        }
+    }.let { partial2 ->
+        combine(partial2, _facialDistinctiveMarks, _physicalFeatures, _defaultMood) { p2, marks, physicalFeatures, defaultMood ->
+            CharacterAsset(
+                assetId = existingAssetId ?: "preview",
+                characterTier = CharacterTier.MAIN,
+                name = p2.p1.name,
+                physicalAppearance = buildPhysicalAppearance(
+                    ageRange = p2.p1.ageRange,
+                    gender = p2.p1.gender,
+                    height = p2.p1.height,
+                    build = p2.p1.build,
+                    hairColor = p2.hairColor,
+                    hairStyle = p2.hairStyle,
+                    hairLength = p2.hairLength,
+                    facialEyes = p2.facialEyes,
+                    facialDistinctiveMarks = marks,
+                    physicalFeatures = physicalFeatures
+                ),
+                outfits = emptyList(),
+                defaultMood = defaultMood.ifBlank { null }
+            )
+        }
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        CharacterAsset(assetId = "preview", characterTier = CharacterTier.MAIN, name = "", physicalAppearance = PhysicalAppearance(ageRange = "", gender = Gender.OTHER), outfits = emptyList())
+    )
+
+    /** پیش‌نمایش زنده‌ی پرامپت Template شخصیت پایه — بدون دکمه، بدون فراخوان AI، طبق تصمیم معماری این زیرقدم. */
+    val characterBaseImagePromptPreview: StateFlow<String?> = combine(characterSnapshot, _projectDna) { character, dna ->
+        dna?.let { buildCharacterBaseImagePrompt(character, it) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _saveCompleted = MutableStateFlow(false)
     val saveCompleted: StateFlow<Boolean> = _saveCompleted.asStateFlow()
 
@@ -187,6 +341,12 @@ class CharacterAssetFormViewModel(
             }
         }
         ioScope.launch { refreshApiKeySavedForTranslation(_selectedTranslationProfileId.value) }
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): بارگذاری
+        // یک‌باره‌ی ProjectDna برای Style Tokens — هم‌الگو با بارگذاری Asset بالا،
+        // بدون Fallback ساختگی؛ null یعنی هنوز DNA ای برای این پروژه ذخیره نشده،
+        // که یعنی دکمه‌های ساخت پرامپت (Preview/Quick/AI) فعلاً چیزی تولید
+        // نمی‌کنند (طبق null-چک صریح هر سه مسیر پایین‌تر).
+        ioScope.launch { _projectDna.value = projectDnaRepository.loadProjectDna(projectId).getOrNull() }
     }
 
     /**
@@ -240,6 +400,111 @@ class CharacterAssetFormViewModel(
         }
     }
 
+    /**
+     * فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134): آیا پرامپت
+     * عکس یک Asset/Outfit از آخرین ویرایش واقعی این Character قدیمی‌تر است —
+     * `loadedUpdatedAt` (زمان بارگذاری، نه زمان زنده‌ی همین جلسه‌ی ویرایش) با
+     * زمان تولید همان پرامپت مقایسه می‌شود. برای هر دو مصرف (پرامپت شخصیت پایه و
+     * پرامپت هر Outfit) یکسان است — طبق ADR-131، `updatedAt` فقط روی خودِ
+     * CharacterAsset تعریف شده، نه روی Outfit؛ چون ویرایش هر Outfit هم ویرایش
+     * همان Character واحد است (هر دو با یک save() ذخیره می‌شوند)، همان
+     * loadedUpdatedAt سطح Character برای Outfit ها هم معیار درستی است.
+     */
+    fun isImagePromptStale(generatedAt: Long?): Boolean =
+        generatedAt != null && (loadedUpdatedAt ?: 0) > generatedAt
+
+    /** پرامپت سریع (بدون AI) شخصیت پایه — فوری، بدون فراخوان شبکه. */
+    fun generateCharacterBaseImagePromptQuick() {
+        val dna = _projectDna.value ?: return
+        _imagePromptQuick.value = buildCharacterBaseImagePrompt(characterSnapshot.value, dna)
+        _imagePromptGeneratedAt.value = System.currentTimeMillis()
+    }
+
+    /**
+     * پرامپت حرفه‌ای (با AI) شخصیت پایه — هم‌الگو دقیق با retranslate()/
+     * analyzePromptQualityWithAi (بررسی پیش‌فعال کلید API، وضعیت InProgress/
+     * Error). طبق تصمیم مستقل این زیرقدم، از همان انتخاب‌گر پروفایل موجود فیچر
+     * «ترجمه‌ی مجدد» (`_selectedTranslationProfileId`) بازاستفاده می‌شود — هر دو
+     * فیچر مفهوم یکسانی («کدام AI Connector Profile برای این فرم») دارند؛ افزودن
+     * یک انتخاب‌گر پروفایل کاملاً مستقل دوم برای همان فرم فقط پیچیدگی UI بی‌فایده
+     * اضافه می‌کرد بدون سود واقعی.
+     */
+    fun generateCharacterBaseImagePromptWithAi(): Job {
+        if (_imagePromptAiInProgress.value) return Job().apply { complete() }
+        val dna = _projectDna.value ?: return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _imagePromptAiError.value = null
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _imagePromptAiError.value = "ابتدا کلید API را در تنظیمات وارد کنید"
+                return@launch
+            }
+            _imagePromptAiInProgress.value = true
+            val templatePrompt = buildCharacterBaseImagePrompt(characterSnapshot.value, dna)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensOf(dna), profile, apiKey, httpClientEngine)
+            _imagePromptAiInProgress.value = false
+            result.fold(
+                onSuccess = { response ->
+                    _imagePromptAi.value = response.imagePromptEn
+                    _imagePromptFaPreview.value = response.imagePromptFa
+                    _imagePromptGeneratedAt.value = System.currentTimeMillis()
+                },
+                onFailure = { _imagePromptAiError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
+            )
+        }
+    }
+
+    private fun updateOutfitById(outfitId: String, transform: (Outfit) -> Outfit) {
+        _outfits.value = _outfits.value.map { if (it.id == outfitId) transform(it) else it }
+    }
+
+    /** پرامپت سریع (بدون AI) یک Outfit مشخص — فوری، بدون فراخوان شبکه. */
+    fun generateOutfitImagePromptQuick(index: Int) {
+        val dna = _projectDna.value ?: return
+        val outfit = _outfits.value.getOrNull(index) ?: return
+        val prompt = buildOutfitImagePrompt(outfit, characterSnapshot.value, dna)
+        updateOutfitById(outfit.id) { it.copy(imagePromptQuick = prompt, imagePromptGeneratedAt = System.currentTimeMillis()) }
+    }
+
+    /**
+     * پرامپت حرفه‌ای (با AI) یک Outfit مشخص. `outfit.id` (نه `index`) برای
+     * ردیابی InProgress/Error و برای به‌روزرسانی نهایی استفاده می‌شود — چون
+     * این یک عملیات Async است، لیست Outfit ها ممکن است در طول اجرای آن تغییر
+     * کند (مثلاً کاربر Outfit دیگری را حذف کند)؛ index یک ثابت لحظه‌ای است، اما
+     * id پایدار می‌ماند.
+     */
+    fun generateOutfitImagePromptWithAi(index: Int): Job {
+        val outfit = _outfits.value.getOrNull(index) ?: return Job().apply { complete() }
+        if (outfit.id in _outfitImagePromptAiInProgress.value) return Job().apply { complete() }
+        val dna = _projectDna.value ?: return Job().apply { complete() }
+        val profile = BUILTIN_AI_CONNECTOR_PROFILES.firstOrNull { it.profileId == _selectedTranslationProfileId.value }
+            ?: return Job().apply { complete() }
+        _outfitImagePromptAiError.value = _outfitImagePromptAiError.value - outfit.id
+        return ioScope.launch {
+            val apiKey = secureKeyRepository.loadApiKey(profile.profileId)
+            if (apiKey == null || validateApiKeyProvided(apiKey) != null) {
+                _outfitImagePromptAiError.value = _outfitImagePromptAiError.value + (outfit.id to "ابتدا کلید API را در تنظیمات وارد کنید")
+                return@launch
+            }
+            _outfitImagePromptAiInProgress.value = _outfitImagePromptAiInProgress.value + outfit.id
+            val templatePrompt = buildOutfitImagePrompt(outfit, characterSnapshot.value, dna)
+            val result = generateImagePromptWithAi(templatePrompt, styleTokensOf(dna), profile, apiKey, httpClientEngine)
+            _outfitImagePromptAiInProgress.value = _outfitImagePromptAiInProgress.value - outfit.id
+            result.fold(
+                onSuccess = { response ->
+                    updateOutfitById(outfit.id) {
+                        it.copy(imagePromptAi = response.imagePromptEn, imagePromptFaPreview = response.imagePromptFa, imagePromptGeneratedAt = System.currentTimeMillis())
+                    }
+                },
+                onFailure = {
+                    _outfitImagePromptAiError.value = _outfitImagePromptAiError.value + (outfit.id to (it.message ?: "درخواست به AI Connector با خطا مواجه شد"))
+                }
+            )
+        }
+    }
+
     private fun applyLoadedAsset(asset: CharacterAsset) {
         _name.value = asset.name
         _tier.value = asset.characterTier
@@ -258,6 +523,12 @@ class CharacterAssetFormViewModel(
         _basePrompt.value = asset.basePrompt.orEmpty()
         _descriptionFaPreview.value = asset.descriptionFaPreview.orEmpty()
         _outfits.value = asset.outfits
+        // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134).
+        _imagePromptQuick.value = asset.imagePromptQuick
+        _imagePromptAi.value = asset.imagePromptAi
+        _imagePromptFaPreview.value = asset.imagePromptFaPreview
+        _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
+        loadedUpdatedAt = asset.updatedAt
     }
 
     fun setName(value: String) { _name.value = value }
@@ -351,33 +622,40 @@ class CharacterAssetFormViewModel(
 
     fun save() {
         if (!canSave.value) return
-        val hair = if (_hairColor.value.isNotBlank() || _hairStyle.value.isNotBlank() || _hairLength.value.isNotBlank()) {
-            Hair(color = _hairColor.value, style = _hairStyle.value, length = _hairLength.value)
-        } else null
-        val distinctiveMarks = _facialDistinctiveMarks.value.split(",").map { it.trim() }.filter { it.isNotBlank() }
-        val facialFeatures = if (_facialEyes.value.isNotBlank() || distinctiveMarks.isNotEmpty()) {
-            FacialFeatures(eyes = _facialEyes.value, distinctiveMarks = distinctiveMarks)
-        } else null
+        val physicalAppearance = buildPhysicalAppearance(
+            ageRange = _ageRange.value,
+            gender = _gender.value,
+            height = _height.value,
+            build = _build.value,
+            hairColor = _hairColor.value,
+            hairStyle = _hairStyle.value,
+            hairLength = _hairLength.value,
+            facialEyes = _facialEyes.value,
+            facialDistinctiveMarks = _facialDistinctiveMarks.value,
+            physicalFeatures = _physicalFeatures.value
+        )
 
         val asset = CharacterAsset(
             assetId = existingAssetId ?: idProvider(),
             characterTier = _tier.value,
             name = _name.value,
-            physicalAppearance = PhysicalAppearance(
-                ageRange = _ageRange.value,
-                gender = _gender.value,
-                height = _height.value.ifBlank { null },
-                build = _build.value.ifBlank { null },
-                hair = hair,
-                physicalFeatures = _physicalFeatures.value.ifBlank { null },
-                facialFeatures = facialFeatures
-            ),
+            physicalAppearance = physicalAppearance,
             outfits = _outfits.value,
             defaultMood = _defaultMood.value.ifBlank { null },
             basePrompt = _basePrompt.value.ifBlank { null },
             continuityRules = ContinuityRules(),
             continuityLockLevel = continuityLockLevel.value,
-            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null }
+            descriptionFaPreview = _descriptionFaPreview.value.ifBlank { null },
+            // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۴ از ۵ (ADR-134):
+            // updatedAt همیشه زمان همین save() واقعی است — بدون این، تشخیص
+            // «قدیمی‌شدن پرامپت عکس» (isImagePromptStale بالا) که کل این فیچر
+            // برایش طراحی شده هرگز کار نمی‌کرد (فیلد تا این زیرقدم هرگز ست
+            // نمی‌شد، طبق یافته‌ی مستند دستور کار این قدم).
+            imagePromptQuick = _imagePromptQuick.value,
+            imagePromptAi = _imagePromptAi.value,
+            imagePromptFaPreview = _imagePromptFaPreview.value,
+            imagePromptGeneratedAt = _imagePromptGeneratedAt.value,
+            updatedAt = System.currentTimeMillis()
         )
         ioScope.launch {
             repository.saveCharacterAsset(projectId, asset)
@@ -390,14 +668,24 @@ class CharacterAssetFormViewModel(
             application: Application,
             projectId: String,
             repository: AssetRepository? = null,
-            existingAssetId: String? = null
+            existingAssetId: String? = null,
+            projectDnaRepository: ProjectDnaRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (repository != null) CharacterAssetFormViewModel(application, projectId, repository, existingAssetId = existingAssetId)
-                        else CharacterAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        if (repository != null || projectDnaRepository != null) {
+                            CharacterAssetFormViewModel(
+                                application = application,
+                                projectId = projectId,
+                                repository = repository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                existingAssetId = existingAssetId,
+                                projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao())
+                            )
+                        } else {
+                            CharacterAssetFormViewModel(application, projectId, existingAssetId = existingAssetId)
+                        }
                     ) as T
             }
     }
