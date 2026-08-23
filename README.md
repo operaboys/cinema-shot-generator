@@ -2624,6 +2624,18 @@ Merge سمانتیک است — Query تگ‌های روی فرزندان ساد
 (ADR-137 تا ۱۳۹) کامل شد.** جزئیات کامل در
 `docs/adr/139-real-reference-image-shot-prompt-connection.md`.
 
+### ✅ حذف کامل سه Rule یتیم اعتبارسنجی فایل عکس (ADR-140)
+
+هم‌الگو با حذف مفهومی `mandatoryElements` (ADR-128): `validateImageFile`/
+`validateReferenceImageFile` (`domain/asset/AssetValidation.kt`) و
+`validateImageReferenceFile` (`domain/shot/ShotValidation.kt`) کامل حذف
+شدند — نه فقط یتیم، بلکه محصول یک مسیر معماری کنارگذاشته‌شده (سناریوی
+آپلود مستقیم فایل عکس با اعتبارسنجی MIME/حجم/سلامت فایل و پیام‌های
+BLOCKING). فیچر واقعی «آپلود عکس مرجع واقعی Asset» (ADR-137 تا ۱۳۹) از
+یک الگوی کاملاً متفاوت (Storage Access Framework، `Uri` مستقیم، بدون
+اعتبارسنجی فایل محلی) استفاده کرد. جزئیات کامل در
+`docs/adr/140-remove-orphaned-image-file-validation.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

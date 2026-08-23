@@ -73,9 +73,14 @@ data class AggregatedValidationReport(val issues: List<LeveledValidationIssue>) 
  * کار ValidationViewModel است.
  *
  * دلیل انتخاب دقیق اینکه کدام Rule کجا می‌رود، و کدام Rule های موجود در دامنه
- * عمداً وایر نشدند (مثل MotionIntensityValidation، validateImageReferenceFile)
- * در ADR-055 آمده. checkMandatoryElementsPresent که در همان فهرست بود، بعداً
- * کامل حذف شد (نه فقط یتیم، بلکه مفهومی تکراری با qualityTags — ADR-128).
+ * عمداً وایر نشدند (مثل MotionIntensityValidation) در ADR-055 آمده.
+ * checkMandatoryElementsPresent که در همان فهرست بود، بعداً کامل حذف شد
+ * (نه فقط یتیم، بلکه مفهومی تکراری با qualityTags — ADR-128).
+ * validateImageReferenceFile/validateReferenceImageFile/validateImageFile هم
+ * در همان فهرست بودند؛ بعداً کامل حذف شدند (نه فقط یتیم، بلکه محصول یک
+ * مسیر معماری کنارگذاشته‌شده — فیچر واقعی «آپلود عکس مرجع واقعی Asset»،
+ * ADR-137 تا ۱۳۹، از الگوی Storage Access Framework استفاده کرد، نه
+ * اعتبارسنجی فایل محلی — ADR-140).
  * validateCameraMovementDuration هم در همان فهرست بود؛ اکنون (ADR-129) واقعاً
  * وصل شده — طبق CameraSettings.movementDurationSeconds. validateSpeedIntensity/
  * validateMotionBlur (MotionIntensityValidation) هم اکنون (ADR-130، قدم ۲ از ۲

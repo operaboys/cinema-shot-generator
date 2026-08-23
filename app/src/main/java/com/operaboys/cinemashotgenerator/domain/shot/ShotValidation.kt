@@ -4,13 +4,19 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.validation.validateBeatSheetTimeline
 
-// واحد ۰۵ — قوانین اعتبارسنجی Shot (Rule 1 تا Rule 4؛ Rule 5 ساختاری، پایین توضیح داده شده؛
+// واحد ۰۵ — قوانین اعتبارسنجی Shot (Rule 1 تا Rule 3؛ Rule 5 ساختاری، پایین توضیح داده شده؛
 // Rule 8 اضافه‌شده در Migration بعدی — رفع F9 ممیزی pre-Unit 16)
 // منبع حقیقت: docs/blueprints/05-shot-engine-v2.md
 //
 // همه‌ی توابع این فایل از ValidationIssue/Severity سراسری واحد ۰۷ استفاده می‌کنند —
 // ادامه‌ی همان تصمیم تأییدشده در واحد ۰۳ (docs/adr/005-...) که برای کد جدید،
 // استفاده از نوع سراسری موجود به‌جای ساخت نوع محلی دیگر ترجیح دارد.
+//
+// حذف کامل Rule ۴ (ADR-140): validateImageReferenceFile برای سناریوی آپلود
+// فایل عکس واقعی نوشته شده بود که هرگز به این شکل پیاده نشد — فیچر واقعی
+// «آپلود عکس مرجع واقعی Asset» (ADR-137 تا ۱۳۹) از الگوی کاملاً متفاوتی
+// (Storage Access Framework، Uri مستقیم) استفاده کرد. حذف کامل، نه اتصال —
+// جزئیات در ADR-140.
 //
 // NOTE: این فایل هیچ تابع تجمیع‌کننده‌ی سطح‌بالا (validateShot) ندارد — هر Rule
 // مستقل و جداگانه فراخوانی می‌شود (تأییدشده با grep،
@@ -60,22 +66,6 @@ fun validateShotHasSubject(
  */
 fun validateShotBeatTimeline(beats: List<Beat>, durationSeconds: Float): List<ValidationIssue> {
     return validateBeatSheetTimeline(beats.map { it.timestampSeconds }, durationSeconds)
-}
-
-/**
- * Rule 4 (Blocking): وجود فایل local_file_path.
- * fileExists تزریق‌پذیر است — مشابه واحد ۰۶ (validateReferenceImageFile) — چون این
- * قدم فقط منطق دامنه‌ی خالص است، بدون I/O واقعی.
- */
-fun validateImageReferenceFile(localFilePath: String, fileExists: (String) -> Boolean): ValidationIssue? {
-    if (!fileExists(localFilePath)) {
-        return ValidationIssue(
-            Severity.BLOCKING,
-            field = "local_file_path",
-            message = "فایل رفرنس تصویر پیدا نشد: $localFilePath"
-        )
-    }
-    return null
 }
 
 /**

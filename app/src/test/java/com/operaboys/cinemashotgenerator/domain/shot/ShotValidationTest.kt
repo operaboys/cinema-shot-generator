@@ -62,19 +62,6 @@ class ShotValidationTest {
         assertEquals(Severity.BLOCKING, issues[0].severity)
     }
 
-    // --- Rule 4 ---
-
-    @Test
-    fun `rule4 missing file is blocking`() {
-        val issue = validateImageReferenceFile("/storage/missing.jpg", fileExists = { false })
-        assertEquals(Severity.BLOCKING, issue!!.severity)
-    }
-
-    @Test
-    fun `rule4 existing file is valid`() {
-        assertNull(validateImageReferenceFile("/storage/ref.jpg", fileExists = { true }))
-    }
-
     // --- Rule 8 (رفع F9 ممیزی pre-Unit 16) ---
 
     private fun baseShot(negativePromptOverride: String?) = Shot(

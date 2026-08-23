@@ -4,7 +4,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import kotlin.math.min
 
-// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule ۲، ۳، ۵، ۶، ۶ب، ۷، و از Migration بخش
+// واحد ۰۶ — قوانین اعتبارسنجی Asset (Rule ۲، ۳، ۵، ۷، و از Migration بخش
 // دوم: ۱۰، ۱۱، ۱۲)
 // منبع حقیقت: docs/blueprints/06-asset-and-continuity-v2.md (نسخه ۵)
 //
@@ -13,6 +13,13 @@ import kotlin.math.min
 // (generateAssetFormId) ساخته می‌شود، کاربر هرگز مستقیماً وارد نمی‌کند؛ یکتایی
 // عملاً همیشه توسط همان تولید UUID تضمین است، پس این Rule هرگز شرطش برقرار
 // نمی‌شد (صفر فراخوان‌کننده، تأییدشده با grep).
+//
+// حذف کامل Rule ۶/۶ب (ADR-140): validateReferenceImageFile/validateImageFile
+// (فایل محلی با filePath/fileSizeBytes/mimeType) برای سناریوی آپلود فایل
+// عکس واقعی نوشته شده بودند که هرگز به این شکل پیاده نشد — فیچر واقعی
+// «آپلود عکس مرجع واقعی Asset» (ADR-137 تا ۱۳۹) از یک الگوی کاملاً متفاوت
+// (Storage Access Framework، Uri مستقیم، بدون اعتبارسنجی MIME/حجم Blocking)
+// استفاده کرد. حذف کامل، نه اتصال — جزئیات در ADR-140.
 //
 // MIGRATED (docs/adr/010-cross-unit-migrations.md، Migration ۱): این فایل قبلاً
 // یک sealed class ValidationResult محلی (Valid/Warning/Blocking) داشت (ثبت‌شده در
@@ -23,24 +30,6 @@ import kotlin.math.min
 //
 // MIGRATION بخش دوم (docs/adr/029-unit06-continuity-tiers-migration-part1.md، بخش
 // «تکمیل Migration»): Rule 10/11/12 اضافه شدند.
-
-data class ImageValidationResult(val valid: Boolean, val reason: String? = null)
-
-/** بررسی پایه‌ی فایل تصویر قبل از پیوست به یک Asset — فرمت، سایز، و سلامت فایل. دقیقاً طبق کد مفهومی بلوپرینت. */
-fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): ImageValidationResult {
-    val allowedTypes = setOf("image/jpeg", "image/png", "image/webp")
-    val maxSizeBytes = 10 * 1024 * 1024 // 10MB — محدودیت معقول برای رفرنس محلی
-
-    return when {
-        mimeType !in allowedTypes ->
-            ImageValidationResult(false, "فرمت پشتیبانی نمی‌شود؛ فقط JPEG/PNG/WebP مجاز است")
-        fileSizeBytes > maxSizeBytes ->
-            ImageValidationResult(false, "حجم فایل بیش از حد مجاز (۱۰ مگابایت) است")
-        fileSizeBytes == 0L ->
-            ImageValidationResult(false, "فایل خراب یا خالی است")
-        else -> ImageValidationResult(true)
-    }
-}
 
 /**
  * Rule 3 (Blocking): Asset در حال استفاده قابل حذف نیست.
@@ -64,28 +53,6 @@ fun validateDefaultOutfitExists(outfits: List<Outfit>): ValidationIssue? {
         return ValidationIssue(Severity.BLOCKING, message = "حداقل یک Outfit باید به‌عنوان Default مشخص شود")
     }
     return null
-}
-
-/**
- * Rule 6 (وجود فایل) + Rule 6ب (فرمت/سایز، از validateImageFile) در یک تابع ترکیبی.
- * fileExists تزریق‌پذیر است چون در این قدم فقط منطق دامنه‌ی خالص پیاده می‌شود،
- * بدون I/O واقعی — لایه‌ی Data (واحد ۱۵) پیاده‌سازی واقعی فایل‌سیستم را تزریق می‌کند.
- */
-fun validateReferenceImageFile(
-    localFilePath: String,
-    fileSizeBytes: Long,
-    mimeType: String,
-    fileExists: (String) -> Boolean
-): ValidationIssue? {
-    if (!fileExists(localFilePath)) {
-        return ValidationIssue(Severity.BLOCKING, message = "فایل مرجع تصویر پیدا نشد: $localFilePath")
-    }
-    val imageCheck = validateImageFile(localFilePath, fileSizeBytes, mimeType)
-    return if (imageCheck.valid) {
-        null
-    } else {
-        ValidationIssue(Severity.BLOCKING, message = imageCheck.reason ?: "فایل تصویر نامعتبر است")
-    }
 }
 
 /**
