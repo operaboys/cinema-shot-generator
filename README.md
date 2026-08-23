@@ -2490,6 +2490,21 @@ ADR): دو Rule یتیم `validateSpeedIntensity`/`validateMotionBlur`
 به آن کاملاً دست‌نخورده ماندند. جزئیات کامل در
 `docs/adr/130-connect-motion-intensity-rules.md`.
 
+### ✅ مدل داده‌ی فیچر «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131)
+
+شروع یک فیچر تازه و **کاملاً مستقل** برای دارایی‌ها (Asset) — بدون هیچ
+ارتباطی با موتور اصلی پرامپت ویدیو (`PromptAssembly.kt`/`Renderer.kt`)
+و بدون هیچ منطق تولید پرامپت یا UI در این زیرقدم. چهار فیلد پرامپت عکس
+(`imagePromptQuick`/`imagePromptAi`/`imagePromptFaPreview`/
+`imagePromptGeneratedAt`، همه Nullable با پیش‌فرض null) به `Outfit` (پرامپت
+عکس مخصوص همان لباس) و به `CharacterAsset`/`LocationAsset`/`ObjectAsset`
+(پرامپت عکس شخصیت پایه/مکان/شیء) اضافه شدند — هم‌الگو دقیق با
+`descriptionFaPreview` (ADR-122). یک فیلد پنجم، `updatedAt: Long?`، به هر
+سه نوع Asset اضافه شد تا زیرقدم‌های بعدی (۲ تا ۵) بتوانند «قدیمی‌شدن»
+پرامپت عکس را با مقایسه‌ی این Timestamp تشخیص دهند. بدون Room Migration
+— `assetDataJson` یک Blob JSON خام است. جزئیات کامل در
+`docs/adr/131-reference-image-prompt-data-model.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

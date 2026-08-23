@@ -144,7 +144,17 @@ fun CharacterAssetDto.toDomain(): CharacterAsset {
             facialFeatures = physicalAppearance.facialFeatures?.let { FacialFeatures(it.eyes, it.distinctiveMarks) }
         ),
         outfits = outfits.map {
-            Outfit(it.id, it.name, it.description, it.isDefault, it.condition?.toDomain())
+            Outfit(
+                id = it.id,
+                name = it.name,
+                description = it.description,
+                isDefault = it.isDefault,
+                condition = it.condition?.toDomain(),
+                imagePromptQuick = it.imagePromptQuick,
+                imagePromptAi = it.imagePromptAi,
+                imagePromptFaPreview = it.imagePromptFaPreview,
+                imagePromptGeneratedAt = it.imagePromptGeneratedAt
+            )
         },
         expressions = expressions.map {
             Expression(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDomain())
@@ -161,7 +171,12 @@ fun CharacterAssetDto.toDomain(): CharacterAsset {
         ),
         continuityLockLevel = continuityLockLevel?.let { CharacterContinuityLevel.valueOf(it) } ?: defaultLockLevelForTier(tier),
         referenceImages = referenceImages.map { ReferenceImage(it.localFilePath, it.description) },
-        descriptionFaPreview = descriptionFaPreview
+        descriptionFaPreview = descriptionFaPreview,
+        imagePromptQuick = imagePromptQuick,
+        imagePromptAi = imagePromptAi,
+        imagePromptFaPreview = imagePromptFaPreview,
+        imagePromptGeneratedAt = imagePromptGeneratedAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -179,7 +194,19 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
         physicalFeatures = physicalAppearance.physicalFeatures,
         facialFeatures = physicalAppearance.facialFeatures?.let { FacialFeaturesDto(it.eyes, it.distinctiveMarks) }
     ),
-    outfits = outfits.map { OutfitDto(it.id, it.name, it.description, it.isDefault, it.condition?.toDto()) },
+    outfits = outfits.map {
+        OutfitDto(
+            id = it.id,
+            name = it.name,
+            description = it.description,
+            isDefault = it.isDefault,
+            condition = it.condition?.toDto(),
+            imagePromptQuick = it.imagePromptQuick,
+            imagePromptAi = it.imagePromptAi,
+            imagePromptFaPreview = it.imagePromptFaPreview,
+            imagePromptGeneratedAt = it.imagePromptGeneratedAt
+        )
+    },
     expressions = expressions.map { ExpressionDto(it.id, it.name, it.description, it.emotion, it.isDefault, it.condition?.toDto()) },
     props = props.map { PropDto(it.id, it.name, it.description, it.category) },
     defaultMood = defaultMood,
@@ -193,7 +220,12 @@ fun CharacterAsset.toDto(): CharacterAssetDto = CharacterAssetDto(
     ),
     continuityLockLevel = continuityLockLevel.name,
     referenceImages = referenceImages.map { ReferenceImageDto(it.localFilePath, it.description) },
-    descriptionFaPreview = descriptionFaPreview
+    descriptionFaPreview = descriptionFaPreview,
+    imagePromptQuick = imagePromptQuick,
+    imagePromptAi = imagePromptAi,
+    imagePromptFaPreview = imagePromptFaPreview,
+    imagePromptGeneratedAt = imagePromptGeneratedAt,
+    updatedAt = updatedAt
 )
 
 private fun OutfitConditionDto.toDomain(): OutfitCondition = OutfitCondition(weather, timeOfDay, locationType)
@@ -210,7 +242,12 @@ fun LocationAssetDto.toDomain(): LocationAsset = LocationAsset(
     keyElements = keyElements,
     basePrompt = basePrompt,
     continuityLockLevel = LocationContinuityLevel.valueOf(continuityLockLevel),
-    descriptionFaPreview = descriptionFaPreview
+    descriptionFaPreview = descriptionFaPreview,
+    imagePromptQuick = imagePromptQuick,
+    imagePromptAi = imagePromptAi,
+    imagePromptFaPreview = imagePromptFaPreview,
+    imagePromptGeneratedAt = imagePromptGeneratedAt,
+    updatedAt = updatedAt
 )
 
 fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
@@ -224,7 +261,12 @@ fun LocationAsset.toDto(): LocationAssetDto = LocationAssetDto(
     keyElements = keyElements,
     basePrompt = basePrompt,
     continuityLockLevel = continuityLockLevel.name,
-    descriptionFaPreview = descriptionFaPreview
+    descriptionFaPreview = descriptionFaPreview,
+    imagePromptQuick = imagePromptQuick,
+    imagePromptAi = imagePromptAi,
+    imagePromptFaPreview = imagePromptFaPreview,
+    imagePromptGeneratedAt = imagePromptGeneratedAt,
+    updatedAt = updatedAt
 )
 
 fun ObjectAssetDto.toDomain(): ObjectAsset = ObjectAsset(
@@ -237,7 +279,12 @@ fun ObjectAssetDto.toDomain(): ObjectAsset = ObjectAsset(
     specialTrait = specialTrait,
     basePrompt = basePrompt,
     continuityLockLevel = PropContinuityLevel.valueOf(continuityLockLevel),
-    descriptionFaPreview = descriptionFaPreview
+    descriptionFaPreview = descriptionFaPreview,
+    imagePromptQuick = imagePromptQuick,
+    imagePromptAi = imagePromptAi,
+    imagePromptFaPreview = imagePromptFaPreview,
+    imagePromptGeneratedAt = imagePromptGeneratedAt,
+    updatedAt = updatedAt
 )
 
 fun ObjectAsset.toDto(): ObjectAssetDto = ObjectAssetDto(
@@ -250,5 +297,10 @@ fun ObjectAsset.toDto(): ObjectAssetDto = ObjectAssetDto(
     specialTrait = specialTrait,
     basePrompt = basePrompt,
     continuityLockLevel = continuityLockLevel.name,
-    descriptionFaPreview = descriptionFaPreview
+    descriptionFaPreview = descriptionFaPreview,
+    imagePromptQuick = imagePromptQuick,
+    imagePromptAi = imagePromptAi,
+    imagePromptFaPreview = imagePromptFaPreview,
+    imagePromptGeneratedAt = imagePromptGeneratedAt,
+    updatedAt = updatedAt
 )

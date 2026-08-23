@@ -80,7 +80,15 @@ data class Outfit(
     val name: String,
     val description: String,
     val isDefault: Boolean,
-    val condition: OutfitCondition? = null
+    val condition: OutfitCondition? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): کاملاً مجزا از
+    // موتور اصلی پرامپت ویدیو (PromptAssembly.kt/Renderer.kt) — هرگز با basePrompt
+    // بالا قاطی نمی‌شود. پرامپت عکس مخصوص همین Outfit (نه شخصیت پایه). هم‌الگو دقیق
+    // با descriptionFaPreview موجود (ADR-122): Nullable، پیش‌فرض null.
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null
 )
 
 /**
@@ -196,7 +204,20 @@ data class CharacterAsset(
     // نهایی (PromptAssembly.kt/Renderer.kt که فقط basePrompt انگلیسی
     // بالا را می‌خوانند) راه پیدا نمی‌کند. null یعنی Preview فارسی برای
     // این Asset تولید/ذخیره نشده.
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): کاملاً مجزا از
+    // موتور اصلی پرامپت ویدیو — هرگز با basePrompt بالا قاطی نمی‌شود. این چهار
+    // فیلد پرامپت عکس شخصیت پایه/خنثی است (بدون لباس داستانی)، مستقل از پرامپت
+    // عکس هر Outfit (بالاتر، Outfit.imagePromptQuick/...). هم‌الگو دقیق با
+    // descriptionFaPreview بالا.
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): زمان آخرین
+    // ویرایش این Asset — قدم‌های بعدی (۲ تا ۵) از این Timestamp برای تشخیص
+    // «پرامپت عکس قدیمی شده یا نه» استفاده می‌کنند (مقایسه با زمان تولید پرامپت).
+    val updatedAt: Long? = null
 )
 
 data class Environment(
@@ -244,7 +265,15 @@ data class LocationAsset(
     val continuityLockLevel: LocationContinuityLevel = LocationContinuityLevel.STYLE,
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
     // دقیق با CharacterAsset.descriptionFaPreview بالا.
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): هم‌الگو دقیق با
+    // CharacterAsset بالا؛ LocationAsset ساختار Outfit ندارد، پس این چهار فیلد
+    // فقط یک‌بار روی خودِ Asset لازم است.
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    val updatedAt: Long? = null
 )
 
 /** طبق فرم واقعی «Add New Asset» — سه زیرگروه Object. */
@@ -268,5 +297,13 @@ data class ObjectAsset(
     val continuityLockLevel: PropContinuityLevel = PropContinuityLevel.FORM,
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122): هم‌الگو
     // دقیق با CharacterAsset.descriptionFaPreview بالا.
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): هم‌الگو دقیق با
+    // CharacterAsset بالا؛ ObjectAsset ساختار Outfit ندارد، پس این چهار فیلد
+    // فقط یک‌بار روی خودِ Asset لازم است.
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    val updatedAt: Long? = null
 )

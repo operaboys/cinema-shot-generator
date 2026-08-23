@@ -63,7 +63,14 @@ data class OutfitDto(
     val name: String,
     val description: String,
     val isDefault: Boolean,
-    val condition: OutfitConditionDto? = null
+    val condition: OutfitConditionDto? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): هم‌شکل مستقیم با
+    // domain/asset/AssetModels.kt — Nullable با پیش‌فرض null، بدون Room Migration
+    // (این DTO فقط داخل assetDataJson به‌صورت JSON خام ذخیره می‌شود).
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null
 )
 
 @Serializable
@@ -110,7 +117,14 @@ data class CharacterAssetDto(
     // مستقیم با domain/asset/AssetModels.kt — Nullable با پیش‌فرض null،
     // بدون نیاز به Room Migration (این DTO فقط در AssetEntity.assetDataJson
     // به‌صورت JSON خام ذخیره می‌شود، نه ستون تفکیک‌شده‌ی Room).
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131): هم‌شکل مستقیم
+    // با domain/asset/AssetModels.kt.
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    val updatedAt: Long? = null
 )
 
 @Serializable
@@ -130,7 +144,13 @@ data class LocationAssetDto(
     val basePrompt: String? = null,
     val continuityLockLevel: String = "STYLE",
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131).
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    val updatedAt: Long? = null
 )
 
 /** جدید (Option A): معادل مستقل ObjectAssetDto برای AssetType.OBJECT. */
@@ -146,5 +166,11 @@ data class ObjectAssetDto(
     val basePrompt: String? = null,
     val continuityLockLevel: String = "FORM",
     // سیستم Preview دوزبانه‌ی پرامپت — قدم ۲ از ۳ زیرقدم (ADR-122).
-    val descriptionFaPreview: String? = null
+    val descriptionFaPreview: String? = null,
+    // فیچر مستقل «پرامپت ساخت عکس مرجع» — زیرقدم ۱ از ۵ (ADR-131).
+    val imagePromptQuick: String? = null,
+    val imagePromptAi: String? = null,
+    val imagePromptFaPreview: String? = null,
+    val imagePromptGeneratedAt: Long? = null,
+    val updatedAt: Long? = null
 )
