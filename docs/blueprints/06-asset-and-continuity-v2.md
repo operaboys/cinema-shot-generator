@@ -8,6 +8,8 @@
 
 **نسخه:** ۵ — بازنویسی برای رفع دو تناقض کشف‌شده در بازبینی معماری مستقل: (۱) ناسازگاری ساختاری JSON↔Kotlin در `PhysicalAppearance` — نمونه‌ی JSON فیلدهای `hair`/`facial_features` را به‌صورت Object نشان می‌دهد، اما `data class` معادل آن‌ها را `String?` ساده تعریف کرده بود؛ اکنون `Hair`/`FacialFeatures` به‌عنوان `data class` مستقل تعریف شدند تا با JSON هماهنگ باشند. (۲) نبود راهی برای تبدیل `PhysicalAppearance` به یک جمله‌ی خوانا برای پرامپت — تابع `toPromptString()` اضافه شد، چون بدون آن، `enforceCharacterContinuity` (بلوپرینت ۱۱) مجبور بود از `toString()` پیش‌فرض Kotlin استفاده کند که خروجی غیرقابل‌استفاده (`PhysicalAppearance(ageRange=...)`) تولید می‌کرد. **تغییرات با «🆕v5» علامت‌گذاری شده‌اند.**
 
+**نسخه:** ۶ — دو اصلاح برای هماهنگی با فیچرهای مستقل «عکس مرجع» که مستقیماً در گفتگو با معمار طراحی/اجرا شدند (جزئیات کامل هر دو اکنون در بلوپرینت مستقل جدید `19-reference-image.md`، نه اینجا): (۱) بخش «Reference Image — فقط فایل محلی» بازنویسی شد — سناریوی اعتبارسنجی فایل محلی (`validateImageFile`/Rule ۶/۶ب) که این بخش «بدون تغییر از نسخه‌ی قبلی» توصیف می‌کرد، هرگز به همین شکل پیاده نشد و کامل از کد حذف شده (ADR-140)؛ معماری واقعی از Storage Access Framework استفاده می‌کند. (۲) جدول قوانین اعتبارسنجی: Rule ۶/۶ب به‌عنوان حذف‌شده علامت‌گذاری شدند. **تغییرات با «🆕v6» علامت‌گذاری شده‌اند.**
+
 ---
 
 ## تعریف
@@ -366,38 +368,30 @@ Evolution یک مسیر رسمی و ثبت‌شده برای تغییر است �
 
 ---
 
-## Reference Image — فقط فایل محلی (بدون تغییر از نسخه‌ی قبلی)
+## 🆕v6 Reference Image — جزئیات کامل منتقل شد به واحد ۱۹
 
-طبق تصمیم بنیادی پروژه (فقط پرامپت، نه پردازش تصویر)، تصویر مرجع فقط به‌صورت **فایل محلی پیوست‌شده** نگهداری می‌شود:
+طبق تصمیم بنیادی پروژه (فقط پرامپت، نه پردازش تصویر)، هر سه نوع Asset
+(Character/Location/Object) یک فیلد `referenceImages: List<ReferenceImage>`
+دارند:
 
 ```kotlin
 data class ReferenceImage(val localFilePath: String, val description: String)
 ```
 
-بدون آپلود، بدون URL خارجی، بدون پردازش/تبدیل فرمت، بدون وزن‌دهی عددی. نحوه‌ی معرفی این تصویر به یک مدل خاص (مثل `--cref` در Midjourney) در لحظه‌ی Rendering، توسط Output Delivery System (بر اساس Model Profile)، تعیین می‌شود — نه اینجا.
+نحوه‌ی معرفی این تصویر به یک مدل خاص (مثل `--cref` در Midjourney) در
+لحظه‌ی Rendering، توسط Output Delivery System (بر اساس Model Profile)،
+تعیین می‌شود — نه اینجا.
 
-### اعتبارسنجی فایل قبل از پیوست
-
-هرچند این فایل مستقیم روی سرور آپلود نمی‌شود (چون On-Device است)، همچنان باید قبل از پذیرفتن آن به‌عنوان Reference Image یک Asset یک بررسی‌های پایه انجام شود:
-
-```kotlin
-data class ImageValidationResult(val valid: Boolean, val reason: String? = null)
-
-fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): ImageValidationResult {
-    val allowedTypes = setOf("image/jpeg", "image/png", "image/webp")
-    val maxSizeBytes = 10 * 1024 * 1024  // 10MB
-
-    return when {
-        mimeType !in allowedTypes ->
-            ImageValidationResult(false, "فرمت پشتیبانی نمی‌شود؛ فقط JPEG/PNG/WebP مجاز است")
-        fileSizeBytes > maxSizeBytes ->
-            ImageValidationResult(false, "حجم فایل بیش از حد مجاز (۱۰ مگابایت) است")
-        fileSizeBytes == 0L ->
-            ImageValidationResult(false, "فایل خراب یا خالی است")
-        else -> ImageValidationResult(true)
-    }
-}
-```
+🆕v6 **این بخش قبلاً (نسخه‌های ۱ تا ۵ همین بلوپرینت) یک سناریوی
+اعتبارسنجی فایل محلی (فرمت/حجم/سلامت با `validateImageFile`، وجود فایل
+با Rule ۶، هر دو Blocking) توصیف می‌کرد که هرگز به همین شکل پیاده
+نشد — معماری واقعی «انتخاب فایل» از Storage Access Framework اندروید
+استفاده می‌کند (بدون کپی فایل، بدون اعتبارسنجی فرمت/حجم/سلامت)، و همان
+سناریوی قدیمی کامل از کد حذف شده (`domain/asset/AssetValidation.kt`،
+ADR-140). جزئیات کامل معماری واقعی «آپلود عکس مرجع واقعی» (و همچنین
+فیچر مستقل «پرامپت ساخت عکس مرجع» که خودِ عکس را اصلاً تولید/ذخیره
+نمی‌کند) اکنون در بلوپرینت مستقل `19-reference-image.md` آمده — این
+بخش دیگر جزئیات را تکرار نمی‌کند.**
 
 ---
 
@@ -412,8 +406,8 @@ fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): 
 | 🆕 ۴ب | نقض `identity_lock` در سطح **MEDIUM** | **Blocking** |
 | 🆕 ۴پ | تغییر ظاهر در سطح **MEDIUM** (غیر از identity) | **Warning** |
 | ۵ | حداقل یک Outfit باید `is_default = true` باشد | **Blocking** |
-| ۶ | فایل `reference_images[].local_file_path` باید موجود باشد | **Blocking** |
-| ۶ب | فرمت/سایز فایل تصویر باید معتبر باشد | **Blocking** |
+| ~~۶~~ | 🆕v6 حذف‌شده (ADR-140) — سناریوی اعتبارسنجی وجود فایل محلی هرگز پیاده نشد؛ معماری واقعی SAF/`Uri` است | — |
+| ~~۶ب~~ | 🆕v6 حذف‌شده (ADR-140) — سناریوی اعتبارسنجی فرمت/سایز فایل هرگز پیاده نشد | — |
 | ۷ | نام Asset مشابه با Asset دیگر | **Warning** |
 | 🆕 ۸ | تغییر سبک یک Location (سطح STYLE) | **Warning** (هرگز Blocking) |
 | 🆕 ۹ | تغییر فرم یک Prop (سطح FORM) | **Warning** (هرگز Blocking) |
@@ -431,7 +425,7 @@ fun validateImageFile(filePath: String, fileSizeBytes: Long, mimeType: String): 
 - 🆕 سطح **NONE** هیچ محدودیتی اعمال نمی‌کند.
 - انتخاب Outfit/Expression خودکار از شرایط صحنه کار می‌کند، با امکان Override دستی.
 - Asset در حال استفاده قابل حذف نیست.
-- Reference Image فقط فایل محلی است؛ بدون وابستگی به سرویس خارجی.
+- 🆕v6 هر سه نوع Asset اکنون هم از پرامپت ساخت عکس مرجع (متن، برای ساخت تصویر بیرون از این اپ) و هم از آپلود عکس مرجع واقعی (خودِ عکس، با اتصال خودکار به پرامپت هر Shot) پشتیبانی می‌کنند — جزئیات کامل هر دو در واحد ۱۹ (`19-reference-image.md`)، نه اینجا.
 
 ---
 
