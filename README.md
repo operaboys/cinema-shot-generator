@@ -2685,7 +2685,7 @@ app/src/main/java/com/operaboys/cinemashotgenerator/
 │   ├── story/     → واحد ۱۶ فاز ۲ قدم ۱: StoryViewModel/StoryTabContent/StoryLabels (Tab «داستان» واقعی)
 │   ├── storybreakdown/ → واحد ۱۶ فاز ۲ قدم ۲: AiStoryBreakdownScreen/ViewModel
 │   ├── dna/       → واحد ۱۶ فاز ۲ قدم ۳: DnaViewModel/DnaTabContent/DnaLabels (Tab «DNA» واقعی)
-│   ├── assets/    → واحد ۱۶ فاز ۳: AssetsScreen + فرم‌های ساخت Character/Location/Object (فقط «ساخت»، نه «ویرایش»)
+│   ├── assets/    → واحد ۱۶ فاز ۳: AssetsScreen + فرم‌های Character/Location/Object (ساخت و ویرایش، طبق ADR-061)
 │   ├── scenes/    → واحد ۱۶ فاز ۴ قدم ۱: ScenesListScreen/SceneDetailScreen (فقط «ساخت»، نه «ویرایش»)
 │   ├── shots/     → واحد ۱۶ فاز ۴ قدم ۲: ShotComposerScreen (فیلدهای سطح‌بالا + هر ۴ Tab: دوربین/نور و محیط/صدا)
 │   ├── validation/ → واحد ۱۶ فاز ۵ قدم ۱: ValidationScreen/ViewModel (تجمیع سه‌سطحی)
@@ -2810,11 +2810,15 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   `docs/adr/061-post-unit16-audit-g1-g7-fixes.md`.) در کل واحد ۱۶، تنها راه
   تغییر یک Scene موجود (غیر از فیلدهای سطح‌بالای Shot که Auto-Save واقعی
   دارند) ساخت دوباره از صفر است.
-- **آپلود/انتخاب تصویر واقعی هیچ‌جای اپ پیاده نشده** — نه برای Attached
-  References شات، نه برای Home Screen Image تنظیمات؛ کل کدبیس فاقد
-  زیرساخت File Picker/Media Picker است (یک محدودیت واحد، تکرارشده در سه
-  جا: Shot Composer، Settings — Output Delivery دیگر این محدودیت را ندارد،
-  Export واقعی فایل رفع شد، `docs/adr/069-...`).
+- ~~آپلود/انتخاب تصویر واقعی هیچ‌جای اپ پیاده نشده~~ — **بخشاً رفع شد،
+  ولی این بند خودش قدیمی بود:** Home Screen Image تنظیمات از قبل با
+  `chooseImageLauncher` (`OpenDocument()`) رفع شده بود (ADR-075) — این
+  بند هرگز به‌روز نشده بود. عکس مرجع Asset (Character/Location/Object)
+  هم اکنون آپلود واقعی دارد (`OpenDocument()`، هم‌الگو با ADR-075؛ واحد
+  ۱۹ بخش ب، ADR-137 تا ۱۴۰). تنها مورد باقی‌مانده‌ی واقعی: **Attached
+  References شات** (Shot Composer) هنوز `localFilePath` خالی دارد — بدون
+  زیرساخت File Picker. Output Delivery این محدودیت را ندارد (Export
+  واقعی فایل رفع شد، `docs/adr/069-...`).
 - **ترجمه‌ی واقعی فارسی پرامپت هنوز وجود ندارد — یک تصمیم معماری در حال
   بحث، نه یک TODO ساده:** `Bilingual.kt` عمداً `generateBilingualPrompt`/
   `translateToFarsi` را پیاده نکرده (کامنت صریح خودِ فایل) — یک موتور

@@ -133,23 +133,6 @@ data class ReferenceImage(
 )
 
 /**
- * ساختار داده‌ی خام Evolution Timeline — بدون منطق اعمال آن.
- * منطق واقعی (اعمال/ثبت تغییرات در طول زمان) به واحد ۱۲ (State & Versioning) وابسته
- * است و در این قدم پیاده نشده — خارج از Scope طبق دستور کار.
- */
-data class EvolutionEntry(
-    val fromShot: String,
-    val toShot: String,
-    val changes: Map<String, List<String>>,
-    val reason: String
-)
-
-data class EvolutionTimeline(
-    val characterId: String,
-    val entries: List<EvolutionEntry> = emptyList()
-)
-
-/**
  * سه enum کاملاً مجزا — طبق تأکید صریح بلوپرینت («هرگز یک enum مشترک»؛ طبق
  * concept-ownership-map.md، تداوم کاراکتر/مکان/شیء سه مفهوم متفاوتند که فقط
  * شباهت اسمی «Lock» دارند). جداسازی در سطح Type System از ترکیب‌های بی‌معنی

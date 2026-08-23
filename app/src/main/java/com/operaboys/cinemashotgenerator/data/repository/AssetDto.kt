@@ -11,11 +11,6 @@ import kotlinx.serialization.Serializable
 // selectOutfitForScene وصل شوند، outfitOverride باید پارامتر جداگانه‌ی تابع
 // Repository/Wiring باشد، نه فیلدی در Entity/DTO — طبق همان الگوی ADR-012.
 //
-// NOTE: EvolutionTimeline/EvolutionEntry (domain/asset) در Scope این زیرقدم نیستند —
-// CharacterAsset اصلاً فیلدی از این نوع ندارد (EvolutionTimeline یک نوع مستقل با
-// characterId خودش است، نه بخشی از CharacterAsset)، پس چیزی برای سریالایز کردن به
-// این‌ها متصل به CharacterAsset وجود ندارد.
-//
 // MIGRATION بخش دوم (docs/adr/029-unit06-continuity-tiers-migration-part1.md):
 // characterTier/subtype در سطح DTO عمداً String با یک پیش‌فرض محافظه‌کارانه دارند
 // (نه enum غیر-nullable مثل نوع دامنه) — این دقیقاً همان تمایزی است که در ADR-029

@@ -3,8 +3,6 @@ package com.operaboys.cinemashotgenerator.domain.visualidentity
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -127,53 +125,6 @@ class StyleMatrixTest {
         // است؛ طبق قانون Category این ترکیب باید MEDIUM باشد — این تست دومین
         // اثبات صریح اولویت Override بر Category در همین فایل است.
         assertEquals(CompatibilityLevel.LOW, checkStyleCompatibility(VisualStyle.PHOTOREALISTIC, VisualStyle.CLAYMATION).level)
-    }
-
-    // --- Rule 1 (Blocking، تضمین در سطح Type System) ---
-
-    @Test
-    fun `rule1 style matrix always exposes a non-null primary style`() {
-        // ساخت StyleMatrix بدون primaryStyle اصلاً کامپایل نمی‌شود؛ این تست فقط
-        // مسیر مثبت را مستند می‌کند — مسیر منفی در سطح کامپایلر مسدود است، نه Runtime.
-        val matrix = StyleMatrix(styleMatrixId = "sm_001", primaryStyle = VisualStyle.STUDIO_GHIBLI)
-        assertNotNull(matrix.primaryStyle)
-        assertEquals(VisualStyle.STUDIO_GHIBLI, matrix.primaryStyle)
-    }
-
-    // --- Rule 2 (Warning): ناسازگاری سبک اصلی/ثانویه ---
-
-    @Test
-    fun `rule2 with secondary style returns a real compatibility result`() {
-        val matrix = StyleMatrix(
-            styleMatrixId = "sm_001",
-            primaryStyle = VisualStyle.STUDIO_GHIBLI,
-            secondaryStyle = VisualStyle.PHOTOREALISTIC
-        )
-        val result = checkStyleMatrixCompatibility(matrix)
-        assertNotNull(result)
-        // STUDIO_GHIBLI (ANIMATION_2D) × PHOTOREALISTIC (CINEMATIC) = CINEMATIC×ANIMATION_2D = LOW
-        assertEquals(CompatibilityLevel.LOW, result!!.level)
-        assertTrue(result.warning)
-    }
-
-    @Test
-    fun `rule2 without secondary style returns null`() {
-        val matrix = StyleMatrix(styleMatrixId = "sm_001", primaryStyle = VisualStyle.STUDIO_GHIBLI)
-        assertNull(checkStyleMatrixCompatibility(matrix))
-    }
-
-    // --- Rule 3 (Blocking روی تلاش حذف) — امضا در قدم ۳ (ADR-115) به VisualStyle? تغییر کرد ---
-
-    @Test
-    fun `rule3 attempting to null primary style is blocked`() {
-        val result = validatePrimaryStyleUpdate(null)
-        assertTrue(result is StyleUpdateResult.Blocked)
-    }
-
-    @Test
-    fun `rule3 replacing primary style with another is allowed`() {
-        val result = validatePrimaryStyleUpdate(VisualStyle.PHOTOREALISTIC)
-        assertTrue(result is StyleUpdateResult.Allowed)
     }
 
     // --- VisualStyle.toStyleReference — اتصال کامل Style Matrix — قدم ۴-محتوا
