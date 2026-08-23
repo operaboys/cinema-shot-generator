@@ -2590,6 +2590,21 @@ Warning-only نوشته بود که زیرقدم‌های ۴/۵ به UI وصل �
 نشده‌اند. جزئیات کامل در
 `docs/adr/137-real-reference-image-upload-data-model.md`.
 
+### ✅ آپلود عکس مرجع واقعی Asset — زیرقدم ۲ از ۳: Thumbnail در کارت کتابخانه (ADR-138)
+
+اولین `referenceImages` هر Asset (در صورت وجود) اکنون در کارت‌های لیست
+کتابخانه (`AssetsScreen.kt`) نمایش داده می‌شود — با همان تابع بومی decode
+موجود `DecodedContentImage` (`ui/home/HomeScreen.kt`، از ADR-083، پیش‌تر هم
+در `SettingsScreen.kt` بازاستفاده‌شده)، بدون هیچ کتابخانه‌ی جدید. اگر
+`referenceImages` خالی باشد، `ThumbnailPlaceholder` فعلی بدون تغییر
+fallback می‌ماند. علاوه بر این، هر سه Screen فرم Asset اکنون یک پیش‌نمایش
+بزرگ‌تر و واقعاً دیدنی (۱۴۰dp) از اولین عکس، بالای فهرست متنی ساده‌ی
+زیرقدم ۱، نشان می‌دهند. یافته‌ی جانبی تست: `Card(onClick = ...)` یک مرز
+Merge سمانتیک است — Query تگ‌های روی فرزندان ساده (غیرکلیک‌پذیر) به
+`useUnmergedTree = true` نیاز دارند. اتصال به پرامپت شات همچنان زیرقدم ۳
+است. جزئیات کامل در
+`docs/adr/138-real-reference-image-library-card-thumbnail.md`.
+
 ## Stack
 
 - **زبان:** Kotlin

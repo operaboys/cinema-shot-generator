@@ -40,7 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
+import com.operaboys.cinemashotgenerator.ui.home.DecodedContentImage
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.theme.CinemaTheme
@@ -89,6 +92,10 @@ const val ASSET_LIBRARY_DELETE_CONFIRM_BUTTON_TAG = "assetLibrary.deleteConfirmB
 fun assetCardTag(assetId: String): String = "assetLibrary.card.$assetId"
 fun assetCardMenuButtonTag(assetId: String): String = "assetLibrary.card.$assetId.menuButton"
 fun assetCardDeleteMenuItemTag(assetId: String): String = "assetLibrary.card.$assetId.deleteMenuItem"
+
+// آپلود عکس مرجع واقعی Asset — زیرقدم ۲ از ۳ (ADR-138).
+fun assetCardThumbnailImageTag(assetId: String): String = "assetLibrary.card.$assetId.thumbnailImage"
+fun assetCardThumbnailPlaceholderTag(assetId: String): String = "assetLibrary.card.$assetId.thumbnailPlaceholder"
 
 @Composable
 fun AssetsScreen(
@@ -346,9 +353,9 @@ private fun TierBadge(label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ThumbnailPlaceholder() {
+private fun ThumbnailPlaceholder(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(56.dp)
             .background(color = CinemaTheme.extendedColors.inset, shape = RoundedCornerShape(12.dp))
     )
@@ -362,13 +369,28 @@ private fun AssetCard(
     description: String,
     continuityMeta: String,
     language: Language,
+    // آپلود عکس مرجع واقعی Asset — زیرقدم ۲ از ۳ (ADR-138): اولین
+    // referenceImages (در صورت وجود)، وگرنه null و ThumbnailPlaceholder
+    // فعلی بدون تغییر fallback می‌ماند.
+    referenceImageUri: String? = null,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(assetCardTag(assetId))) {
         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ThumbnailPlaceholder()
+            if (referenceImageUri != null) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .testTag(assetCardThumbnailImageTag(assetId))
+                ) {
+                    DecodedContentImage(uriString = referenceImageUri, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                }
+            } else {
+                ThumbnailPlaceholder(modifier = Modifier.testTag(assetCardThumbnailPlaceholderTag(assetId)))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
@@ -462,6 +484,7 @@ private fun CharacterAssetList(
                         "level" to characterContinuityLevelLabel(character.continuityLockLevel, language)
                     ),
                     language = language,
+                    referenceImageUri = character.referenceImages.firstOrNull()?.localFilePath,
                     onClick = { onOpenAsset(character.assetId) },
                     onDeleteClick = { onDeleteAsset(character.assetId) }
                 )
@@ -518,6 +541,7 @@ private fun LocationAssetList(
                         "level" to locationContinuityLevelLabel(location.continuityLockLevel, language)
                     ),
                     language = language,
+                    referenceImageUri = location.referenceImages.firstOrNull()?.localFilePath,
                     onClick = { onOpenAsset(location.assetId) },
                     onDeleteClick = { onDeleteAsset(location.assetId) }
                 )
@@ -574,6 +598,7 @@ private fun ObjectAssetList(
                         "level" to propContinuityLevelLabel(obj.continuityLockLevel, language)
                     ),
                     language = language,
+                    referenceImageUri = obj.referenceImages.firstOrNull()?.localFilePath,
                     onClick = { onOpenAsset(obj.assetId) },
                     onDeleteClick = { onDeleteAsset(obj.assetId) }
                 )

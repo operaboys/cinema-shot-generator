@@ -32,6 +32,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.Outfit
+import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.outputdelivery.Language
 import com.operaboys.cinemashotgenerator.domain.scene.Atmosphere
@@ -289,5 +290,56 @@ class AssetsScreenFlowTest {
         composeRule.onNodeWithTag(ASSET_LIBRARY_DELETE_CONFIRM_BUTTON_TAG).performClick()
 
         composeRule.waitUntilDoesNotExist(hasText("Bridge of the Ship"), timeoutMillis = 5_000)
+    }
+
+    // آپلود عکس مرجع واقعی Asset — زیرقدم ۲ از ۳ (ADR-138): sampleCharacter()/
+    // sampleObject() بالا referenceImages ندارند (بدون تغییر) — پس کارت آن‌ها
+    // باید همچنان ThumbnailPlaceholder فعلی را رندر کنند. یک شیء واقعی سوم با
+    // referenceImages غیرخالی (obj_lib_002) اینجا فقط برای این تست ذخیره
+    // می‌شود تا رفتار «Placeholder دیگر رندر نمی‌شود» با دیتای واقعی (نه فرضی)
+    // اثبات شود.
+
+    @Test
+    fun `an asset card without any referenceImages still renders the ThumbnailPlaceholder`() {
+        openAssetsScreen()
+        composeRule.waitUntilExactlyOneExists(hasText("Captain Amelia"), timeoutMillis = 5_000)
+
+        // یافته‌ی دیباگ این قدم: Card(onClick = ...) یک مرز Merge سمانتیک است —
+        // فرزندان ساده (Box بدون کلیک خودش، مثل ThumbnailPlaceholder) در تلاش
+        // Query پیش‌فرض (Merged Tree) در سمانتیک خودِ Card ادغام و ناپیدا
+        // می‌شوند؛ برخلاف IconButton (خودش هم یک مرز Merge است، پس مستقل
+        // Query-پذیر می‌ماند — دقیقاً چرا assetCardMenuButtonTag/... بدون این
+        // پرچم کار می‌کنند). useUnmergedTree = true این ادغام را دور می‌زند.
+        composeRule.onNodeWithTag(assetCardThumbnailPlaceholderTag("char_lib_001"), useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `an asset card with a non-empty referenceImages list does not render the ThumbnailPlaceholder`() {
+        // همان obj_lib_001 موجود (نه یک ردیف تازه) با referenceImages به‌روزرسانی
+        // می‌شود — عمداً به‌جای افزودن یک شیء دوم، تا رفتار «کارت دوم پایین لیست
+        // ممکن است هنوز در LazyColumn Compose نشده باشد» این تست را نامعتبر نکند.
+        val assetRepository = AssetRepository(database.assetDao())
+        runBlocking {
+            assetRepository.saveObjectAsset(
+                PROJECT_ID,
+                sampleObject().copy(
+                    referenceImages = listOf(
+                        ReferenceImage(
+                            localFilePath = "content://media/external/images/1",
+                            description = "Brass Compass — an antique brass compass"
+                        )
+                    )
+                )
+            )
+        }
+
+        openAssetsScreen()
+        composeRule.onNodeWithTag(ASSET_FILTER_OBJECTS_TAG).performClick()
+        composeRule.waitUntilExactlyOneExists(hasText("Brass Compass"), timeoutMillis = 5_000)
+
+        // useUnmergedTree = true (هم‌الگو با تست بالا): بدون آن، غیاب گره در
+        // درخت Merge-شده می‌توانست به‌خاطر ادغام سمانتیک Card (نه غیاب واقعی
+        // Composable) باشد — این پرچم آزمون را واقعاً سخت‌گیر می‌کند.
+        composeRule.onNodeWithTag(assetCardThumbnailPlaceholderTag("obj_lib_001"), useUnmergedTree = true).assertDoesNotExist()
     }
 }

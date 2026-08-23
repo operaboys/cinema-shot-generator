@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,6 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -58,6 +61,7 @@ import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import com.operaboys.cinemashotgenerator.domain.workflow.AppTheme
 import com.operaboys.cinemashotgenerator.ui.common.RetranslateButton
+import com.operaboys.cinemashotgenerator.ui.home.DecodedContentImage
 import com.operaboys.cinemashotgenerator.ui.i18n.uiString
 import com.operaboys.cinemashotgenerator.ui.i18n.uiTemplate
 import com.operaboys.cinemashotgenerator.ui.scenes.sceneLocationTypeLabel
@@ -359,6 +363,15 @@ private fun ReferenceImagesSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = uiString("assetForm.referenceImagesSectionTitle", language), style = MaterialTheme.typography.titleSmall)
+        // آپلود عکس مرجع واقعی Asset — زیرقدم ۲ از ۳ (ADR-138): پیش‌نمایش بزرگ و
+        // واقعاً دیدنی اولین عکس، بالای فهرست متنی ساده‌ی زیرقدم ۱.
+        referenceImages.firstOrNull()?.let { first ->
+            DecodedContentImage(
+                uriString = first.localFilePath,
+                modifier = Modifier.size(140.dp).clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
         referenceImages.forEachIndexed { index, image ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
