@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.asset.PropContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
+import com.operaboys.cinemashotgenerator.domain.asset.UpdateResult
 import com.operaboys.cinemashotgenerator.domain.asset.buildObjectImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
@@ -20,6 +21,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectImagePromptInputs
+import com.operaboys.cinemashotgenerator.domain.asset.validatePropUpdate
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
@@ -138,6 +140,12 @@ class ObjectAssetFormViewModel(
 
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
     private var loadedUpdatedAt: Long? = null
+
+    /** یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): هم‌الگو دقیق با CharacterAssetFormViewModel.loadedCharacterAsset. */
+    private var loadedObjectAsset: ObjectAsset? = null
+
+    private val _continuityIssues = MutableStateFlow<List<ValidationIssue>>(emptyList())
+    val continuityIssues: StateFlow<List<ValidationIssue>> = _continuityIssues.asStateFlow()
 
     // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
     // description هر ReferenceImage عمداً همیشه در save() (پایین‌تر) از روی
@@ -276,6 +284,7 @@ class ObjectAssetFormViewModel(
         _imagePromptFaPreview.value = asset.imagePromptFaPreview
         _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
         loadedUpdatedAt = asset.updatedAt
+        loadedObjectAsset = asset
     }
 
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.isImagePromptStale (ADR-134). */
@@ -334,8 +343,32 @@ class ObjectAssetFormViewModel(
     fun setBasePrompt(value: String) { _basePrompt.value = value }
     fun setDescriptionFaPreview(value: String) { _descriptionFaPreview.value = value }
 
+    /**
+     * یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): validatePropUpdate تا این قدم
+     * از هیچ Screen/ViewModel واقعی صدا زده نمی‌شد. هم‌الگو با Location —
+     * سطح FORM هرگز Blocked نمی‌شود (طبق امضای واقعی validatePropUpdate در
+     * AssetContinuity.kt) — این تابع فقط continuityIssues را با یک Warning
+     * پر می‌کند، هرگز save() را متوقف نمی‌کند. isFormField تصمیم این قدم
+     * (مستند در ADR-144): size/materialAndColor مستقیم‌ترین معادل «فرم
+     * ظاهری شیء» (Rule ۹ بلوپرینت ۰۶)؛ بقیه‌ی فیلدهای ObjectAsset
+     * (name/description/subtype/specialTrait/basePrompt) فرم ظاهری محسوب
+     * نمی‌شوند.
+     */
+    private fun checkContinuityBeforeSave(newSize: String, newMaterialAndColor: String) {
+        val loaded = loadedObjectAsset
+        if (loaded == null || (loaded.size == newSize && loaded.materialAndColor == newMaterialAndColor)) {
+            _continuityIssues.value = emptyList()
+            return
+        }
+        _continuityIssues.value = when (val result = validatePropUpdate("size", isFormField = true)) {
+            is UpdateResult.Warned -> listOf(ValidationIssue(severity = Severity.WARNING, field = "size", message = result.message))
+            else -> emptyList()
+        }
+    }
+
     fun save() {
         if (!canSave.value) return
+        checkContinuityBeforeSave(_size.value, _materialAndColor.value)
         // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
         // هم‌الگو دقیق با CharacterAssetFormViewModel.save.
         val referenceImageDescription = "${_name.value} — ${_materialAndColor.value}"

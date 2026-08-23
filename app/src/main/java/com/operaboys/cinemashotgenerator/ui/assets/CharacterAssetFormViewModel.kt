@@ -20,6 +20,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.OutfitCondition
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
+import com.operaboys.cinemashotgenerator.domain.asset.UpdateResult
 import com.operaboys.cinemashotgenerator.domain.asset.buildCharacterBaseImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.buildOutfitImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
@@ -28,6 +29,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
 import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateCharacterImagePromptInputs
+import com.operaboys.cinemashotgenerator.domain.asset.validateCharacterUpdate
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
 import com.operaboys.cinemashotgenerator.domain.asset.validateOutfitImagePromptInputs
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
@@ -38,6 +40,7 @@ import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNEC
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
@@ -253,6 +256,19 @@ class CharacterAssetFormViewModel(
      * مقایسه می‌کند — نه یک updatedAt «زنده» که با هر کلیدفشاری تغییر کند.
      */
     private var loadedUpdatedAt: Long? = null
+
+    /**
+     * یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): تصویر کامل CharacterAsset
+     * بارگذاری‌شده — برخلاف loadedUpdatedAt (فقط یک Long)، اینجا کل Asset لازم
+     * است تا checkContinuityBeforeSave بتواند فیلد به فیلد با وضعیت فعلی فرم
+     * مقایسه کند. فقط یک‌بار در applyLoadedAsset پر می‌شود؛ Asset تازه
+     * (existingAssetId == null) این مقدار را null نگه می‌دارد — یک Character
+     * تازه هنوز چیزی برای قفل‌شدن ندارد.
+     */
+    private var loadedCharacterAsset: CharacterAsset? = null
+
+    private val _continuityIssues = MutableStateFlow<List<ValidationIssue>>(emptyList())
+    val continuityIssues: StateFlow<List<ValidationIssue>> = _continuityIssues.asStateFlow()
 
     // همیشه با دقیقاً یک Outfit پیش‌فرض شروع می‌شود — دقیقاً هم‌رفتار با مقدار
     // پیش‌فرض قدیمی («Default» + توضیح خالی)، تا Rule ۵ (validateDefaultOutfitExists)
@@ -557,6 +573,7 @@ class CharacterAssetFormViewModel(
         _imagePromptFaPreview.value = asset.imagePromptFaPreview
         _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
         loadedUpdatedAt = asset.updatedAt
+        loadedCharacterAsset = asset
     }
 
     fun setName(value: String) { _name.value = value }
@@ -648,6 +665,46 @@ class CharacterAssetFormViewModel(
         _outfits.value = current.mapIndexed { i, outfit -> if (i == index) outfit.copy(condition = normalized) else outfit }
     }
 
+    /**
+     * یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): validateCharacterUpdate تا این
+     * قدم از هیچ Screen/ViewModel واقعی صدا زده نمی‌شد — این تابع دقیقاً همان
+     * شکاف را می‌بندد. فقط برای ویرایش Asset موجود اجرا می‌شود
+     * (loadedCharacterAsset != null). age_range عمداً از بقیه‌ی
+     * physicalAppearance جدا مقایسه می‌شود، چون appearanceLock/ageLock دو
+     * قفل کاملاً مستقل‌اند (طبق امضای واقعی سه‌آرگومانی
+     * validateCharacterUpdate در AssetContinuity.kt) — یک تغییر فقط در
+     * ageRange نباید appearanceLock را هم فعال کند؛ `physicalAppearance.copy
+     * (ageRange = newPhysicalAppearance.ageRange)` دقیقاً همین تفکیک را با
+     * خنثی‌کردن ageRange پیش از مقایسه‌ی برابری تضمین می‌کند. asset_id بررسی
+     * نمی‌شود چون هیچ فیلد فرمی برای تغییرش وجود ندارد (existingAssetId در
+     * طول ویرایش ثابت است). نتیجه: اگر هر فیلد تغییریافته Blocked برگرداند،
+     * save() باید متوقف شود؛ Warned هرگز مانع نمی‌شود (طبق تعریف پروژه‌ای
+     * Warning).
+     */
+    private fun checkContinuityBeforeSave(newName: String, newPhysicalAppearance: PhysicalAppearance): Boolean {
+        val loaded = loadedCharacterAsset ?: run {
+            _continuityIssues.value = emptyList()
+            return true
+        }
+        val changedFields = mutableListOf<String>()
+        if (loaded.name != newName) changedFields += "name"
+        if (loaded.physicalAppearance.ageRange != newPhysicalAppearance.ageRange) changedFields += "age_range"
+        if (loaded.physicalAppearance.copy(ageRange = newPhysicalAppearance.ageRange) != newPhysicalAppearance) {
+            changedFields += "physical_appearance"
+        }
+
+        val rules = ContinuityRules()
+        val level = continuityLockLevel.value
+        _continuityIssues.value = changedFields.mapNotNull { field ->
+            when (val result = validateCharacterUpdate(level, rules, field)) {
+                is UpdateResult.Blocked -> ValidationIssue(severity = Severity.BLOCKING, field = field, message = result.reason)
+                is UpdateResult.Warned -> ValidationIssue(severity = Severity.WARNING, field = field, message = result.message)
+                UpdateResult.Allowed -> null
+            }
+        }
+        return _continuityIssues.value.none { it.severity == Severity.BLOCKING }
+    }
+
     fun save() {
         if (!canSave.value) return
         val physicalAppearance = buildPhysicalAppearance(
@@ -662,6 +719,7 @@ class CharacterAssetFormViewModel(
             facialDistinctiveMarks = _facialDistinctiveMarks.value,
             physicalFeatures = _physicalFeatures.value
         )
+        if (!checkContinuityBeforeSave(_name.value, physicalAppearance)) return
 
         // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
         // description هر ReferenceImage عمداً همین‌جا (نه در addReferenceImage)

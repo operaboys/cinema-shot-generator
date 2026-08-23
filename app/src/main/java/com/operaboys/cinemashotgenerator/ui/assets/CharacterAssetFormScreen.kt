@@ -116,6 +116,9 @@ fun outfitImagePromptStaleWarningTag(index: Int): String = "characterForm.outfit
 const val CHARACTER_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG = "characterForm.addReferenceImageButton"
 fun referenceImageRemoveButtonTag(index: Int): String = "characterForm.referenceImageRemoveButton.$index"
 
+// یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+fun characterContinuityIssueRowTag(index: Int): String = "characterForm.continuityIssueRow.$index"
+
 @Composable
 fun CharacterAssetFormScreen(
     language: Language,
@@ -158,6 +161,8 @@ fun CharacterAssetFormScreen(
     val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+    val continuityIssues by viewModel.continuityIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
 
@@ -335,6 +340,11 @@ fun CharacterAssetFormScreen(
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
+            // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): فقط بعد از یک تلاش save()
+            // واقعی پر می‌شود (نه زنده روی هر کلید) — طبق طراحی checkContinuityBeforeSave.
+            continuityIssues.forEachIndexed { index, issue ->
+                AssetFormValidationIssueRow(issue, testTag = characterContinuityIssueRowTag(index))
+            }
         }
 
         Button(

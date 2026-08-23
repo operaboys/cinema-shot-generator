@@ -13,8 +13,10 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
+import com.operaboys.cinemashotgenerator.domain.asset.Outfit
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
 import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
@@ -684,6 +686,128 @@ class CharacterAssetFormViewModelTest {
             "توضیح باید در لحظه‌ی save() از name/physicalAppearance.toPromptString() زنده‌ی فرم محاسبه شود، نه در لحظه‌ی addReferenceImage()",
             "Detective John — 30-40 other",
             loaded.referenceImages[0].description
+        )
+    }
+
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): تا این قدم validateCharacterUpdate
+    // از هیچ ViewModel واقعی صدا زده نمی‌شد — این سه تست دقیقاً همان شکاف را
+    // اثبات می‌کنند که حالا بسته شده: سطح FULL (Tier MAIN) تغییر ظاهر را واقعاً
+    // مسدود می‌کند، سطح MEDIUM (Tier SECONDARY) فقط هشدار می‌دهد و ذخیره را
+    // متوقف نمی‌کند، و یک کاراکتر تازه (بدون Asset بارگذاری‌شده) اصلاً هیچ
+    // بررسی‌ای نمی‌بیند.
+
+    @Test
+    fun `FULL level blocks an appearance change at save time and never persists it`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val original = CharacterAsset(
+            assetId = "char_full_lock_test",
+            characterTier = CharacterTier.MAIN,
+            name = "Original Name",
+            physicalAppearance = PhysicalAppearance(ageRange = "30s", gender = Gender.OTHER, height = "180cm"),
+            outfits = listOf(Outfit(id = "outfit_1", name = "Default", description = "", isDefault = true)),
+            updatedAt = 1_000L
+        )
+        repository.saveCharacterAsset("proj_full_lock_test", original).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_full_lock_test",
+            repository = repository,
+            existingAssetId = "char_full_lock_test",
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.continuityLockLevel.collect {} }
+        awaitCondition(vm.name) { it == "Original Name" }
+        awaitCondition(vm.continuityLockLevel) { it == com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel.FULL }
+        vm.setHeight("190cm")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+
+        assertFalse(
+            "با appearance_lock فعال در سطح FULL، save() نباید واقعاً چیزی ذخیره کند",
+            vm.saveCompleted.value
+        )
+        assertEquals(1, vm.continuityIssues.value.size)
+        val issue = vm.continuityIssues.value.single()
+        assertEquals(Severity.BLOCKING, issue.severity)
+        assertEquals("این کاراکتر appearance_lock دارد؛ ظاهر پس از قفل‌شدن قابل تغییر نیست", issue.message)
+        val stillOriginal = repository.loadCharacterAssets(listOf("char_full_lock_test")).getOrThrow().single()
+        assertEquals(
+            "مقدار قدیمی روی دیسک باید دست‌نخورده بماند — این دقیقاً همان تضمین Hard Lock است",
+            "180cm",
+            stillOriginal.physicalAppearance.height
+        )
+    }
+
+    @Test
+    fun `MEDIUM level only warns on an appearance change and still saves it`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val original = CharacterAsset(
+            assetId = "char_medium_warn_test",
+            characterTier = CharacterTier.SECONDARY,
+            name = "Sidekick",
+            physicalAppearance = PhysicalAppearance(ageRange = "20s", gender = Gender.OTHER, height = "170cm"),
+            outfits = listOf(Outfit(id = "outfit_1", name = "Default", description = "", isDefault = true)),
+            updatedAt = 1_000L
+        )
+        repository.saveCharacterAsset("proj_medium_warn_test", original).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_medium_warn_test",
+            repository = repository,
+            existingAssetId = "char_medium_warn_test",
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        // یافته‌ی دیباگ این تست (systematic-debugging): continuityLockLevel هم
+        // مثل canSave از combine(...).stateIn(WhileSubscribed) روی viewModelScope
+        // واقعی ساخته می‌شود — بدون این Collector، مقدار همچنان روی پیش‌فرض اولیه‌ی
+        // stateIn (FULL، برای CharacterTier.MAIN) می‌ماند، نه MEDIUM واقعی این
+        // کاراکتر SECONDARY، و checkContinuityBeforeSave به‌اشتباه Blocked برمی‌گرداند.
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.continuityLockLevel.collect {} }
+        awaitCondition(vm.name) { it == "Sidekick" }
+        awaitCondition(vm.continuityLockLevel) { it == com.operaboys.cinemashotgenerator.domain.asset.CharacterContinuityLevel.MEDIUM }
+        vm.setHeight("175cm")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertEquals(1, vm.continuityIssues.value.size)
+        val issue = vm.continuityIssues.value.single()
+        assertEquals(Severity.WARNING, issue.severity)
+        assertEquals("تغییر ظاهر یک کاراکتر Medium‌-lock — ممکن است باعث ناسازگاری جزئی شود", issue.message)
+        val updated = repository.loadCharacterAssets(listOf("char_medium_warn_test")).getOrThrow().single()
+        assertEquals(
+            "برخلاف FULL، یک Warning هرگز نباید جلوی ذخیره‌ی واقعی را بگیرد",
+            "175cm",
+            updated.physicalAppearance.height
+        )
+    }
+
+    @Test
+    fun `a brand new character with no loaded asset skips continuity checking entirely`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_new_character_no_lock_test",
+            repository = repository,
+            idProvider = { "char_new_no_lock_test" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.setName("Brand New Character")
+        vm.setAgeRange("40s")
+        vm.setHeight("200cm")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertTrue(
+            "بدون Asset بارگذاری‌شده، هیچ‌چیز برای مقایسه/قفل‌شدن وجود ندارد",
+            vm.continuityIssues.value.isEmpty()
         )
     }
 }

@@ -14,17 +14,20 @@ import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationContinuityLevel
 import com.operaboys.cinemashotgenerator.domain.asset.LocationType
 import com.operaboys.cinemashotgenerator.domain.asset.ReferenceImage
+import com.operaboys.cinemashotgenerator.domain.asset.UpdateResult
 import com.operaboys.cinemashotgenerator.domain.asset.buildLocationImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.checkSimilarAssetName
 import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
 import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateLocationImagePromptInputs
+import com.operaboys.cinemashotgenerator.domain.asset.validateLocationUpdate
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.translateToFarsi
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.validateApiKeyProvided
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.domain.validation.ValidationIssue
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
@@ -167,6 +170,12 @@ class LocationAssetFormViewModel(
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
     private var loadedUpdatedAt: Long? = null
 
+    /** یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): هم‌الگو دقیق با CharacterAssetFormViewModel.loadedCharacterAsset. */
+    private var loadedLocationAsset: LocationAsset? = null
+
+    private val _continuityIssues = MutableStateFlow<List<ValidationIssue>>(emptyList())
+    val continuityIssues: StateFlow<List<ValidationIssue>> = _continuityIssues.asStateFlow()
+
     // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
     // description هر ReferenceImage عمداً همیشه در save() (پایین‌تر) از روی
     // وضعیت فعلی فرم بازمحاسبه می‌شود، نه در همین‌جا هنگام افزودن — هم‌الگو دقیق
@@ -289,6 +298,7 @@ class LocationAssetFormViewModel(
         _imagePromptFaPreview.value = asset.imagePromptFaPreview
         _imagePromptGeneratedAt.value = asset.imagePromptGeneratedAt
         loadedUpdatedAt = asset.updatedAt
+        loadedLocationAsset = asset
     }
 
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.isImagePromptStale (ADR-134). */
@@ -355,8 +365,36 @@ class LocationAssetFormViewModel(
     fun setBasePrompt(value: String) { _basePrompt.value = value }
     fun setDescriptionFaPreview(value: String) { _descriptionFaPreview.value = value }
 
+    /**
+     * یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): validateLocationUpdate تا این
+     * قدم از هیچ Screen/ViewModel واقعی صدا زده نمی‌شد. برخلاف Character،
+     * سطح STYLE هرگز Blocked نمی‌شود (طبق امضای واقعی validateLocationUpdate
+     * در AssetContinuity.kt) — این تابع فقط continuityIssues را با یک
+     * Warning پر می‌کند، هرگز save() را متوقف نمی‌کند. isStyleField تصمیم
+     * این قدم (مستند در ADR-144): `environment` (type/size/lightingCondition)
+     * مستقیم‌ترین معادل «سبک بصری مکان» (Rule ۸ بلوپرینت ۰۶) است؛ بقیه‌ی
+     * فیلدهای LocationAsset (name/description/locationType/time-weather-
+     * compatibility/keyElements/basePrompt) سبک بصری محسوب نمی‌شوند.
+     * fieldBeingChanged واقعی تابع دامنه بی‌اثر است (فقط isStyleField نتیجه
+     * را تعیین می‌کند) — رشته‌ی "environment" فقط برای خوانایی/آینده
+     * پاس داده می‌شود.
+     */
+    private fun checkContinuityBeforeSave(newEnvironment: Environment) {
+        val loaded = loadedLocationAsset
+        if (loaded == null || loaded.environment == newEnvironment) {
+            _continuityIssues.value = emptyList()
+            return
+        }
+        _continuityIssues.value = when (val result = validateLocationUpdate("environment", isStyleField = true)) {
+            is UpdateResult.Warned -> listOf(ValidationIssue(severity = Severity.WARNING, field = "environment", message = result.message))
+            else -> emptyList()
+        }
+    }
+
     fun save() {
         if (!canSave.value) return
+        val environment = Environment(type = _environmentType.value, size = _environmentSize.value, lightingCondition = _environmentLighting.value)
+        checkContinuityBeforeSave(environment)
         // فیچر مستقل جدید «آپلود عکس مرجع واقعی Asset» — زیرقدم ۱ از ۳ (ADR-137):
         // هم‌الگو دقیق با CharacterAssetFormViewModel.save.
         val referenceImageDescription = "${_name.value} — ${_description.value}"
@@ -365,7 +403,7 @@ class LocationAssetFormViewModel(
             assetId = existingAssetId ?: idProvider(),
             name = _name.value,
             description = _description.value,
-            environment = Environment(type = _environmentType.value, size = _environmentSize.value, lightingCondition = _environmentLighting.value),
+            environment = environment,
             locationType = _locationType.value,
             timeCompatibility = _timeCompatibility.value,
             weatherCompatibility = _weatherCompatibility.value,

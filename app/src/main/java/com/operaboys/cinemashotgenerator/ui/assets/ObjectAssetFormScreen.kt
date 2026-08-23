@@ -78,6 +78,9 @@ const val OBJECT_FORM_IMAGE_PROMPT_STALE_WARNING_TAG = "objectForm.imagePromptSt
 const val OBJECT_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG = "objectForm.addReferenceImageButton"
 fun objectReferenceImageRemoveButtonTag(index: Int): String = "objectForm.referenceImageRemoveButton.$index"
 
+// یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+fun objectContinuityIssueRowTag(index: Int): String = "objectForm.continuityIssueRow.$index"
+
 @Composable
 fun ObjectAssetFormScreen(
     language: Language,
@@ -110,6 +113,8 @@ fun ObjectAssetFormScreen(
     val apiKeySavedForTranslationProfile by viewModel.apiKeySavedForTranslationProfile.collectAsStateWithLifecycle()
     val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+    val continuityIssues by viewModel.continuityIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
 
@@ -242,6 +247,10 @@ fun ObjectAssetFormScreen(
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
+            // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+            continuityIssues.forEachIndexed { index, issue ->
+                AssetFormValidationIssueRow(issue, testTag = objectContinuityIssueRowTag(index))
+            }
         }
 
         Button(

@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectSubtype
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -390,6 +391,74 @@ class ObjectAssetFormViewModelTest {
             "توضیح باید در لحظه‌ی save() از name/materialAndColor زنده‌ی فرم محاسبه شود، نه در لحظه‌ی addReferenceImage()",
             "Service Pistol — worn black metal",
             loaded.referenceImages[0].description
+        )
+    }
+
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): تا این قدم validatePropUpdate از
+    // هیچ ViewModel واقعی صدا زده نمی‌شد. برخلاف Character، سطح FORM هرگز
+    // Blocked نمی‌شود — این تست فقط اثبات می‌کند که تغییر size/materialAndColor
+    // یک Warning واقعی تولید می‌کند و ذخیره هرگز متوقف نمی‌شود.
+
+    @Test
+    fun `changing materialAndColor on an existing object only warns and still saves`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val original = ObjectAsset(
+            assetId = "obj_form_warn_test",
+            name = "Service Pistol",
+            description = "a standard-issue sidearm",
+            subtype = ObjectSubtype.GENERAL_PROP,
+            size = "small",
+            materialAndColor = "worn black metal",
+            updatedAt = 1_000L
+        )
+        repository.saveObjectAsset("proj_object_form_warn_test", original).getOrThrow()
+        val vm = ObjectAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_object_form_warn_test",
+            repository = repository,
+            existingAssetId = "obj_form_warn_test",
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        awaitCondition(vm.name) { it == "Service Pistol" }
+        vm.setMaterialAndColor("polished silver metal")
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertEquals(1, vm.continuityIssues.value.size)
+        val issue = vm.continuityIssues.value.single()
+        assertEquals(Severity.WARNING, issue.severity)
+        assertEquals("تغییر فرم ظاهری این شیء ممکن است با شات‌های قبلی ناسازگار باشد", issue.message)
+        val updated = repository.loadObjectAssets(listOf("obj_form_warn_test")).getOrThrow().single()
+        assertEquals(
+            "سطح FORM هرگز Blocking نیست — یک Warning هرگز نباید جلوی ذخیره‌ی واقعی را بگیرد",
+            "polished silver metal",
+            updated.materialAndColor
+        )
+    }
+
+    @Test
+    fun `a brand new object with no loaded asset skips continuity checking entirely`() = runBlocking {
+        val vm = ObjectAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_new_object_no_lock_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            idProvider = { "obj_new_no_lock_test" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.setName("Brand New Object")
+        vm.setSize("large")
+        vm.setMaterialAndColor("polished wood")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertTrue(
+            "بدون Asset بارگذاری‌شده، هیچ‌چیز برای مقایسه وجود ندارد",
+            vm.continuityIssues.value.isEmpty()
         )
     }
 }

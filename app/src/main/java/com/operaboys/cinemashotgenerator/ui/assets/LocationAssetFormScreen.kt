@@ -81,6 +81,9 @@ const val LOCATION_FORM_IMAGE_PROMPT_STALE_WARNING_TAG = "locationForm.imageProm
 const val LOCATION_FORM_ADD_REFERENCE_IMAGE_BUTTON_TAG = "locationForm.addReferenceImageButton"
 fun locationReferenceImageRemoveButtonTag(index: Int): String = "locationForm.referenceImageRemoveButton.$index"
 
+// یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+fun locationContinuityIssueRowTag(index: Int): String = "locationForm.continuityIssueRow.$index"
+
 @Composable
 fun LocationAssetFormScreen(
     language: Language,
@@ -116,6 +119,8 @@ fun LocationAssetFormScreen(
     val apiKeySavedForTranslationProfile by viewModel.apiKeySavedForTranslationProfile.collectAsStateWithLifecycle()
     val translationInProgress by viewModel.translationInProgress.collectAsStateWithLifecycle()
     val validationIssues by viewModel.validationIssues.collectAsStateWithLifecycle()
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+    val continuityIssues by viewModel.continuityIssues.collectAsStateWithLifecycle()
     val canSave by viewModel.canSave.collectAsStateWithLifecycle()
     val saveCompleted by viewModel.saveCompleted.collectAsStateWithLifecycle()
 
@@ -266,6 +271,10 @@ fun LocationAssetFormScreen(
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
+            // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144).
+            continuityIssues.forEachIndexed { index, issue ->
+                AssetFormValidationIssueRow(issue, testTag = locationContinuityIssueRowTag(index))
+            }
         }
 
         Button(

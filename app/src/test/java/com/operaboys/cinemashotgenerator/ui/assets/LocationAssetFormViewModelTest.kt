@@ -13,6 +13,7 @@ import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
 import com.operaboys.cinemashotgenerator.domain.asset.Environment
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
+import com.operaboys.cinemashotgenerator.domain.validation.Severity
 import com.operaboys.cinemashotgenerator.ui.dna.defaultProjectDna
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -383,6 +384,72 @@ class LocationAssetFormViewModelTest {
             "توضیح باید در لحظه‌ی save() از name/description زنده‌ی فرم محاسبه شود، نه در لحظه‌ی addReferenceImage()",
             "Detective's Office — a dimly lit office",
             loaded.referenceImages[0].description
+        )
+    }
+
+    // یافته‌ی حیاتی چکاپ نهایی (ADR-143/144): تا این قدم validateLocationUpdate
+    // از هیچ ViewModel واقعی صدا زده نمی‌شد. برخلاف Character، سطح STYLE هرگز
+    // Blocked نمی‌شود — این تست فقط اثبات می‌کند که تغییر environment یک Warning
+    // واقعی تولید می‌کند و ذخیره هرگز متوقف نمی‌شود.
+
+    @Test
+    fun `changing environment on an existing location only warns and still saves`() = runBlocking {
+        val repository = AssetRepository(injectedDatabase.assetDao())
+        val original = LocationAsset(
+            assetId = "loc_style_warn_test",
+            name = "Detective's Office",
+            description = "a dimly lit office",
+            environment = Environment(type = "indoor", size = "medium", lightingCondition = "dim"),
+            updatedAt = 1_000L
+        )
+        repository.saveLocationAsset("proj_location_style_warn_test", original).getOrThrow()
+        val vm = LocationAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_location_style_warn_test",
+            repository = repository,
+            existingAssetId = "loc_style_warn_test",
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        awaitCondition(vm.name) { it == "Detective's Office" }
+        vm.setEnvironmentLighting("bright")
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertEquals(1, vm.continuityIssues.value.size)
+        val issue = vm.continuityIssues.value.single()
+        assertEquals(Severity.WARNING, issue.severity)
+        assertEquals("تغییر سبک بصری این مکان ممکن است با شات‌های قبلی ناسازگار باشد", issue.message)
+        val updated = repository.loadLocationAssets(listOf("loc_style_warn_test")).getOrThrow().single()
+        assertEquals(
+            "سطح STYLE هرگز Blocking نیست — یک Warning هرگز نباید جلوی ذخیره‌ی واقعی را بگیرد",
+            "bright",
+            updated.environment.lightingCondition
+        )
+    }
+
+    @Test
+    fun `a brand new location with no loaded asset skips continuity checking entirely`() = runBlocking {
+        val vm = LocationAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_new_location_no_lock_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            idProvider = { "loc_new_no_lock_test" },
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.canSave.collect {} }
+        vm.setName("Brand New Location")
+        vm.setDescription("a fresh location")
+        vm.setEnvironmentLighting("bright")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.save()
+        awaitCondition(vm.saveCompleted, timeoutMs = 10_000) { it }
+
+        assertTrue(
+            "بدون Asset بارگذاری‌شده، هیچ‌چیز برای مقایسه وجود ندارد",
+            vm.continuityIssues.value.isEmpty()
         )
     }
 }
