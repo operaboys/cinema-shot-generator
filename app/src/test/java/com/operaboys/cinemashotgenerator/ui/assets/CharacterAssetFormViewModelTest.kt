@@ -14,6 +14,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterTier
 import com.operaboys.cinemashotgenerator.domain.asset.Gender
 import com.operaboys.cinemashotgenerator.domain.asset.PhysicalAppearance
+import com.operaboys.cinemashotgenerator.domain.dna.VisualStyle
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
@@ -560,6 +561,74 @@ class CharacterAssetFormViewModelTest {
         assertFalse(
             "وقتی پرامپت بعد از آخرین ویرایش Asset ساخته شده، نباید قدیمی محسوب شود",
             vm.isImagePromptStale(3_000L)
+        )
+    }
+
+    // اتصال Rule های یتیم ADR-132 (ADR-136): generatedPrompt به این توابع فقط
+    // بعد از تولید واقعی موجود است — پس اینجا (نه در ImagePromptValidationTest.kt)
+    // با generate...Quick() واقعی روی ViewModel تأیید می‌شود، نه فراخوانی مستقیم
+    // تابع خالص دامنه.
+
+    @Test
+    fun `generateCharacterBaseImagePromptQuick with an empty age range populates imagePromptValidationIssues`() = runBlocking {
+        createTestProject("proj_character_validation_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        projectDnaRepository.saveProjectDna(defaultProjectDna("proj_character_validation_test") { "dna_character_validation_test" }).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_character_validation_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.characterBaseImagePromptPreview.collect {} }
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        // ageRange عمداً خالی می‌ماند — همان ورودی ناقصی که Rule
+        // validateCharacterImagePromptInputs روی physicalAppearance.ageRange
+        // بررسی می‌کند.
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.generateCharacterBaseImagePromptQuick()
+
+        assertTrue(
+            "با physicalAppearance.ageRange خالی، imagePromptValidationIssues نباید خالی بماند",
+            vm.imagePromptValidationIssues.value.isNotEmpty()
+        )
+    }
+
+    @Test
+    fun `generateOutfitImagePromptQuick with a style keyword conflict populates that outfit's imagePromptValidationIssues`() = runBlocking {
+        createTestProject("proj_outfit_validation_test")
+        val projectDnaRepository = buildTestProjectDnaRepository()
+        // سبک پروژه عمداً PHOTOREALISTIC ست شد و توضیح Outfit شامل کلیدواژه‌ی
+        // «anime» است — دقیقاً تناقض کلیدواژه‌ای که validateStyleKeywordConflict
+        // (ImagePromptValidation.kt، فراخوانی‌شده از دل validateOutfitImagePromptInputs)
+        // بررسی می‌کند.
+        val dna = defaultProjectDna("proj_outfit_validation_test") { "dna_outfit_validation_test" }
+            .let { it.copy(coreIdentity = it.coreIdentity.copy(dominantVisualStyle = VisualStyle.PHOTOREALISTIC)) }
+        projectDnaRepository.saveProjectDna(dna).getOrThrow()
+        val vm = CharacterAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = "proj_outfit_validation_test",
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setName("Jane Doe")
+        vm.addOutfit("Convention Outfit", "anime style costume")
+
+        vm.generateOutfitImagePromptQuick(1)
+
+        val outfits = vm.outfits.value
+        assertTrue(
+            "با تناقض سبک فوتورئال/انیمیشنی، imagePromptValidationIssues همان Outfit نباید خالی بماند",
+            vm.outfitImagePromptValidationIssues.value[outfits[1].id].orEmpty().isNotEmpty()
+        )
+        assertTrue(
+            "تولید پرامپت برای Outfit دوم نباید imagePromptValidationIssues Outfit اول (پیش‌فرض) را دست بزند",
+            vm.outfitImagePromptValidationIssues.value[outfits[0].id].orEmpty().isEmpty()
         )
     }
 }

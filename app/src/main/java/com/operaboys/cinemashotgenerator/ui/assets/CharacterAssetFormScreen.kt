@@ -159,6 +159,10 @@ fun CharacterAssetFormScreen(
     val outfitImagePromptAiInProgress by viewModel.outfitImagePromptAiInProgress.collectAsStateWithLifecycle()
     val outfitImagePromptAiError by viewModel.outfitImagePromptAiError.collectAsStateWithLifecycle()
 
+    // اتصال Rule های یتیم ADR-132 (ADR-136).
+    val imagePromptValidationIssues by viewModel.imagePromptValidationIssues.collectAsStateWithLifecycle()
+    val outfitImagePromptValidationIssues by viewModel.outfitImagePromptValidationIssues.collectAsStateWithLifecycle()
+
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
     }
@@ -273,7 +277,8 @@ fun CharacterAssetFormScreen(
                 imagePromptGeneratedAt = imagePromptGeneratedAt,
                 aiInProgress = imagePromptAiInProgress,
                 aiError = imagePromptAiError,
-                apiKeySaved = apiKeySavedForTranslationProfile
+                apiKeySaved = apiKeySavedForTranslationProfile,
+                promptValidationIssues = imagePromptValidationIssues
             )
 
             OutfitsSection(
@@ -285,6 +290,7 @@ fun CharacterAssetFormScreen(
                 projectDna = projectDna,
                 outfitImagePromptAiInProgress = outfitImagePromptAiInProgress,
                 outfitImagePromptAiError = outfitImagePromptAiError,
+                outfitImagePromptValidationIssues = outfitImagePromptValidationIssues,
                 apiKeySaved = apiKeySavedForTranslationProfile
             )
 
@@ -320,7 +326,8 @@ private fun CharacterImagePromptSection(
     imagePromptGeneratedAt: Long?,
     aiInProgress: Boolean,
     aiError: String?,
-    apiKeySaved: Boolean
+    apiKeySaved: Boolean,
+    promptValidationIssues: List<ValidationIssue>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = uiString("characterForm.imagePromptSectionTitle", language), style = MaterialTheme.typography.titleSmall)
@@ -367,6 +374,7 @@ private fun CharacterImagePromptSection(
                 )
             }
         }
+        promptValidationIssues.forEach { AssetFormValidationIssueRow(it) }
         if (viewModel.isImagePromptStale(imagePromptGeneratedAt)) {
             AssetFormValidationIssueRow(
                 ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),
@@ -394,6 +402,7 @@ private fun OutfitsSection(
     projectDna: ProjectDna?,
     outfitImagePromptAiInProgress: Set<String>,
     outfitImagePromptAiError: Map<String, String>,
+    outfitImagePromptValidationIssues: Map<String, List<ValidationIssue>>,
     apiKeySaved: Boolean
 ) {
     var name by remember { mutableStateOf("") }
@@ -425,6 +434,7 @@ private fun OutfitsSection(
                     projectDna = projectDna,
                     aiInProgress = outfit.id in outfitImagePromptAiInProgress,
                     aiError = outfitImagePromptAiError[outfit.id],
+                    promptValidationIssues = outfitImagePromptValidationIssues[outfit.id].orEmpty(),
                     apiKeySaved = apiKeySaved,
                     isStale = viewModel.isImagePromptStale(outfit.imagePromptGeneratedAt),
                     onGenerateQuick = { viewModel.generateOutfitImagePromptQuick(index) },
@@ -480,6 +490,7 @@ private fun OutfitRow(
     projectDna: ProjectDna?,
     aiInProgress: Boolean,
     aiError: String?,
+    promptValidationIssues: List<ValidationIssue>,
     apiKeySaved: Boolean,
     isStale: Boolean,
     onGenerateQuick: () -> Unit,
@@ -559,6 +570,7 @@ private fun OutfitRow(
                 projectDna = projectDna,
                 aiInProgress = aiInProgress,
                 aiError = aiError,
+                promptValidationIssues = promptValidationIssues,
                 apiKeySaved = apiKeySaved,
                 isStale = isStale,
                 onGenerateQuick = onGenerateQuick,
@@ -588,6 +600,7 @@ private fun OutfitImagePromptSection(
     projectDna: ProjectDna?,
     aiInProgress: Boolean,
     aiError: String?,
+    promptValidationIssues: List<ValidationIssue>,
     apiKeySaved: Boolean,
     isStale: Boolean,
     onGenerateQuick: () -> Unit,
@@ -649,6 +662,7 @@ private fun OutfitImagePromptSection(
                     )
                 }
             }
+            promptValidationIssues.forEach { AssetFormValidationIssueRow(it) }
             if (isStale) {
                 AssetFormValidationIssueRow(
                     ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),

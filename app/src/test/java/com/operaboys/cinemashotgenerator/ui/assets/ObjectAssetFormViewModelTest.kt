@@ -305,4 +305,35 @@ class ObjectAssetFormViewModelTest {
             vm.isImagePromptStale(3_000L)
         )
     }
+
+    // اتصال Rule یتیم ADR-132 (ADR-136): generatedPrompt به این تابع فقط بعد از
+    // تولید واقعی موجود است — پس با generateImagePromptQuick() واقعی روی
+    // ViewModel تأیید می‌شود، نه فراخوانی مستقیم تابع خالص دامنه.
+    @Test
+    fun `generateImagePromptQuick with an empty materialAndColor populates imagePromptValidationIssues`() = runBlocking {
+        val projectId = "proj_object_validation_test"
+        ProjectRepository(injectedDatabase.projectDao(), idProvider = { projectId }).createProject("Image Prompt Test").getOrThrow()
+        val projectDnaRepository = ProjectDnaRepository(injectedDatabase.projectDnaDao())
+        projectDnaRepository.saveProjectDna(defaultProjectDna(projectId) { "dna_object_validation_test" }).getOrThrow()
+        val vm = ObjectAssetFormViewModel(
+            application = ApplicationProvider.getApplicationContext(),
+            projectId = projectId,
+            repository = AssetRepository(injectedDatabase.assetDao()),
+            projectDnaRepository = projectDnaRepository,
+            ioScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        )
+        CoroutineScope(Dispatchers.Unconfined).launch { vm.imagePromptPreview.collect {} }
+        awaitCondition(vm.projectDna) { it != null }
+        vm.setDescription("a worn service pistol")
+        // materialAndColor عمداً خالی می‌ماند — همان ورودی ناقصی که Rule
+        // validateObjectImagePromptInputs (materialAndColor.isBlank()) بررسی می‌کند.
+        shadowOf(Looper.getMainLooper()).idle()
+
+        vm.generateImagePromptQuick()
+
+        assertTrue(
+            "با materialAndColor خالی، imagePromptValidationIssues نباید خالی بماند",
+            vm.imagePromptValidationIssues.value.isNotEmpty()
+        )
+    }
 }

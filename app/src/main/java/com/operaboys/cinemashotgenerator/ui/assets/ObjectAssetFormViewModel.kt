@@ -18,6 +18,7 @@ import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
 import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
+import com.operaboys.cinemashotgenerator.domain.asset.validateObjectImagePromptInputs
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.BUILTIN_AI_CONNECTOR_PROFILES
 import com.operaboys.cinemashotgenerator.domain.storybreakdown.GEMINI_API_PROFILE
@@ -128,6 +129,11 @@ class ObjectAssetFormViewModel(
 
     private val _imagePromptAiError = MutableStateFlow<String?>(null)
     val imagePromptAiError: StateFlow<String?> = _imagePromptAiError.asStateFlow()
+
+    // اتصال Rule یتیم ADR-132 (ADR-136): نتیجه‌ی validateObjectImagePromptInputs
+    // روی آخرین پرامپت تولیدشده — Warning-only، هیچ دکمه‌ای را مسدود نمی‌کند.
+    private val _imagePromptValidationIssues = MutableStateFlow<List<ValidationIssue>>(emptyList())
+    val imagePromptValidationIssues: StateFlow<List<ValidationIssue>> = _imagePromptValidationIssues.asStateFlow()
 
     /** هم‌الگو دقیق با CharacterAssetFormViewModel.loadedUpdatedAt (ADR-134). */
     private var loadedUpdatedAt: Long? = null
@@ -259,8 +265,10 @@ class ObjectAssetFormViewModel(
     /** پرامپت سریع (بدون AI) — فوری، بدون فراخوان شبکه. */
     fun generateImagePromptQuick() {
         val dna = _projectDna.value ?: return
-        _imagePromptQuick.value = buildObjectImagePrompt(objectSnapshot.value, dna)
+        val prompt = buildObjectImagePrompt(objectSnapshot.value, dna)
+        _imagePromptQuick.value = prompt
         _imagePromptGeneratedAt.value = System.currentTimeMillis()
+        _imagePromptValidationIssues.value = validateObjectImagePromptInputs(objectSnapshot.value, dna, prompt)
     }
 
     /**
@@ -290,6 +298,7 @@ class ObjectAssetFormViewModel(
                     _imagePromptAi.value = response.imagePromptEn
                     _imagePromptFaPreview.value = response.imagePromptFa
                     _imagePromptGeneratedAt.value = System.currentTimeMillis()
+                    _imagePromptValidationIssues.value = validateObjectImagePromptInputs(objectSnapshot.value, dna, response.imagePromptEn)
                 },
                 onFailure = { _imagePromptAiError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
             )

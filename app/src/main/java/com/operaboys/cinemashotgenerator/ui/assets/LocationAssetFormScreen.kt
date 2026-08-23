@@ -108,6 +108,8 @@ fun LocationAssetFormScreen(
     val imagePromptGeneratedAt by viewModel.imagePromptGeneratedAt.collectAsStateWithLifecycle()
     val imagePromptAiInProgress by viewModel.imagePromptAiInProgress.collectAsStateWithLifecycle()
     val imagePromptAiError by viewModel.imagePromptAiError.collectAsStateWithLifecycle()
+    // اتصال Rule یتیم ADR-132 (ADR-136).
+    val imagePromptValidationIssues by viewModel.imagePromptValidationIssues.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveCompleted) {
         if (saveCompleted) onSaved()
@@ -214,7 +216,8 @@ fun LocationAssetFormScreen(
                 imagePromptGeneratedAt = imagePromptGeneratedAt,
                 aiInProgress = imagePromptAiInProgress,
                 aiError = imagePromptAiError,
-                apiKeySaved = apiKeySavedForTranslationProfile
+                apiKeySaved = apiKeySavedForTranslationProfile,
+                promptValidationIssues = imagePromptValidationIssues
             )
 
             validationIssues.forEach { AssetFormValidationIssueRow(it) }
@@ -247,7 +250,8 @@ private fun LocationImagePromptSection(
     imagePromptGeneratedAt: Long?,
     aiInProgress: Boolean,
     aiError: String?,
-    apiKeySaved: Boolean
+    apiKeySaved: Boolean,
+    promptValidationIssues: List<ValidationIssue>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = uiString("locationForm.imagePromptSectionTitle", language), style = MaterialTheme.typography.titleSmall)
@@ -294,6 +298,7 @@ private fun LocationImagePromptSection(
                 )
             }
         }
+        promptValidationIssues.forEach { AssetFormValidationIssueRow(it) }
         if (viewModel.isImagePromptStale(imagePromptGeneratedAt)) {
             AssetFormValidationIssueRow(
                 ValidationIssue(Severity.WARNING, message = uiString("assetForm.imagePromptStaleWarning", language)),

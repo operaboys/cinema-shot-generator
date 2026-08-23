@@ -26,7 +26,9 @@ import com.operaboys.cinemashotgenerator.domain.asset.defaultLockLevelForTier
 import com.operaboys.cinemashotgenerator.domain.asset.generateImagePromptWithAi
 import com.operaboys.cinemashotgenerator.domain.asset.styleTokensForImagePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
+import com.operaboys.cinemashotgenerator.domain.asset.validateCharacterImagePromptInputs
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
+import com.operaboys.cinemashotgenerator.domain.asset.validateOutfitImagePromptInputs
 import com.operaboys.cinemashotgenerator.domain.dna.ProjectDna
 import com.operaboys.cinemashotgenerator.domain.scene.LocationType
 import com.operaboys.cinemashotgenerator.domain.scene.TimeOfDay
@@ -220,6 +222,12 @@ class CharacterAssetFormViewModel(
     private val _imagePromptAiError = MutableStateFlow<String?>(null)
     val imagePromptAiError: StateFlow<String?> = _imagePromptAiError.asStateFlow()
 
+    // اتصال Rule های یتیم ADR-132 (ADR-136): نتیجه‌ی validateCharacterImagePromptInputs
+    // روی آخرین پرامپت تولیدشده (سریع یا AI، هرکدام آخر بار موفق بود) — Warning-only،
+    // هیچ دکمه‌ای را مسدود نمی‌کند، فقط پس از هر تولید موفق دوباره محاسبه می‌شود.
+    private val _imagePromptValidationIssues = MutableStateFlow<List<ValidationIssue>>(emptyList())
+    val imagePromptValidationIssues: StateFlow<List<ValidationIssue>> = _imagePromptValidationIssues.asStateFlow()
+
     // هر Outfit در حال Generate با AI با شناسه‌ی خودش (outfit.id) ردیابی می‌شود —
     // چون هر ردیف Outfit مستقل از بقیه است (کاربر می‌تواند هم‌زمان روی دو Outfit
     // مختلف کلیک کند)، یک Boolean سراسری تک‌مقداره کافی نبود.
@@ -228,6 +236,12 @@ class CharacterAssetFormViewModel(
 
     private val _outfitImagePromptAiError = MutableStateFlow<Map<String, String>>(emptyMap())
     val outfitImagePromptAiError: StateFlow<Map<String, String>> = _outfitImagePromptAiError.asStateFlow()
+
+    // اتصال Rule های یتیم ADR-132 (ADR-136): هم‌الگو با outfitImagePromptAiInProgress —
+    // نتیجه‌ی validateOutfitImagePromptInputs هر Outfit با outfit.id خودش ردیابی
+    // می‌شود، چون نتیجه‌ی هر Outfit مستقل است و با تولید Outfit بعدی جایگزین نمی‌شود.
+    private val _outfitImagePromptValidationIssues = MutableStateFlow<Map<String, List<ValidationIssue>>>(emptyMap())
+    val outfitImagePromptValidationIssues: StateFlow<Map<String, List<ValidationIssue>>> = _outfitImagePromptValidationIssues.asStateFlow()
 
     /**
      * زمان آخرین ذخیره‌ی واقعی این Asset روی دیسک، قبل از این جلسه‌ی ویرایش —
@@ -405,8 +419,10 @@ class CharacterAssetFormViewModel(
     /** پرامپت سریع (بدون AI) شخصیت پایه — فوری، بدون فراخوان شبکه. */
     fun generateCharacterBaseImagePromptQuick() {
         val dna = _projectDna.value ?: return
-        _imagePromptQuick.value = buildCharacterBaseImagePrompt(characterSnapshot.value, dna)
+        val prompt = buildCharacterBaseImagePrompt(characterSnapshot.value, dna)
+        _imagePromptQuick.value = prompt
         _imagePromptGeneratedAt.value = System.currentTimeMillis()
+        _imagePromptValidationIssues.value = validateCharacterImagePromptInputs(characterSnapshot.value, dna, prompt)
     }
 
     /**
@@ -439,6 +455,7 @@ class CharacterAssetFormViewModel(
                     _imagePromptAi.value = response.imagePromptEn
                     _imagePromptFaPreview.value = response.imagePromptFa
                     _imagePromptGeneratedAt.value = System.currentTimeMillis()
+                    _imagePromptValidationIssues.value = validateCharacterImagePromptInputs(characterSnapshot.value, dna, response.imagePromptEn)
                 },
                 onFailure = { _imagePromptAiError.value = it.message ?: "درخواست به AI Connector با خطا مواجه شد" }
             )
@@ -455,6 +472,7 @@ class CharacterAssetFormViewModel(
         val outfit = _outfits.value.getOrNull(index) ?: return
         val prompt = buildOutfitImagePrompt(outfit, characterSnapshot.value, dna)
         updateOutfitById(outfit.id) { it.copy(imagePromptQuick = prompt, imagePromptGeneratedAt = System.currentTimeMillis()) }
+        _outfitImagePromptValidationIssues.value = _outfitImagePromptValidationIssues.value + (outfit.id to validateOutfitImagePromptInputs(outfit, dna, prompt))
     }
 
     /**
@@ -486,6 +504,7 @@ class CharacterAssetFormViewModel(
                     updateOutfitById(outfit.id) {
                         it.copy(imagePromptAi = response.imagePromptEn, imagePromptFaPreview = response.imagePromptFa, imagePromptGeneratedAt = System.currentTimeMillis())
                     }
+                    _outfitImagePromptValidationIssues.value = _outfitImagePromptValidationIssues.value + (outfit.id to validateOutfitImagePromptInputs(outfit, dna, response.imagePromptEn))
                 },
                 onFailure = {
                     _outfitImagePromptAiError.value = _outfitImagePromptAiError.value + (outfit.id to (it.message ?: "درخواست به AI Connector با خطا مواجه شد"))
