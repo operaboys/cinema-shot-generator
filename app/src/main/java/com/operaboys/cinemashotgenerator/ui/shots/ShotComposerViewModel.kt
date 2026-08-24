@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.SecureKeyRepository
@@ -14,6 +15,7 @@ import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
 import com.operaboys.cinemashotgenerator.domain.asset.CharacterAsset
 import com.operaboys.cinemashotgenerator.domain.asset.LocationAsset
 import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
+import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
 import com.operaboys.cinemashotgenerator.domain.camera.AdvancedMovementType
 import com.operaboys.cinemashotgenerator.domain.camera.BasicMovementType
 import com.operaboys.cinemashotgenerator.domain.camera.CameraAngle
@@ -135,6 +137,9 @@ class ShotComposerViewModel(
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰) —
+    // هم‌الگو با بقیه‌ی Repository های تزریق‌پذیر همین ViewModel.
+    private val audioContextRepository: AudioContextRepository = AudioContextRepository(AppDatabase.getInstance(application).audioContextDao()),
     private val idProvider: () -> String = ::generateShotId,
     // فیچر مستقل «ترجمه‌ی مجدد با AI» (ADR-124) — هم‌الگو دقیق با
     // CharacterAssetFormViewModel.
@@ -163,6 +168,17 @@ class ShotComposerViewModel(
     private var cachedCharacterAssets: List<CharacterAsset> = emptyList()
     private var cachedObjectAssets: List<ObjectAsset> = emptyList()
     private var cachedLocationAssets: List<LocationAsset> = emptyList()
+
+    /**
+     * اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount): هم‌الگو
+     * دقیق با cachedScene/cachedDna بالا — یک‌بار در init بارگذاری می‌شود، نه در
+     * refreshValidationSummary (که عمداً یک تابع خالص/بدون I/O است، طبق کامنت
+     * مستند خودِ همان تابع — هر بار با هر کلیدفشاری صدا زده می‌شود). AudioContext
+     * از طریق این ViewModel هرگز تغییر نمی‌کند (Tab «صدا» فیلدهای Shot.soundProfile
+     * را ویرایش می‌کند، یک نوع کاملاً جدا از AudioContext)، پس بارگذاری یک‌باره
+     * همان تازگی کافی را دارد.
+     */
+    private var cachedAudioContext: AudioContext? = null
 
     private val _validationSummary = MutableStateFlow(AggregatedValidationReport(emptyList()))
     val validationSummary: StateFlow<AggregatedValidationReport> = _validationSummary.asStateFlow()
@@ -485,6 +501,7 @@ class ShotComposerViewModel(
                 cachedObjectAssets = assetRepository.loadObjectAssets(shotForAssets.objectIds).getOrNull() ?: emptyList()
                 cachedLocationAssets = assetRepository.loadLocationAssets(shotForAssets.locationIds).getOrNull() ?: emptyList()
             }
+            cachedAudioContext = audioContextRepository.loadAudioContext(shotId).getOrNull()
 
             _isReady.value = true
             refreshValidationSummary()
@@ -546,7 +563,7 @@ class ShotComposerViewModel(
         val scene = cachedScene ?: return
         val dna = cachedDna ?: return
         _validationSummary.value = aggregateShotValidation(
-            shot, scene, dna, cachedCharacterAssets, cachedObjectAssets, cachedLocationAssets
+            shot, scene, dna, cachedCharacterAssets, cachedObjectAssets, cachedLocationAssets, cachedAudioContext
         )
         // تکمیل Rule یتیم — قدم ۴ از ۴ (ADR-112): همان scene/dna محاسبه‌ی بالا —
         // بدون بارگذاری/محاسبه‌ی جداگانه.

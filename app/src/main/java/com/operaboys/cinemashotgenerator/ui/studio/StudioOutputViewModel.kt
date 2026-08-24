@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.SceneRepository
 import com.operaboys.cinemashotgenerator.data.repository.ShotRepository
@@ -53,6 +54,8 @@ class StudioOutputViewModel(
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰).
+    private val audioContextRepository: AudioContextRepository = AudioContextRepository(AppDatabase.getInstance(application).audioContextDao()),
     ioScopeOverride: CoroutineScope? = null
 ) : AndroidViewModel(application) {
 
@@ -85,7 +88,8 @@ class StudioOutputViewModel(
                 val characterAssets = assetRepository.loadCharacterAssets(shot.characterIds).getOrNull() ?: emptyList()
                 val objectAssets = assetRepository.loadObjectAssets(shot.objectIds).getOrNull() ?: emptyList()
                 val locationAssets = assetRepository.loadLocationAssets(shot.locationIds).getOrNull() ?: emptyList()
-                val report = aggregateShotValidation(shot, scene, dna, characterAssets, objectAssets, locationAssets)
+                val audioContext = audioContextRepository.loadAudioContext(shot.shotId).getOrNull()
+                val report = aggregateShotValidation(shot, scene, dna, characterAssets, objectAssets, locationAssets, audioContext)
                 StudioOutputShotSummary(
                     shotId = shot.shotId,
                     sceneId = scene.sceneId,
@@ -109,20 +113,22 @@ class StudioOutputViewModel(
             shotRepository: ShotRepository? = null,
             sceneRepository: SceneRepository? = null,
             projectDnaRepository: ProjectDnaRepository? = null,
-            assetRepository: AssetRepository? = null
+            assetRepository: AssetRepository? = null,
+            audioContextRepository: AudioContextRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null) {
+                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null || audioContextRepository != null) {
                             StudioOutputViewModel(
                                 application = application,
                                 projectId = projectId,
                                 shotRepository = shotRepository ?: ShotRepository(AppDatabase.getInstance(application).shotDao()),
                                 sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
                                 projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
-                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao())
+                                assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                audioContextRepository = audioContextRepository ?: AudioContextRepository(AppDatabase.getInstance(application).audioContextDao())
                             )
                         } else {
                             StudioOutputViewModel(application, projectId)

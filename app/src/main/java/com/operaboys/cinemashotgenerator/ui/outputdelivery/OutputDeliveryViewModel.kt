@@ -273,7 +273,11 @@ class OutputDeliveryViewModel(
                 dna = input.dna,
                 characterAssets = input.characters,
                 objectAssets = input.objects,
-                locationAssets = input.locations
+                locationAssets = input.locations,
+                // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount):
+                // input.audioContext از قبل توسط promptGenerationRepository.collectData
+                // بارگذاری شده — بدون نیاز به Repository جدید یا فراخوان I/O دوم.
+                audioContext = input.audioContext
             ).issues.map { it.issue }.filter { it.severity == Severity.WARNING }
 
             val blueprint = assemblePromptBlueprint(

@@ -2857,3 +2857,11 @@ docs/adr/         → تصمیمات و انحرافات تأییدشده در �
   یک کاراکتر FULL **هیچ راه رسمی** برای تغییر ظاهرش ندارد — نه از فرم
   (اکنون Blocked)، نه از Evolution (وجود ندارد) — تا وقتی این فیچر جدا
   طراحی و ساخته شود؛ این یک محدودیت شناخته‌شده‌ی تازه است، نه باگ.
+- ~~`checkTotalSoundLayerCount` (Rule 1 واحد ۱۰، مجموع لایه‌های صوتی بیش
+  از ۸) هرگز از `aggregateShotValidation` (واحد ۰۷) صدا زده نمی‌شد~~ —
+  **رفع شد** (یافته‌ی مرتبط چکاپ جامع نهایی، ADR-143/145): `aggregateShotValidation`
+  اکنون یک پارامتر Nullable `audioContext` می‌گیرد و در سطح
+  LOGICAL_CONSISTENCY این Rule را اجرا می‌کند. هر چهار فراخوان‌کننده
+  (Shot Composer، Output Delivery، صفحه‌ی Validation، Studio Dashboard)
+  اکنون `AudioContext` واقعی شات را بارگذاری/پاس می‌دهند — کاربر با
+  بیش از ۸ لایه‌ی صوتی اکنون یک هشدار واقعی می‌بیند.

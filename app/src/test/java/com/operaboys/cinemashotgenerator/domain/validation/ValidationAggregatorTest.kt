@@ -46,6 +46,8 @@ import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingMotivati
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.LightingSettings
 import com.operaboys.cinemashotgenerator.domain.sceneconditions.WeatherType
 import com.operaboys.cinemashotgenerator.domain.dna.LightingStyle
+import com.operaboys.cinemashotgenerator.domain.audio.AmbientSound
+import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
 import com.operaboys.cinemashotgenerator.domain.shot.ActionSound
 import com.operaboys.cinemashotgenerator.domain.shot.MotionLevel
 import com.operaboys.cinemashotgenerator.domain.shot.Shot
@@ -473,5 +475,47 @@ class ValidationAggregatorTest {
 
         assertTrue(report.issues.none { it.issue.message.contains("Intensity") })
         assertTrue(report.issues.none { it.issue.message.contains("Blur") })
+    }
+
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰):
+    // سه تست زیر دقیقاً همان سه سناریوی الزامی دستور کار را پوشش می‌دهند.
+
+    private fun audioContextWithLayerCount(total: Int): AudioContext = AudioContext(
+        audioContextId = "audio_001",
+        shotId = "shot_001",
+        ambientSounds = (1..total).map { AmbientSound(type = "wind", intensity = "medium", description = "layer $it", source = "weather") }
+    )
+
+    @Test
+    fun `an AudioContext with more than 8 total sound layers produces a real Level 2 warning`() {
+        val report = aggregateShotValidation(
+            neutralShot(), neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList(),
+            audioContext = audioContextWithLayerCount(9)
+        )
+
+        val level2 = report.issuesAtLevel(ValidationLevel.LOGICAL_CONSISTENCY)
+        val soundLayerIssue = level2.firstOrNull { it.issue.message.contains("لایه‌های صوتی") }
+        assertTrue(soundLayerIssue != null)
+        assertEquals(Severity.WARNING, soundLayerIssue!!.issue.severity)
+    }
+
+    @Test
+    fun `an AudioContext with exactly 8 total sound layers produces no sound-layer warning`() {
+        val report = aggregateShotValidation(
+            neutralShot(), neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList(),
+            audioContext = audioContextWithLayerCount(8)
+        )
+
+        assertTrue(report.issues.none { it.issue.message.contains("لایه‌های صوتی") })
+    }
+
+    @Test
+    fun `omitting audioContext (the previous default behavior) never produces a sound-layer issue`() {
+        val report = aggregateShotValidation(
+            neutralShot(), neutralScene(), neutralDna(), listOf(neutralCharacterAsset()), emptyList(), emptyList()
+        )
+
+        assertTrue(report.issues.none { it.issue.message.contains("لایه‌های صوتی") })
+        assertEquals(0, report.issues.size)
     }
 }

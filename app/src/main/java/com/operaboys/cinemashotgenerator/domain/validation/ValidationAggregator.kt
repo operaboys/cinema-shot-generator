@@ -6,6 +6,8 @@ import com.operaboys.cinemashotgenerator.domain.asset.ObjectAsset
 import com.operaboys.cinemashotgenerator.domain.asset.validateBasePrompt
 import com.operaboys.cinemashotgenerator.domain.asset.validateDefaultOutfitExists
 import com.operaboys.cinemashotgenerator.domain.asset.validateObjectAsset
+import com.operaboys.cinemashotgenerator.domain.audio.AudioContext
+import com.operaboys.cinemashotgenerator.domain.audio.checkTotalSoundLayerCount
 import com.operaboys.cinemashotgenerator.domain.audio.validateActionSoundTimeline
 import com.operaboys.cinemashotgenerator.domain.camera.CameraMovement
 import com.operaboys.cinemashotgenerator.domain.camera.checkExtremeWideWithShallowDepthOfField
@@ -92,7 +94,11 @@ fun aggregateShotValidation(
     dna: ProjectDna,
     characterAssets: List<CharacterAsset>,
     objectAssets: List<ObjectAsset>,
-    locationAssets: List<LocationAsset>
+    locationAssets: List<LocationAsset>,
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰):
+    // Nullable با پیش‌فرض null — Backward Compatible، چون بعضی شات‌ها هنوز
+    // AudioContext ندارند (طبق طراحی خودِ AudioContextRepository.loadAudioContext).
+    audioContext: AudioContext? = null
 ): AggregatedValidationReport {
     val issues = mutableListOf<LeveledValidationIssue>()
     fun add(level: ValidationLevel, issue: ValidationIssue?) {
@@ -163,6 +169,13 @@ fun aggregateShotValidation(
     }
     add(l2, checkNoonLightingInIndoor(scene.timeOfDay, scene.location.type))
     add(l2, checkCalmAtmosphereInClimax(scene.narrativeRole, scene.atmospherePrimary))
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰):
+    // در Level 2 (نه ۱ یا ۳) چون فقط فیلدهای خودِ همین AudioContext را با هم
+    // می‌سنجد (مجموع سه لیست در برابر یک آستانه‌ی ثابت) — نه کامل‌بودن داده‌ی
+    // الزامی شات (Level 1، مثل validateActionSoundTimeline بالا که Rule 2 همین
+    // واحد است و Blocking است)، و نه وابستگی به DNA/Scene/Asset (Level 3). هم‌الگو
+    // دقیق با checkSlowMotionInDialogue/checkCalmAtmosphereInClimax بالا.
+    audioContext?.let { add(l2, checkTotalSoundLayerCount(it)) }
 
     // ۵ Rule «نور» واحد ۰۸ (بلوپرینت 08-scene-conditions.md بخش الف)
     shot.lighting.overrideValue?.let { lighting ->

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.operaboys.cinemashotgenerator.data.AppDatabase
 import com.operaboys.cinemashotgenerator.data.repository.AssetRepository
+import com.operaboys.cinemashotgenerator.data.repository.AudioContextRepository
 import com.operaboys.cinemashotgenerator.data.repository.HumanOverrideRepository
 import com.operaboys.cinemashotgenerator.data.repository.ProjectDnaRepository
 import com.operaboys.cinemashotgenerator.data.repository.RoomOverrideEventLogger
@@ -49,6 +50,8 @@ class ValidationViewModel(
     private val sceneRepository: SceneRepository = SceneRepository(AppDatabase.getInstance(application).sceneDao()),
     private val projectDnaRepository: ProjectDnaRepository = ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
     private val assetRepository: AssetRepository = AssetRepository(AppDatabase.getInstance(application).assetDao()),
+    // اتصال Rule یتیم گزارش‌شده در ADR-143 (checkTotalSoundLayerCount، واحد ۱۰).
+    private val audioContextRepository: AudioContextRepository = AudioContextRepository(AppDatabase.getInstance(application).audioContextDao()),
     // رفع یافته‌ی معماری «Human Override هرگز به UI وصل نشده» (G3/ADR-067،
     // ADR-068): database تزریقی برای ساخت HumanOverrideRepository/
     // RoomOverrideEventLogger — هم‌الگو با ADR-059/063.
@@ -81,7 +84,8 @@ class ValidationViewModel(
                 val characterAssets = assetRepository.loadCharacterAssets(shot.characterIds).getOrNull() ?: emptyList()
                 val objectAssets = assetRepository.loadObjectAssets(shot.objectIds).getOrNull() ?: emptyList()
                 val locationAssets = assetRepository.loadLocationAssets(shot.locationIds).getOrNull() ?: emptyList()
-                _report.value = aggregateShotValidation(shot, scene, dna, characterAssets, objectAssets, locationAssets)
+                val audioContext = audioContextRepository.loadAudioContext(shotId).getOrNull()
+                _report.value = aggregateShotValidation(shot, scene, dna, characterAssets, objectAssets, locationAssets, audioContext)
             }
             _isLoaded.value = true
         }
@@ -185,13 +189,16 @@ class ValidationViewModel(
             sceneRepository: SceneRepository? = null,
             projectDnaRepository: ProjectDnaRepository? = null,
             assetRepository: AssetRepository? = null,
-            database: AppDatabase? = null
+            database: AppDatabase? = null,
+            // آخر لیست، بعد از database — تا فراخوان‌های موقعیتی موجود (مثل
+            // ValidationScreen.kt) با افزودن این پارامتر نشکنند.
+            audioContextRepository: AudioContextRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
                     (
-                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null || database != null) {
+                        if (shotRepository != null || sceneRepository != null || projectDnaRepository != null || assetRepository != null || audioContextRepository != null || database != null) {
                             ValidationViewModel(
                                 application = application,
                                 projectId = projectId,
@@ -201,6 +208,7 @@ class ValidationViewModel(
                                 sceneRepository = sceneRepository ?: SceneRepository(AppDatabase.getInstance(application).sceneDao()),
                                 projectDnaRepository = projectDnaRepository ?: ProjectDnaRepository(AppDatabase.getInstance(application).projectDnaDao()),
                                 assetRepository = assetRepository ?: AssetRepository(AppDatabase.getInstance(application).assetDao()),
+                                audioContextRepository = audioContextRepository ?: AudioContextRepository(AppDatabase.getInstance(application).audioContextDao()),
                                 database = database
                             )
                         } else {
